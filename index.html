@@ -1,23 +1,43 @@
 <!DOCTYPE html>
 <html>
-<head>
-<title>Page Title</title>
-</head>
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>title</title>
+        <style>
+            body {
+
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background-color: #ffffff;
+        }
+
+        .content {
+            text-align: center; /* Center text horizontally */
+            width: 80%; /* Adjust the width of the container */
+            overflow: visible; /* Set overflow to visible */
+            padding: 20px; /* Add padding to the container */
+            margin: 0 auto;
+        } 
+    </style>
+    </head>
 
 <body>
 
-<h1>My First Heading</h1>
-<p>My first paragraph.</p>
-<p>My second paragraph.</p>
+    
+    <div class="content">
+        <h1>EMMAs: Exploring Molecular Modeling through case-based Activities </h1>
+        <p>Ponatinib...   </p>
 
 
-    <script src="https://3Dmol.org/build/3Dmol-min.js"></script>     
-    <script src="https://3Dmol.org/build/3Dmol.ui-min.js"></script>     
- 
-    <div style="height: 800px; width: 800px; position: relative;" class='viewer_3Dmoljs' data-pdb='2POR' data-backgroundcolor='0xffffff' data-style='stick' data-ui='true'></div>       
-
+        <script src="https://3Dmol.org/build/3Dmol-min.js"></script>     
+        <script src="https://3Dmol.org/build/3Dmol.ui-min.js"></script>     
+        <div style="height: 800px; width: 800px; position: relative; left: 50%; transform: translateX(-50%);" class='viewer_3Dmoljs' data-href='http://127.0.0.1:8080/ponatinib_Sep2022.pdb' data-backgroundcolor='0xffffff' data-style='stick' data-ui='true'></div> 
+    </div>
 
 </body>
 </html>
+
 
 
