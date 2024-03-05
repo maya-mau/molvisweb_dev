@@ -1,42 +1,84 @@
 <!DOCTYPE html>
-<html>
+<html lang="en-US">
     <head>
+        <script type="importmap">
+            {
+              "imports": {
+                "three": "https://unpkg.com/three@0.161.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.161.0/examples/jsm/"
+              }
+            }
+        </script>
+          
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>title</title>
+        <title>EMMAs</title>
+        <script src="https://3Dmol.org/build/3Dmol-min.js"></script>     
+        <script src="https://3Dmol.org/build/3Dmol.ui-min.js"></script> 
+        <script type="module" src="/Users/scoutpainter/Desktop/research/radlab/github/scoutdp.github.io/node_modules/three/examples/jsm/loaders/PDBLoader.js"></script>  
+        <script type="module" src="/Users/scoutpainter/Desktop/research/radlab/github/scoutdp.github.io/node_modules/three/examples/jsm/controls/TrackballControls.js"></script>  
+        <script type="module" src="/Users/scoutpainter/Desktop/research/radlab/github/scoutdp.github.io/node_modules/three/examples/jsm/renderers/CSS2DRenderer.js"></script>  
+        <script type="module" src="/Users/scoutpainter/Desktop/research/radlab/github/scoutdp.github.io/node_modules/three/examples/jsm/libs/lil-gui.module.min.js"></script>  
+        <script type="module" src="/Users/scoutpainter/Desktop/research/radlab/github/scoutdp.github.io/node_modules/three/examples/jsm/controls/OrbitControls.js"></script>  
+        <script type="module" src="/Users/scoutpainter/Desktop/research/radlab/github/scoutdp.github.io/node_modules/three/examples/jsm/loaders/OBJLoader.js"></script>  
+
+        
+
+        
         <style>
             body {
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                background-color: #ffffff;
+            }
 
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            background-color: #ffffff;
-        }
+            .content {
+                text-align: center; 
+                width: 90%; 
+                overflow: visible; 
+                padding: 20px; 
+                margin: 0 auto;
+            } 
 
-        .content {
-            text-align: center; /* Center text horizontally */
-            width: 80%; /* Adjust the width of the container */
-            overflow: visible; /* Set overflow to visible */
-            padding: 20px; /* Add padding to the container */
-            margin: 0 auto;
-        } 
-    </style>
+            #scene-container {
+                width: 800px;
+                height: 600px;
+                margin: 20px auto; /* Center the container horizontally */
+                border: 1px solid black; /* Optional: Add border for visibility */
+            }
+
+            .container {
+                width: 800px;
+                height: 600px;
+                margin: 20px auto; /* Center the container horizontally */
+                border: 1px solid rgb(237, 13, 13); /* Optional: Add border for visibility */
+            }
+        </style>
     </head>
 
-<body>
+    <body>
+        <div class="content">
+            <h1>EMMAs: Exploring Molecular Modeling through case-based Activities </h1>
+            <p>Ponatinib...   </p>
+  <!--
+            <div 
+                style="height: 800px; width: 800px; position: relative; left: 50%; transform: translateX(-50%);" 
+                class='viewer_3Dmoljs' 
+                data-href='http://localhost:5173/ponatinib_Sep2022.pdb' 
+                data-backgroundcolor='0xffffff' 
+                data-style='stick' 
+                data-ui='true'>
+            </div>
 
-    
-    <div class="content">
-        <h1>EMMAs: Exploring Molecular Modeling through case-based Activities </h1>
-        <p>Ponatinib...   </p>
+            <div id="scene-container"></div>--> 
+            <div id="container"></div>
 
-
-        <script src="https://3Dmol.org/build/3Dmol-min.js"></script>     
-        <script src="https://3Dmol.org/build/3Dmol.ui-min.js"></script>     
-        <div style="height: 800px; width: 800px; position: relative; left: 50%; transform: translateX(-50%);" class='viewer_3Dmoljs' data-href='http://127.0.0.1:8080/ponatinib_Sep2022.pdb' data-backgroundcolor='0xffffff' data-style='stick' data-ui='true'></div> 
-    </div>
-
-</body>
+        </div>
+        <script type = "module" src="http://localhost:5173/interactiveVMD.js"></script>
+        
+        
+    </body>
 </html>
 
 
