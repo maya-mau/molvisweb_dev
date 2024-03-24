@@ -4,6 +4,7 @@ import * as THREE from 'three';
 import { TrackballControls } from 'three/addons/controls/TrackballControls.js';
 import { PDBLoader } from 'three/addons/loaders/PDBLoader.js';
 import { OBJLoader } from 'three/addons/loaders/OBJLoader.js';
+import { MTLLoader } from 'three/addons/loaders/MTLLoader.js';
 import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
 import { GUI } from 'three/addons/libs/lil-gui.module.min.js';
 //import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
@@ -36,16 +37,17 @@ const mculeParams = {
 };
 
 const REPRESENTATIONS = {
-    'lines': 'linescene.obj',
-    'VDWs': 'scene.obj',
+    'lines': 'linescene',
+    'VDWs': 'scene',
 };
 
 const repParams = {
-    representation: 'scene.obj',
+    representation: 'scene',
 };
 
 const PDBloader = new PDBLoader();
 const OBJloader = new OBJLoader();
+const MTLloader = new MTLLoader(); 
 const offset = new THREE.Vector3();
 
 init();
@@ -121,7 +123,7 @@ function init() {
 
 function loadMolecule( model ) {
 
-    const url = model;
+    const url = '/models/molecules/' + model;
 
     while ( root.children.length > 0 ) {
         const object = root.children[ 0 ];
@@ -130,6 +132,7 @@ function loadMolecule( model ) {
 
     PDBloader.load( url, function ( pdb ) {
 
+        console.log(pdb)
         geometryAtoms = pdb.geometryAtoms;
         geometryBonds = pdb.geometryBonds;
         json = pdb.json;
@@ -226,31 +229,34 @@ function loadMolecule( model ) {
 
 function loadRepresentation( model ) {
 
-    const url = model;
+    const url = 'models/representations/' + model;
 
     while ( root.children.length > 0 ) {
         const object = root.children[ 0 ];
         object.parent.remove( object );
     }
 
-    OBJloader.load( url,
-	// called when resource is loaded
-	function ( object ) {
-        console.log(object)
-        
-        
-        //object.boundingBox.getCenter( offset ).negate();
-        //object.translate( offset.x, offset.y, offset.z );
+    MTLloader.load(url + '.mtl', function(materials) {
+        materials.preload();
+        OBJloader.setMaterials(materials);
+    
+        OBJloader.load(url + '.obj', function(object) {
+            let boundingBox = new THREE.Box3().setFromObject(object)
+            let measure = new THREE.Vector3();
+            let size = boundingBox.getSize(measure); // HEREyou get the size
+            console.log(size);
 
-        //object.position.copy( position );
-       // object.position.multiplyScalar( 75 );
-       // object.scale.multiplyScalar( 25 );
-        
-        root.add( object ); 
-        render(); 
-        
-    } 
-    ) 
+            object.position.multiplyScalar(75);
+            object.scale.multiplyScalar(size.x * 100 + size.y * 100 + size.z * 100);
+    
+            root.add(object);
+            render();
+        });
+
+        //aaaany possibility of orienting the axes to be the same??? 
+        //should i be more constant in how i download from vmd? 
+    });
+
 }
 
 //

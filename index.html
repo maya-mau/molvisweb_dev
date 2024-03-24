@@ -2,28 +2,20 @@
 <html lang="en-US">
     <head>
         <script type="importmap">
-            {
-              "imports": {
-                "three": "https://unpkg.com/three@0.161.0/build/three.module.js",
-                "three/addons/": "https://unpkg.com/three@0.161.0/examples/jsm/"
-              }
-            }
-        </script>
+			{
+				"imports": {
+					"three": "../build/three.module.js",
+					"three/addons/": "./jsm/"
+				}
+			}
+		</script>
           
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>EMMAs</title>
         <script src="https://3Dmol.org/build/3Dmol-min.js"></script>     
         <script src="https://3Dmol.org/build/3Dmol.ui-min.js"></script> 
-        <script type="module" src="/Users/scoutpainter/Desktop/research/radlab/github/scoutdp.github.io/node_modules/three/examples/jsm/loaders/PDBLoader.js"></script>  
-        <script type="module" src="/Users/scoutpainter/Desktop/research/radlab/github/scoutdp.github.io/node_modules/three/examples/jsm/controls/TrackballControls.js"></script>  
-        <script type="module" src="/Users/scoutpainter/Desktop/research/radlab/github/scoutdp.github.io/node_modules/three/examples/jsm/renderers/CSS2DRenderer.js"></script>  
-        <script type="module" src="/Users/scoutpainter/Desktop/research/radlab/github/scoutdp.github.io/node_modules/three/examples/jsm/libs/lil-gui.module.min.js"></script>  
-        <script type="module" src="/Users/scoutpainter/Desktop/research/radlab/github/scoutdp.github.io/node_modules/three/examples/jsm/controls/OrbitControls.js"></script>  
-        <script type="module" src="/Users/scoutpainter/Desktop/research/radlab/github/scoutdp.github.io/node_modules/three/examples/jsm/loaders/OBJLoader.js"></script>  
-
         
-
         
         <style>
             body {
@@ -75,7 +67,7 @@
             <div id="container"></div>
 
         </div>
-        <script type = "module" src="http://localhost:5173/pdb_scene.js"></script>
+        <script type = "module" src="http://localhost:5173/interactiveVMD.js"></script>
         
         
     </body>
