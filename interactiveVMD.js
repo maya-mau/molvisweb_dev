@@ -9,7 +9,7 @@ import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer
 import { GUI } from 'three/addons/libs/lil-gui.module.min.js';
 //import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 
-let camera, scene, renderer, labelRenderer;
+let camera, scene, renderer, labelRenderer, container;
 let controls;
 let root;
 let geometryAtoms, geometryBonds, json;
@@ -79,9 +79,24 @@ function init() {
     //
 
     renderer = new THREE.WebGLRenderer( { antialias: true } );
-    renderer.setPixelRatio( window.devicePixelRatio );
-    renderer.setSize( window.innerWidth, window.innerHeight );
-    document.getElementById( 'container' ).appendChild( renderer.domElement );
+    //renderer.setPixelRatio( window.devicePixelRatio );
+    //renderer.setSize(containerWidth, containerHeight);
+    //document.getElementsByClassName( 'column middle' )[0].appendChild( renderer.domElement );
+
+    renderer.setPixelRatio(window.devicePixelRatio);
+
+
+    container = document.getElementsByClassName('column middle')[0];
+    const containerWidth = container.clientWidth;
+    const containerHeight = container.clientHeight;
+
+    renderer.setSize(containerWidth, containerHeight);
+
+    //renderer.setSize( window.innerWidth, window.innerHeight );
+
+
+    container.appendChild(renderer.domElement);
+
     
     /*
     labelRenderer = new CSS2DRenderer();
@@ -101,23 +116,11 @@ function init() {
     window.addEventListener( 'resize', onWindowResize );
 
     const moleculeGUIContainer = document.createElement('div');
-    moleculeGUIContainer.style.cssText = 'position: absolute; top: 10px; left: 10px;';
-
-    const representationGUIContainer = document.createElement('div');
-    representationGUIContainer.style.cssText = 'position: absolute; top: 10px; left: 220px;'; // Adjust left position as needed
-
-    // Append container elements to the main container
-    document.getElementById('container').appendChild(moleculeGUIContainer);
-    document.getElementById('container').appendChild(representationGUIContainer);
-
+    document.getElementsByClassName( 'column side' )[0].appendChild(moleculeGUIContainer);
     const moleculeGUI = new GUI({ autoPlace: false }); // Disable auto-placement
     moleculeGUI.add(mculeParams, 'molecule', MOLECULES).onChange(loadMolecule);
+    moleculeGUI.add(repParams, 'representation', REPRESENTATIONS).onChange(loadRepresentation);
     moleculeGUIContainer.appendChild(moleculeGUI.domElement);
-    
-    // Create representation GUI
-    const representationGUI = new GUI({ autoPlace: false }); // Disable auto-placement
-    representationGUI.add(repParams, 'representation', REPRESENTATIONS).onChange(loadRepresentation);
-    representationGUIContainer.appendChild(representationGUI.domElement);
 
 }
 
@@ -132,7 +135,6 @@ function loadMolecule( model ) {
 
     PDBloader.load( url, function ( pdb ) {
 
-        console.log(pdb)
         geometryAtoms = pdb.geometryAtoms;
         geometryBonds = pdb.geometryBonds;
         json = pdb.json;
@@ -262,9 +264,19 @@ function loadRepresentation( model ) {
 //
 
 function onWindowResize() {
-    camera.aspect = window.innerWidth / window.innerHeight;
+        // Get the new width and height of the container
+    const containerWidth = container.clientWidth;
+    const containerHeight = container.clientHeight;
+
+    // Update the renderer's size to match the new container dimensions
+    renderer.setSize(containerWidth, containerHeight);
+
+    // Update the camera aspect ratio
+    camera.aspect = containerWidth / containerHeight;
     camera.updateProjectionMatrix();
-    renderer.setSize( window.innerWidth, window.innerHeight );
+    
+        // Render the scene
+    
     //labelRenderer.setSize( window.innerWidth, window.innerHeight );
     render();
 }

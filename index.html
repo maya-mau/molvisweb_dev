@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="en-US">
     <head>
+        <link rel="stylesheet" href="stylesheet.css">
         <script type="importmap">
 			{
 				"imports": {
@@ -13,12 +14,9 @@
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>EMMAs</title>
-        <script src="https://3Dmol.org/build/3Dmol-min.js"></script>     
-        <script src="https://3Dmol.org/build/3Dmol.ui-min.js"></script> 
         
-        
-        <style>
-            body {
+        <!--<style>
+             body {
                 display: flex;
                 justify-content: center;
                 align-items: center;
@@ -44,32 +42,31 @@
                 width: 800px;
                 height: 600px;
                 margin: 20px auto; /* Center the container horizontally */
-                border: 1px solid rgb(237, 13, 13); /* Optional: Add border for visibility */
+                border: 1px solid rgb(237, 13, 13); /* Optional: Add border for visibility */ 
             }
-        </style>
+        </style>-->
+
     </head>
 
     <body>
-        <div class="content">
+        <div class="header">
             <h1>EMMAs: Exploring Molecular Modeling through case-based Activities </h1>
             <p>Ponatinib...   </p>
-  <!--
-            <div 
-                style="height: 800px; width: 800px; position: relative; left: 50%; transform: translateX(-50%);" 
-                class='viewer_3Dmoljs' 
-                data-href='http://localhost:5173/ponatinib_Sep2022.pdb' 
-                data-backgroundcolor='0xffffff' 
-                data-style='stick' 
-                data-ui='true'>
-            </div>
-
-            <div id="scene-container"></div>--> 
-            <div id="container"></div>
-
+          </div>
+          
+          <div class="row">
+            <div class="column side" style="background-color:#aaa;"></div>
+            <div class="column middle" style="background-color:#bbb;"></div>
+            <div class="column side" style="background-color:#ccc;"></div>
+          </div>
+          
+          <div class="footer">
+            <p>Footer</p>
+          </div>
         </div>
-        <script type = "module" src="http://localhost:5173/interactiveVMD.js"></script>
         
-        
+        <script type = "module" src="interactiveVMD.js"></script>
+
     </body>
 </html>
 
