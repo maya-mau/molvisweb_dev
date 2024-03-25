@@ -87,10 +87,11 @@ function init() {
 
 
     container = document.getElementsByClassName('column middle')[0];
+    
     const containerWidth = container.clientWidth;
     const containerHeight = container.clientHeight;
-
     renderer.setSize(containerWidth, containerHeight);
+
 
     //renderer.setSize( window.innerWidth, window.innerHeight );
 
