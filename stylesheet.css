@@ -17,17 +17,17 @@
   /* Create three unequal columns that floats next to each other */
   .column {
     float: left;
-    padding: 10px;
+    padding: 0px;
     height: 500px; /* Should be removed. Only for demonstration */
   }
   
   /* Left and right column */
-  .column.side {
-    width: 25%;
+  .column.left {
+    width: 50%;
   }
   
   /* Middle column */
-  .column.middle {
+  .column.right {
     width: 50%;
   }
   

@@ -86,7 +86,7 @@ function init() {
     renderer.setPixelRatio(window.devicePixelRatio);
 
 
-    container = document.getElementsByClassName('column middle')[0];
+    container = document.getElementsByClassName('column right')[0];
     
     const containerWidth = container.clientWidth;
     const containerHeight = container.clientHeight;
@@ -117,7 +117,7 @@ function init() {
     window.addEventListener( 'resize', onWindowResize );
 
     const moleculeGUIContainer = document.createElement('div');
-    document.getElementsByClassName( 'column side' )[0].appendChild(moleculeGUIContainer);
+    document.getElementsByClassName( 'column left' )[0].appendChild(moleculeGUIContainer);
     const moleculeGUI = new GUI({ autoPlace: false }); // Disable auto-placement
     moleculeGUI.add(mculeParams, 'molecule', MOLECULES).onChange(loadMolecule);
     moleculeGUI.add(repParams, 'representation', REPRESENTATIONS).onChange(loadRepresentation);
