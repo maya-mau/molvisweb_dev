@@ -57,8 +57,12 @@ const OBJloader = new OBJLoader();
 const MTLloader = new MTLLoader(); 
 const offset = new THREE.Vector3();
 
-init();
-animate();
+window.addEventListener('load', function() {
+    init();
+    animate();
+
+});
+
 
 function init() {
 
@@ -95,10 +99,10 @@ function init() {
     renderer.setSize(containerWidth, containerHeight);
     container.appendChild(renderer.domElement);
 
-    outlinePass = new OutlinePass( new THREE.Vector2( window.innerWidth, window.innerHeight ), scene, camera );
+    /*outlinePass = new OutlinePass( new THREE.Vector2( window.innerWidth, window.innerHeight ), scene, camera );
     outlinePass.visibleEdgeColor.set( 0x000000 );
     composer = new EffectComposer( renderer );
-    composer.addPass( outlinePass );
+    composer.addPass( outlinePass ); */ 
 
     controls = new TrackballControls( camera, renderer.domElement );
     controls.minDistance = 10;
@@ -323,7 +327,7 @@ function raycast(event)
         var selectedAtom = json.atoms[val];
         var origColor = new THREE.Color('rgb(' + selectedAtom[ 3 ][ 0 ] + ',' + selectedAtom[ 3 ][ 1 ] + ',' + selectedAtom[ 3 ][ 2 ] + ')'); 
 
-        outlinePass.selectedObjects = intersects[0];
+        //outlinePass.selectedObjects = intersects[0];
 
         console.log(selectedAtom[ 4 ][ 0 ])
 
