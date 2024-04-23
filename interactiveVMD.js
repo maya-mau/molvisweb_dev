@@ -1,6 +1,5 @@
 
 import * as THREE from 'three';
-
 import { TrackballControls } from 'three/addons/controls/TrackballControls.js';
 import { PDBLoader } from 'three/addons/loaders/PDBLoader.js';
 import { OBJLoader } from 'three/addons/loaders/OBJLoader.js';
@@ -9,8 +8,7 @@ import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer
 import { GUI } from 'three/addons/libs/lil-gui.module.min.js';
 import { OutlinePass } from 'three/addons/postprocessing/OutlinePass.js';
 import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
-
-//import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+//import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'; 
 
 let camera, scene, renderer, labelRenderer, container;
 let controls;

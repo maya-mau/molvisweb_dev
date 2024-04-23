@@ -19,8 +19,6 @@ textArray.push(two);
 var three = "<p>this is the third page of content. yippee!</p>";
 textArray.push(three); 
 
-console.log(textArray[2]) 
-
 
 function nextDiv() {
     if (!(current == textArray.length-1)){ 
