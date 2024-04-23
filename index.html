@@ -14,56 +14,41 @@
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>EMMAs</title>
-        
-        <!--<style>
-             body {
-                display: flex;
-                justify-content: center;
-                align-items: center;
-                background-color: #ffffff;
-            }
-
-            .content {
-                text-align: center; 
-                width: 90%; 
-                overflow: visible; 
-                padding: 20px; 
-                margin: 0 auto;
-            } 
-
-            #scene-container {
-                width: 800px;
-                height: 600px;
-                margin: 20px auto; /* Center the container horizontally */
-                border: 1px solid black; /* Optional: Add border for visibility */
-            }
-
-            .container {
-                width: 800px;
-                height: 600px;
-                margin: 20px auto; /* Center the container horizontally */
-                border: 1px solid rgb(237, 13, 13); /* Optional: Add border for visibility */ 
-            }
-        </style>-->
 
     </head>
 
     <body>
         <div class="header">
             <h1>EMMAs: Exploring Molecular Modeling through case-based Activities </h1>
-            <p>Ponatinib...   </p>
           </div>
           
           <div class="row">
             <div class="column left" style="background-color:#aaa;"></div>
-            <div class="column right" style="background-color:#bbb;"></div>
+            <div class="column middle" style="background-color:#bbb;"></div>
+            <div class="column right" style="background-color:#ccc;"> 
+
+                <div id="start">
+                    <h2> Instructions go here</h2>  
+                    <p>This is the first page and maybe a summary and instructions and an introduction to the thing as a whole</p>
+                </div>
+
+                <div class="button-container">
+                    <button id="back">back</button>
+                    <button id="next">next</button>
+                </div>
+
+                <script src="interactive_text.js"></script>
+            
+            </div>
           </div>
           
           <div class="footer">
-            <p>Footer</p>
           </div>
         </div>
         
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+		<script src="https://cdn.jsdelivr.net/npm/three@0.122.0/examples/js/controls/OrbitControls.min.js"></script>
+	    <script src="https://cdnjs.cloudflare.com/ajax/libs/dat-gui/0.5/dat.gui.min.js"></script>
         <script type = "module" src="interactiveVMD.js"></script>
 
     </body>

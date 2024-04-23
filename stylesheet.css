@@ -3,32 +3,39 @@
   }
   
   body {
-    font-family: Arial, Helvetica, sans-serif;
+    font-family: 'Trebuchet MS', sans-serif;
+    font-size: 20px;
   }
   
   /* Style the header */
   .header {
     background-color: #f1f1f1;
-    padding: 30px;
+    padding: 15px;
     text-align: center;
     font-size: 15px;
   }
   
+
   /* Create three unequal columns that floats next to each other */
   .column {
     float: left;
     padding: 0px;
-    height: 500px; /* Should be removed. Only for demonstration */
+    height: 80vh; /* Should be removed. Only for demonstration */
   }
   
   /* Left and right column */
   .column.left {
-    width: 50%;
+    width: 200px;
   }
   
   /* Middle column */
+  .column.middle {
+    width: calc(60% - 100px);
+  }
+
   .column.right {
-    width: 50%;
+    width: calc(40% - 100px);
+    padding: 12px;
   }
   
   /* Clear floats after the columns */
@@ -45,6 +52,54 @@
     text-align: center;
   }
   
+  .label {
+    margin-left: 25px;
+    position: absolute;
+    color: black; /* Change color as needed */
+    font-family: serif; /* Change font family as needed */
+    font-size: 12px; /* Change font size as needed */
+    pointer-events: none; /* Ensures labels don't interfere with mouse events */
+    /* Add any other styling properties you want */
+  }
+
+  .button-container {
+    position: relative; 
+    margin-top: auto; 
+    margin-bottom: 10vh; 
+  }
+
+  .button-container button {
+    margin-right: 10px;
+}
+
+.three-gui {
+  background-color: #f0f0f0; /* Change background color */
+  border-radius: 1px; /* Add border radius */
+  padding: 0px; /* Add padding */
+}
+
+/* Target specific elements within the GUI */
+.three-gui .title {
+  font-size: 15px; /* Change font size */
+  color: #333; /* Change font color */
+  
+}
+
+/* Additional styling for buttons, checkboxes, etc. */
+.three-gui .button {
+  background-color: #007bff; /* Change button background color */
+  color: #fff; /* Change button text color */
+  border: none; /* Remove button border */
+  border-radius: 3px; /* Add border radius */
+  padding: 5px 10px; /* Add padding */
+}
+
+
+/* Add hover effect to buttons */
+.three-gui .button:hover {
+  background-color: #0056b3; /* Change button background color on hover */
+}
+
   /* Responsive layout - makes the three columns stack on top of each other instead of next to each other */
   @media (max-width: 600px) {
     .column.side, .column.middle {
