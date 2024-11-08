@@ -4,8 +4,9 @@
   
   body {
     font-family: 'Trebuchet MS', sans-serif;
-    font-size: 20px;
+    font-size: 15px;
     height: 100%;
+    overflow-y: auto
   }
   
   .header {
@@ -38,8 +39,18 @@
   .atom-content {
     position: absolute;
     top: 25%; 
-    width: 100%;
+    width: 200px;
     padding: 10px;
+    max-height: 70%;
+    overflow-y: auto;
+  }
+
+  #start {
+    position: absolute;
+    padding: 10px;
+    max-height: 90%;
+    bottom: 10%;
+    overflow-y: auto;
   }
 
   .row:after {
