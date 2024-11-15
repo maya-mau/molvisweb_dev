@@ -2,7 +2,7 @@
 //import three js and all the addons that are used in this script 
 import * as THREE from 'three';
 import { TrackballControls } from 'three/addons/controls/TrackballControls.js';
-import { PDBLoader } from 'three/addons/loaders/PDBLoader.js';
+import { PDBLoader } from '/mymods/PDBLoader.js';
 import { OBJLoader } from 'three/addons/loaders/OBJLoader.js';
 import { MTLLoader } from 'three/addons/loaders/MTLLoader.js';
 import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
@@ -177,6 +177,7 @@ function init() {
 
     //when molecule changes, selected representation stays the same 
     molMenu.onChange(function(value) {
+        console.log("trying to load", mculeParams.molecule);
         loadMolecule(mculeParams.molecule, repParams.representation);
     });
 
@@ -202,25 +203,30 @@ function init() {
 
 //from the given pdb and given representation style, load molecule into scene 
 function loadMolecule( model, rep ) { // origin is perhaps an atom? distance for min dist
+    console.log("inside loadMolecule");
 
     //grab model file 
     const url = '/models/molecules/' + model;
+    console.log("succcessfully grabbed url, ", url);
     
     //initialize geometries that will change based on representation 
     let boxGeometry, sphereGeometry; // stretched out square for bonds, atoms as spheres
 
     //reset the scene because something new is being loaded 
     while ( root.children.length > 0 ) {
-        console.log("root", root);
+        //console.log("root", root);
         const object = root.children[ 0 ];
         //console.log("object", object);
         object.parent.remove( object );
     }
 
+    console.log("passed the while loop!!!");
+
     // load by the pdb file 
     PDBloader.load( url, function ( pdb ) { // TODO, couldn't load ABL kinase can only do simple ones
         // TODO, could edit PDBLoader.js given by three.js
         // properties of pdb loader that isolate the atoms (& bonds if applicable to pdb) 
+        console.log("inside PDBloader");
         geometryAtoms = pdb.geometryAtoms;
         console.log("geometryAtoms", geometryAtoms);
         geometryBonds = pdb.geometryBonds;
@@ -307,6 +313,7 @@ function loadMolecule( model, rep ) { // origin is perhaps an atom? distance for
 
         //setup for bond loading 
         positions = geometryBonds.getAttribute( 'position' );
+        console.log("positions", positions);
         const start = new THREE.Vector3();
         const end = new THREE.Vector3();
 
@@ -336,8 +343,8 @@ function loadMolecule( model, rep ) { // origin is perhaps an atom? distance for
                 root.add( object );
             }
         }
-        else { //if bonds aren't known in pdb 
-            
+        else { // if bonds aren't known in pdb 
+            console.log("bonds aren't known in PDB, there are no conects");
             //loop through every atom and compare it to every following atom 
             //ex. 1 vs 2,3,4; 2 vs 3,4 
             for ( let i = 0; i < json.atoms.length-1; i += 1 ) {
