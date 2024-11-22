@@ -7,19 +7,15 @@ import {
 	SRGBColorSpace
 } from 'three';
 
-console.log("HELLO");
-
 class PDBLoader extends Loader { // PDBLoader class extends Loader class from three.js
 	
 	constructor( manager ) {
-		console.log("IN LOAD");
 		super( manager );
 
 	}
 	
 
 	load( url, onLoad, onProgress, onError ) {
-		console.log("IN LOAD");
 		const scope = this;
 
 		const loader = new FileLoader( scope.manager );
@@ -55,7 +51,6 @@ class PDBLoader extends Loader { // PDBLoader class extends Loader class from th
 	// Based on CanvasMol PDB parser
 
 	parse( text ) { // processes raw PDB file text
-		console.log("IN PARSE");
 		// the following three functions are for string formatting and hashing
 		function trim( text ) {
 
@@ -77,7 +72,6 @@ class PDBLoader extends Loader { // PDBLoader class extends Loader class from th
 
 		// processes bond connections using line slices
 		function parseBond( start, length, satom, i ) {
-			console.log("in parseBond");
 
 			const eatom = parseInt( lines[ i ].slice( start, start + length ) );
 
@@ -85,10 +79,10 @@ class PDBLoader extends Loader { // PDBLoader class extends Loader class from th
 
 				const h = hash( satom, eatom );
 
-				if ( _bhash[ h ] === undefined ) {
+				if ( _bhash_conect[ h ] === undefined ) {
 
-					_bonds.push( [ satom - 1, eatom - 1, 1 ] );
-					_bhash[ h ] = _bonds.length - 1;
+					_bonds_conect.push( [ satom - 1, eatom - 1, 1 ] );
+					_bhash_conect[ h ] = _bonds_conect.length - 1;
 
 				} else {
 
@@ -192,7 +186,7 @@ class PDBLoader extends Loader { // PDBLoader class extends Loader class from th
 					if(Math.abs(distance - 1.13) < threshold)
 						{ bond = true; }
 				}
-			}
+			} // sulfur carbon - 
 
 			if(atom1 == "Cl")
 			{
@@ -295,22 +289,26 @@ class PDBLoader extends Loader { // PDBLoader class extends Loader class from th
 		}
 
 		function buildGeometry() {
-			console.log("IN BUILDGEOMETRY");
 
 			const build = {
 				geometryAtoms: new BufferGeometry(),
-				geometryBonds: new BufferGeometry(),
+				geometryBondsManual: new BufferGeometry(),
+				geometryBondsConect: new BufferGeometry(),
 				json: {
 					atoms: atoms
 				}
 			};
 
+
 			const geometryAtoms = build.geometryAtoms;
-			const geometryBonds = build.geometryBonds;
+			const geometryBondsManual = build.geometryBondsManual;
+			const geometryBondsConect = build.geometryBondsConect;
 
 			const verticesAtoms = [];
 			const colorsAtoms = [];
-			const verticesBonds = [];
+
+			const verticesBondsManual = [];
+			const verticesBondsConect = [];
 
 			// atoms
 
@@ -318,30 +316,72 @@ class PDBLoader extends Loader { // PDBLoader class extends Loader class from th
 
 			for ( let i = 0, l = atoms.length; i < l; i ++ ) {
 
-				const atom = atoms[ i ];
-				console.log("IM HEREEEEE", atom);
+				let atom1 = atoms[ i ];
 
-				const x = atom[ 0 ];
-				const y = atom[ 1 ];
-				const z = atom[ 2 ];
+				let x = atom1[ 0 ];
+				let y = atom1[ 1 ];
+				let z = atom1[ 2 ];
 
 				verticesAtoms.push( x, y, z );
 
-				const r = atom[ 3 ][ 0 ] / 255;
-				const g = atom[ 3 ][ 1 ] / 255;
-				const b = atom[ 3 ][ 2 ] / 255;
+				let r = atom1[ 3 ][ 0 ] / 255;
+				let g = atom1[ 3 ][ 1 ] / 255;
+				let b = atom1[ 3 ][ 2 ] / 255;
 
 				c.setRGB( r, g, b, SRGBColorSpace );
 
 				colorsAtoms.push( c.r, c.g, c.b );
 
+
+				// check for manual bonds
+
+                for ( let j = i+1; j < atoms.length; j += 1 ) {
+                    //getting the content of atom 1 and atom 2 
+                    let atom2 = atoms[j]; 
+
+                    let start1_x = atom1[0]; 
+                    let start1_y = atom1[1]; 
+                	let start1_z = atom1[2]; 
+        
+                    let start2_x = atom2[0]; 
+                    let start2_y = atom2[1]; 
+                    let start2_z = atom2[2]; 
+
+                    // so we can get the distance between them and see if that distance 
+                    // matches the bond distance between their corresponding atom types 
+					// (using isBond method -- later in code)
+                    var distance = calculate_distance(start1_x, start1_y, start1_z, start2_x, start2_y, start2_z); 
+                    var isbond = isBond(atom1[4], atom2[4], distance);
+
+					//console.log("distance", distance);
+					//console.log("isbond", isbond);
+                    
+                    // if we have found a bond, then we add to _bonds_manual and _bhash_manual
+					// TODO edit here
+                    if(isbond){
+						//console.log("found a bond!");
+						const h = hash( i, j );
+			
+						if ( _bhash_manual[ h ] === undefined ) {
+		
+							_bonds_manual.push( [ i, j, 1 ] );
+							_bhash_manual[ h ] = _bonds_manual.length - 1; 
+							// TODO maybe don't need _bonds_manual??
+
+							verticesBondsManual.push( start1_x, start1_y, start1_z );
+							verticesBondsManual.push( start2_x, start2_y, start2_z );
+			
+						}
+                    }
+				}
+
 			}
 
-			// bonds
+			// bonds, conect 
 
-			for ( let i = 0, l = _bonds.length; i < l; i ++ ) {
+			for ( let i = 0, l = _bonds_conect.length; i < l; i ++ ) {
 
-				const bond = _bonds[ i ];
+				const bond = _bonds_conect[ i ];
 
 				const start = bond[ 0 ];
 				const end = bond[ 1 ];
@@ -353,22 +393,28 @@ class PDBLoader extends Loader { // PDBLoader class extends Loader class from th
 				let y = startAtom[ 1 ];
 				let z = startAtom[ 2 ];
 
-				verticesBonds.push( x, y, z );
+				verticesBondsConect.push( x, y, z );
 
 				x = endAtom[ 0 ];
 				y = endAtom[ 1 ];
 				z = endAtom[ 2 ];
 
-				verticesBonds.push( x, y, z );
+				verticesBondsConect.push( x, y, z );
 
 			}
+
+			console.log("verticesBondsConect", verticesBondsConect);
+
+			console.log("verticesBondsManual", verticesBondsManual);
+
 
 			// build geometry
 
 			geometryAtoms.setAttribute( 'position', new Float32BufferAttribute( verticesAtoms, 3 ) );
 			geometryAtoms.setAttribute( 'color', new Float32BufferAttribute( colorsAtoms, 3 ) );
 
-			geometryBonds.setAttribute( 'position', new Float32BufferAttribute( verticesBonds, 3 ) );
+			geometryBondsConect.setAttribute( 'position', new Float32BufferAttribute( verticesBondsConect, 3 ) );
+			geometryBondsManual.setAttribute( 'position', new Float32BufferAttribute( verticesBondsManual, 3 ) );
 
 			return build;
 
@@ -378,8 +424,10 @@ class PDBLoader extends Loader { // PDBLoader class extends Loader class from th
 
 		const atoms = [];
 
-		const _bonds = [];
-		const _bhash = {};
+		const _bonds_conect = [];
+		const _bonds_manual = [];
+		const _bhash_manual = {};
+		const _bhash_conect = {};
 		const _atomMap = {};
 
 		// parse
@@ -396,13 +444,8 @@ class PDBLoader extends Loader { // PDBLoader class extends Loader class from th
 				const z = parseFloat( lines[ i ].slice( 46, 53 ) );
 				const index = parseInt( lines[ i ].slice( 6, 11 ) ) - 1;
 
-				let e = trim( lines[ i ].slice( 13, 14 ) ).toLowerCase(); // grabs the 76-78 index, which is the atom element symbol but could also just grab 12-14?
-				
-				if ( e === '' ) { // maybe delete??
-
-					e = trim( lines[ i ].slice( 12, 14 ) ).toLowerCase();
-
-				}
+				let e = trim( lines[ i ].slice( 12, 16 ) ).toLowerCase(); 
+				e = e[0] // grab the first letter of e only, e.g. "h" from "hd21"
 
 				const atomData = [ x, y, z, CPK[ e ], capitalize( e ) ];
 
@@ -424,45 +467,46 @@ class PDBLoader extends Loader { // PDBLoader class extends Loader class from th
 		}
 
 		/* if (!conect_exists) {
-			// run scout's bond finder?
+			console.log("conect doesn't exist, must manually find bonds");
 
 			for ( let i = 0; i < atoms.length-1; i += 1 ) {
+
                 let atom1 = atoms[i]; 
 
                 for ( let j = i+1; j < atoms.length; j += 1 ) {
                     //getting the content of atom 1 and atom 2 
                     let atom2 = atoms[j]; 
 
-                    start1_x = atom1[0]; 
-                    start1_y = atom1[1]; 
-                	start1_z = atom1[2]; 
+                    let start1_x = atom1[0]; 
+                    let start1_y = atom1[1]; 
+                	let start1_z = atom1[2]; 
         
-                    start2_x = atom2[0]; 
-                    start2_y = atom2[1]; 
-                    start2_z = atom2[2]; 
+                    let start2_x = atom2[0]; 
+                    let start2_y = atom2[1]; 
+                    let start2_z = atom2[2]; 
 
                     //so we can get the distance between them and see if that distance 
                     //matches the bond distance between their corresponding atom types (using isBond method -- later in code)
                     var distance = calculate_distance(start1_x, start1_y, start1_z, start2_x, start2_y, start2_z); 
                     var isbond = isBond(i, j, distance);
                     
-                    // if we have found a bond, then we add to _bonds and _bhash
+                    // if we have found a bond, then we add to _bonds_manual and _bhash_manual
+					// TODO edit here
                     if(isbond){
 						const h = hash( i, j );
 			
-						if ( _bhash[ h ] === undefined ) {
+						if ( _bhash_manual[ h ] === undefined ) {
 		
-							_bonds.push( [ i, j, 1 ] );
-							_bhash[ h ] = _bonds.length - 1;
+							_bonds_manual.push( [ i, j, 1 ] );
+							_bhash_manual[ h ] = _bonds_manual.length - 1;
 			
 						}
                     }
 				}
 			}
 		}  */
-
+		
 		// build and return geometry
-		console.log("we build and return geometry");
 		return buildGeometry();
 
 	}

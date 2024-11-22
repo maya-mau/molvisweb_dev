@@ -179,6 +179,7 @@ function init() {
     molMenu.onChange(function(value) {
         console.log("trying to load", mculeParams.molecule);
         loadMolecule(mculeParams.molecule, repParams.representation);
+        resetMoleculeOrientation();
     });
 
     /* toggleMenu.onChange(function(value) {
@@ -207,29 +208,30 @@ function loadMolecule( model, rep ) { // origin is perhaps an atom? distance for
 
     //grab model file 
     const url = '/models/molecules/' + model;
-    console.log("succcessfully grabbed url, ", url);
     
     //initialize geometries that will change based on representation 
     let boxGeometry, sphereGeometry; // stretched out square for bonds, atoms as spheres
 
     //reset the scene because something new is being loaded 
     while ( root.children.length > 0 ) {
-        //console.log("root", root);
         const object = root.children[ 0 ];
-        //console.log("object", object);
         object.parent.remove( object );
     }
 
-    console.log("passed the while loop!!!");
-
     // load by the pdb file 
-    PDBloader.load( url, function ( pdb ) { // TODO, couldn't load ABL kinase can only do simple ones
-        // TODO, could edit PDBLoader.js given by three.js
-        // properties of pdb loader that isolate the atoms (& bonds if applicable to pdb) 
+    PDBloader.load( url, function ( pdb ) {
+        // properties of pdb loader that isolate the atoms & bonds
         console.log("inside PDBloader");
+        let manual = true; // TO DO - use manual for now, implement options for manual OR conect later
+
+        if (manual) { 
+            geometryBonds = pdb.geometryBondsManual; 
+        } else { 
+            geometryBonds = pdb.geometryBondsConect;
+        }
+
         geometryAtoms = pdb.geometryAtoms;
         console.log("geometryAtoms", geometryAtoms);
-        geometryBonds = pdb.geometryBonds;
         console.log("geometryBonds", geometryBonds);
         json = pdb.json;
         console.log("json", json);
@@ -313,84 +315,35 @@ function loadMolecule( model, rep ) { // origin is perhaps an atom? distance for
 
         //setup for bond loading 
         positions = geometryBonds.getAttribute( 'position' );
-        console.log("positions", positions);
+        //console.log("positions", positionsConect);
         const start = new THREE.Vector3();
         const end = new THREE.Vector3();
 
         //LOAD IN BONDS 
-        if(positions.count > 0){ //if bonds are known in pdb 
-            for ( let i = 0; i < positions.count; i += 2 ) {
-                
-                //get bond start & end locations 
-                start.x = positions.getX( i );
-                start.y = positions.getY( i );
-                start.z = positions.getZ( i );
-    
-                end.x = positions.getX( i + 1 );
-                end.y = positions.getY( i + 1 );
-                end.z = positions.getZ( i + 1 );
-    
-                start.multiplyScalar( 75 );
-                end.multiplyScalar( 75 );
-    
-                //make bond a rectangular prism & add it to scene 
-                const object = new THREE.Mesh( boxGeometry, new THREE.MeshPhongMaterial( { color: 0xffffff } ) );
-                object.position.copy( start );
-                object.position.lerp( end, 0.5 );
-                object.scale.set( 5, 5, start.distanceTo( end ) );
-                object.molecularElement = "Bond";
-                object.lookAt( end );
-                root.add( object );
-            }
-        }
-        else { // if bonds aren't known in pdb 
-            console.log("bonds aren't known in PDB, there are no conects");
-            //loop through every atom and compare it to every following atom 
-            //ex. 1 vs 2,3,4; 2 vs 3,4 
-            for ( let i = 0; i < json.atoms.length-1; i += 1 ) {
-                var atom1 = json.atoms[i][4]; 
-
-                for ( let j = i+1; j < json.atoms.length; j += 1 ) {
-                    //getting the content of atom 1 and atom 2 
-                    var atom2 = json.atoms[j][4]; 
-
-                    start.x = json.atoms[i][0]; 
-                    start.y = json.atoms[i][1]; 
-                    start.z = json.atoms[i][2]; 
         
-                    end.x = json.atoms[j][0]; 
-                    end.y = json.atoms[j][1]; 
-                    end.z = json.atoms[j][2]; 
-
-                    //so we can get the distance between them and see if that distance 
-                    //matches the bond distance between their corresponding atom types (using isBond method -- later in code)
-                    var dis = start.distanceTo(end); 
-                    var isbond = isBond(atom1, atom2, dis);
-                    
-                    //if we have found a bond, then we add the geometry, same as above 
-                    if(isbond){
-                        positions = geometryAtoms.getAttribute( 'position' );
-                        
-                        start.x = positions.getX( i );
-                        start.y = positions.getY( i );
-                        start.z = positions.getZ( i );
-            
-                        end.x = positions.getX( j );
-                        end.y = positions.getY( j );
-                        end.z = positions.getZ( j );
-                        
-                        start.multiplyScalar( 75 );
-                        end.multiplyScalar( 75 );
-            
-                        const object = new THREE.Mesh( boxGeometry, new THREE.MeshPhongMaterial( { color: 0xffffff } ) );
-                        object.position.copy( start );
-                        object.position.lerp( end, 0.5 );
-                        object.scale.set( 5, 5, start.distanceTo( end ) );
-                        object.molecularElement = "Bond";
-                        object.lookAt( end );
-                        root.add( object );
-
-                    }}}}
+        for ( let i = 0; i < positions.count; i += 2 ) {
+                
+            //get bond start & end locations 
+            start.x = positions.getX( i );
+            start.y = positions.getY( i );
+            start.z = positions.getZ( i );
+    
+            end.x = positions.getX( i + 1 );
+            end.y = positions.getY( i + 1 );
+            end.z = positions.getZ( i + 1 );
+    
+            start.multiplyScalar( 75 );
+            end.multiplyScalar( 75 );
+    
+            //make bond a rectangular prism & add it to scene 
+            const object = new THREE.Mesh( boxGeometry, new THREE.MeshPhongMaterial( { color: 0xffffff } ) );
+            object.position.copy( start );
+            object.position.lerp( end, 0.5 );
+            object.scale.set( 5, 5, start.distanceTo( end ) );
+            object.molecularElement = "Bond";
+            object.lookAt( end );
+            root.add( object );
+        }
         
         //render the scene after adding all the new atom & bond objects             
         render();
