@@ -98,11 +98,14 @@ class PDBLoader extends Loader { // PDBLoader class extends Loader class from th
 		}
 
 		function calculate_distance(x1, y1, z1, x2, y2, z2) { // TODO might move location? 
+			//console.log(x1, y1, z1, x2, y2, z2);
 			return ((x2 - x1)**2 + (y2 - y1)**2 + (z2 - z1)**2)**(1/2);
 		}
 
 		function isBond(atom1, atom2, distance) {
 			var bond = false;
+			var double_bond = false;
+			var triple_bond = false;
 			var threshold = .07;
 
 			var atomList = [atom1, atom2];
@@ -114,13 +117,13 @@ class PDBLoader extends Loader { // PDBLoader class extends Loader class from th
 			{
 				if(atom2 == "Br")
 				{
-					if(Math.abs(distance - 2.28) < threshold)
+					if(Math.abs(distance - 2.34) < threshold)
 						{ bond = true; }
 				}
 
 				if(atom2 == "H")
 				{
-					if(Math.abs(distance - 1.41) < threshold)
+					if(Math.abs(distance - 1.43) < threshold)
 						{ bond = true; }
 				}
 			} 
@@ -129,28 +132,28 @@ class PDBLoader extends Loader { // PDBLoader class extends Loader class from th
 			{
 				if(atom2 == "C")
 				{
-					if(Math.abs(distance - 1.54) < threshold)
+					if(Math.abs(distance - 1.53) < threshold)
 					{ bond = true; }
 
-					if(Math.abs(distance - 1.39) < threshold)
-					{ bond = true; }
+					if(Math.abs(distance - 1.39) < threshold) // where is this from? in scout's code
+						{ bond = true; }
 
-					if(Math.abs(distance - 1.34) < threshold)
-					{ bond = true; }
+					if(Math.abs(distance - 1.33) < threshold) // double bond?
+					{ bond = true; double_bond = true; }
 
-					if(Math.abs(distance - 1.20) < threshold)
-					{ bond = true; }
+					if(Math.abs(distance - 1.21) < threshold)
+					{ bond = true; triple_bond = true; }
 				}
 
 				if(atom2 == "Cl")
 				{
-					if(Math.abs(distance - 1.77) < threshold)
+					if(Math.abs(distance - 1.80) < threshold)
 						{ bond = true; }
 				}
 
 				if(atom2 == "F")
 				{
-					if(Math.abs(distance - 1.33) < threshold)
+					if(Math.abs(distance - 1.38) < threshold)
 						{ bond = true; }
 				}
 
@@ -162,54 +165,60 @@ class PDBLoader extends Loader { // PDBLoader class extends Loader class from th
 
 				if(atom2 == "N")
 				{
-					if(Math.abs(distance - 1.47) < threshold)
+					if(Math.abs(distance - 1.46) < threshold) 
 						{ bond = true; }
 
-					if(Math.abs(distance - 1.38) < threshold)
-						{ bond = true; }  
+					if(Math.abs(distance - 1.38) < threshold) // where is this coming from? i think necessary
+						{ bond = true; } 
 
 					if(Math.abs(distance - 1.27) < threshold)
-						{ bond = true; }
+						{ bond = true; double_bond = true; }
 
 					if(Math.abs(distance - 1.16) < threshold)
-						{ bond = true; }
+						{ bond = true; triple_bond = true; }
 				}    
 
 				if(atom2 == "O")
 				{
-					if(Math.abs(distance - 1.43) < threshold)
+					if(Math.abs(distance - 1.42) < threshold)
 						{ bond = true; }
 
-					if(Math.abs(distance - 1.23) < threshold)
-						{ bond = true; }
+					if(Math.abs(distance - 1.20) < threshold)
+						{ bond = true; double_bond = true; }
 
-					if(Math.abs(distance - 1.13) < threshold)
+					if(Math.abs(distance - 1.14) < threshold)
+						{ bond = true; triple_bond = true; }
+				}
+
+				if(atom2 == "S") 
+				{
+					if(Math.abs(distance - 1.84) < threshold)
 						{ bond = true; }
 				}
-			} // sulfur carbon - 
+			}  
 
 			if(atom1 == "Cl")
 			{
 				if(atom2 == "Cl")
 				{
-					if(Math.abs(distance - 2) < threshold)
+					if(Math.abs(distance - 2.05) < threshold)
 						{ bond = true; }
 				}
 				if(atom2 == "H")
 				{
-					if(Math.abs(distance - 1.27) < threshold)
+					if(Math.abs(distance - 1.30) < threshold)
 						{ bond = true; }
 				}
 			} 
 			if(atom1 == 'F'){
 				if(atom2 == "F")
 				{
-					if(Math.abs(distance - 1.43) < threshold)
+					if(Math.abs(distance - 1.41) < threshold)
 						{ bond = true; }
 				}
 				if(atom2 == "H")
 				{
-					if(Math.abs(distance - .92) < threshold)
+					if(Math.abs(distance - 0.93) < threshold)
 						{ bond = true; }
 				}
 			}
@@ -218,22 +227,22 @@ class PDBLoader extends Loader { // PDBLoader class extends Loader class from th
 			{
 				if(atom2 == "H")
 				{
-					if(Math.abs(distance - .75) < threshold)
+					if(Math.abs(distance - 0.76) < threshold)
 						{ bond = true; }
 				}
 				if(atom2 == "N")
 				{
-					if(Math.abs(distance - 1.04) < threshold)
+					if(Math.abs(distance - 1.03) < threshold)
 						{ bond = true; }
 				}
 				if(atom2 == "O")
 				{
-					if(Math.abs(distance - .96) < threshold)
+					if(Math.abs(distance - 0.97) < threshold)
 						{ bond = true; }
 				}
 				if(atom2 == "S")
 				{
-					if(Math.abs(distance - 1.34) < threshold)
+					if(Math.abs(distance - 1.36) < threshold)
 						{ bond = true; }
 				}
 			}
@@ -242,29 +251,26 @@ class PDBLoader extends Loader { // PDBLoader class extends Loader class from th
 			{
 				if(atom2 == "N")
 				{
-					if(Math.abs(distance - 1.47) < threshold)
-						{ bond = true; }
-
-					if(Math.abs(distance - 1.38) < threshold)
+					if(Math.abs(distance - 1.44) < threshold)
 						{ bond = true; }
 					
 					if(Math.abs(distance - 1.24) < threshold)
-						{ bond = true; }
+						{ bond = true; double_bond = true;}
 
-					if(Math.abs(distance - 1.10) < threshold)
-						{ bond = true; }
+					if(Math.abs(distance - 1.17) < threshold)
+						{ bond = true; triple_bond = true;}
 				}    
 
 				if(atom2 == "O")
 				{
-					if(Math.abs(distance - 1.36) < threshold)
+					if(Math.abs(distance - 1.43) < threshold)
 						{ bond = true; }
 
-					if(Math.abs(distance - 1.22) < threshold)
-						{ bond = true; }
+					if(Math.abs(distance - 1.20) < threshold)
+						{ bond = true; double_bond = true; }
 
-					if(Math.abs(distance - 1.06) < threshold)
-						{ bond = true; }
+					if(Math.abs(distance - 1.06) < threshold) // this is a guess for triple bond, can't find
+						{ bond = true; triple_bond = true; }
 				}
 			}
 
@@ -272,20 +278,21 @@ class PDBLoader extends Loader { // PDBLoader class extends Loader class from th
 			{
 				if(atom2 == "O")
 				{
-					if(Math.abs(distance - 1.48) < threshold)
+					if(Math.abs(distance - 1.46) < threshold)
 						{ bond = true; }
 
-					if(Math.abs(distance - 1.21) < threshold)
-						{ bond = true; }
+					if(Math.abs(distance - 1.21) < threshold) // this is a guess for double bond, can't find
+						{ bond = true; double_bond = true; }
 				} 
 
 				if(atom2 == "S")
 				{
-					if(Math.abs(distance - 1.43) < threshold)
+					if(Math.abs(distance - 1.73) < threshold)
 						{ bond = true; }
 				} 
 			}
-			return bond; 
+
+			return [bond, double_bond, triple_bond]; 
 		}
 
 		function buildGeometry() {
@@ -338,6 +345,7 @@ class PDBLoader extends Loader { // PDBLoader class extends Loader class from th
                 for ( let j = i+1; j < atoms.length; j += 1 ) {
                     //getting the content of atom 1 and atom 2 
                     let atom2 = atoms[j]; 
+					//console.log(atom2);
 
                     let start1_x = atom1[0]; 
                     let start1_y = atom1[1]; 
@@ -350,16 +358,15 @@ class PDBLoader extends Loader { // PDBLoader class extends Loader class from th
                     // so we can get the distance between them and see if that distance 
                     // matches the bond distance between their corresponding atom types 
 					// (using isBond method -- later in code)
-                    var distance = calculate_distance(start1_x, start1_y, start1_z, start2_x, start2_y, start2_z); 
+                    var distance = calculate_distance(start1_x, start1_y, start1_z, start2_x, start2_y, start2_z);
                     var isbond = isBond(atom1[4], atom2[4], distance);
+					var is_singlebond = isbond[0];
+					var is_doublebond = isbond[1];
+					var is_triplebond = isbond[2];
 
-					//console.log("distance", distance);
-					//console.log("isbond", isbond);
                     
                     // if we have found a bond, then we add to _bonds_manual and _bhash_manual
-					// TODO edit here
-                    if(isbond){
-						//console.log("found a bond!");
+                    if(is_singlebond){
 						const h = hash( i, j );
 			
 						if ( _bhash_manual[ h ] === undefined ) {
@@ -403,9 +410,9 @@ class PDBLoader extends Loader { // PDBLoader class extends Loader class from th
 
 			}
 
-			console.log("verticesBondsConect", verticesBondsConect);
+			//("verticesBondsConect", verticesBondsConect);
 
-			console.log("verticesBondsManual", verticesBondsManual);
+			//console.log("verticesBondsManual", verticesBondsManual);
 
 
 			// build geometry
@@ -465,46 +472,6 @@ class PDBLoader extends Loader { // PDBLoader class extends Loader class from th
 			}
 
 		}
-
-		/* if (!conect_exists) {
-			console.log("conect doesn't exist, must manually find bonds");
-
-			for ( let i = 0; i < atoms.length-1; i += 1 ) {
-
-                let atom1 = atoms[i]; 
-
-                for ( let j = i+1; j < atoms.length; j += 1 ) {
-                    //getting the content of atom 1 and atom 2 
-                    let atom2 = atoms[j]; 
-
-                    let start1_x = atom1[0]; 
-                    let start1_y = atom1[1]; 
-                	let start1_z = atom1[2]; 
-        
-                    let start2_x = atom2[0]; 
-                    let start2_y = atom2[1]; 
-                    let start2_z = atom2[2]; 
-
-                    //so we can get the distance between them and see if that distance 
-                    //matches the bond distance between their corresponding atom types (using isBond method -- later in code)
-                    var distance = calculate_distance(start1_x, start1_y, start1_z, start2_x, start2_y, start2_z); 
-                    var isbond = isBond(i, j, distance);
-                    
-                    // if we have found a bond, then we add to _bonds_manual and _bhash_manual
-					// TODO edit here
-                    if(isbond){
-						const h = hash( i, j );
-			
-						if ( _bhash_manual[ h ] === undefined ) {
-		
-							_bonds_manual.push( [ i, j, 1 ] );
-							_bhash_manual[ h ] = _bonds_manual.length - 1;
-			
-						}
-                    }
-				}
-			}
-		}  */
 		
 		// build and return geometry
 		return buildGeometry();

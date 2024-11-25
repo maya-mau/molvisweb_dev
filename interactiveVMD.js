@@ -468,7 +468,10 @@ function calculateDistance(object1, object2) { // could combine with drawLine
     let y2 = object2.position.y;
     let z2 = object2.position.z;
 
+    //console.log(x1, y1, z1, x2, y2, z2);
+
     let distance = ((x2 - x1)**2 + (y2 - y1)**2 + (z2 - z1)**2)**(1/2);
+    // console.log(distance.toFixed(4));
     return distance.toFixed(4);
 };
 
@@ -631,6 +634,7 @@ function raycast(event)
 
                 drawLine(distanceMeasurementAtoms[0], distanceMeasurementAtoms[1]);
                 var bond_para = document.createElement('p')
+                //console.log(distanceMeasurementAtoms[0], distanceMeasurementAtoms[1]);
                 bond_para.textContent = 'bond length: ' + calculateDistance(distanceMeasurementAtoms[0], distanceMeasurementAtoms[1]).toString();
                 atomContent.appendChild(bond_para); 
             } else {
@@ -663,194 +667,6 @@ function raycast(event)
     };
 } 
 
-// given names of two atoms and the distance between them, see if they are at the correct distance to be bonded 
-function isBond(atom1, atom2, distance)
-{
-    var bond = false;
-    var threshold = .07;
-
-    var atomList = [atom1, atom2];
-    atomList = atomList.sort();
-    atom1 = atomList[0];
-    atom2 = atomList[1];
-
-    if(atom1 == "Br")
-    {
-        if(atom2 == "Br")
-        {
-            if(Math.abs(distance - 2.28) < threshold)
-                { bond = true; }
-        }
-
-        if(atom2 == "H")
-        {
-            if(Math.abs(distance - 1.41) < threshold)
-                { bond = true; }
-        }
-    } 
-
-    if(atom1 == "C")
-    {
-        if(atom2 == "C")
-        {
-            if(Math.abs(distance - 1.54) < threshold)
-            { bond = true; }
-
-            if(Math.abs(distance - 1.39) < threshold)
-            { bond = true; }
-
-            if(Math.abs(distance - 1.34) < threshold)
-            { bond = true; }
-
-            if(Math.abs(distance - 1.20) < threshold)
-            { bond = true; }
-        }
-
-        if(atom2 == "Cl")
-        {
-            if(Math.abs(distance - 1.77) < threshold)
-                { bond = true; }
-        }
-
-        if(atom2 == "F")
-        {
-            if(Math.abs(distance - 1.33) < threshold)
-                { bond = true; }
-        }
-
-        if(atom2 == "H")
-        {
-            if(Math.abs(distance - 1.10) < threshold)
-                { bond = true; }
-        }
-
-        if(atom2 == "N")
-        {
-            if(Math.abs(distance - 1.47) < threshold)
-                { bond = true; }
-
-            if(Math.abs(distance - 1.38) < threshold)
-                { bond = true; }  
-
-            if(Math.abs(distance - 1.27) < threshold)
-                { bond = true; }
-
-            if(Math.abs(distance - 1.16) < threshold)
-                { bond = true; }
-        }    
-
-        if(atom2 == "O")
-        {
-            if(Math.abs(distance - 1.43) < threshold)
-                { bond = true; }
-
-            if(Math.abs(distance - 1.23) < threshold)
-                { bond = true; }
-
-            if(Math.abs(distance - 1.13) < threshold)
-                { bond = true; }
-        }
-    }
-
-    if(atom1 == "Cl")
-    {
-        if(atom2 == "Cl")
-        {
-            if(Math.abs(distance - 2) < threshold)
-                { bond = true; }
-        }
-        if(atom2 == "H")
-        {
-            if(Math.abs(distance - 1.27) < threshold)
-                { bond = true; }
-        }
-    } 
-    if(atom1 == 'F'){
-        if(atom2 == "F")
-        {
-            if(Math.abs(distance - 1.43) < threshold)
-                { bond = true; }
-        }
-        if(atom2 == "H")
-        {
-            if(Math.abs(distance - .92) < threshold)
-                { bond = true; }
-        }
-    }
-
-    if(atom1 == "H")
-    {
-        if(atom2 == "H")
-        {
-            if(Math.abs(distance - .75) < threshold)
-                { bond = true; }
-        }
-        if(atom2 == "N")
-        {
-            if(Math.abs(distance - 1.04) < threshold)
-                { bond = true; }
-        }
-        if(atom2 == "O")
-        {
-            if(Math.abs(distance - .96) < threshold)
-                { bond = true; }
-        }
-        if(atom2 == "S")
-        {
-            if(Math.abs(distance - 1.34) < threshold)
-                { bond = true; }
-        }
-    }
-
-    if(atom1 == "N")
-    {
-        if(atom2 == "N")
-        {
-            if(Math.abs(distance - 1.47) < threshold)
-                { bond = true; }
-
-            if(Math.abs(distance - 1.38) < threshold)
-                { bond = true; }
-            
-            if(Math.abs(distance - 1.24) < threshold)
-                { bond = true; }
-
-            if(Math.abs(distance - 1.10) < threshold)
-                { bond = true; }
-        }    
-
-        if(atom2 == "O")
-        {
-            if(Math.abs(distance - 1.36) < threshold)
-                { bond = true; }
-
-            if(Math.abs(distance - 1.22) < threshold)
-                { bond = true; }
-
-            if(Math.abs(distance - 1.06) < threshold)
-                { bond = true; }
-        }
-    }
-
-    if(atom1 == "O")
-    {
-        if(atom2 == "O")
-        {
-            if(Math.abs(distance - 1.48) < threshold)
-                { bond = true; }
-
-            if(Math.abs(distance - 1.21) < threshold)
-                { bond = true; }
-        } 
-
-        if(atom2 == "S")
-        {
-            if(Math.abs(distance - 1.43) < threshold)
-                { bond = true; }
-        } 
-    }
-    return bond; 
-}
 
 //get radius size of a given atom name 
 function getRadius(atom){
