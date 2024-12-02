@@ -41,6 +41,9 @@ const atomContent = document.getElementsByClassName('atom-content')[0];
 //set key controls, TODO find a place to move it
 var isDistanceMeasurementMode = false
 
+// amount of molecule selected, may change
+var residueSelected = 'all'; // default all
+ 
 //specific settings for the raycaster (clicker) that make it senstitive enough to distinguish atoms 
 raycaster = new THREE.Raycaster();
 raycaster.near = .1;
@@ -68,6 +71,10 @@ const repParams = {
 //setting default/on load representation   
 const toggleParams = {
     toggle: 'all'
+};
+
+const residueParams = {
+    residue: 'all'
 };
 
 //call everything! 
@@ -157,9 +164,40 @@ function init() {
     const molMenu = moleculeGUI.add(mculeParams, 'molecule', MOLECULES);
     const repMenu = moleculeGUI.add(repParams, 'representation', ['CPK', 'VDW', 'lines']);
     const toggleMenu = moleculeGUI.add(toggleParams, 'toggle', ['all', 'some', 'none']);
+    const residueMenu = moleculeGUI.add(residueParams, 'residue'); 
 
+    residueMenu.onFinishChange((value) => { // TODO consider difference between .onFinishChange and .onChange for others; onFinishChange require press enter to change
+        if (!isNaN(value) && Number.isInteger(Number(value))) { // if value is not NaN and value is an integer
+            console.log("Number entered:", Number(value));
+            residueSelected = Number(value); // set residueSelected to the residue we want to select
+            loadMolecule(mculeParams.molecule, repParams.representation);
+        } else if (value.toLowerCase() === "all") { // display entire molecule
+            console.log("Option 'all' selected");
+            residueSelected = 'all';
+            loadMolecule(mculeParams.molecule, repParams.representation); 
+        } else {
+            // pop up text, flashing?
+            console.log("Invalid input. Please enter a number or 'all'.");
+        }
+    }); 
     //when representation changes, selected molecule stays the same 
     repMenu.onChange(function(value) {
+        switch (value) {
+            case 'CPK':
+                loadMolecule(mculeParams.molecule, 'CPK');
+                break;
+            case 'VDW':
+                loadMolecule(mculeParams.molecule, 'VDW');
+                break;
+            case 'lines':
+                loadMolecule(mculeParams.molecule, 'lines'); // TODO lines color doesn't work
+                break;
+            default:
+                break;
+        }
+    }); 
+
+    /* toggleMenu.onChange(function(value) {
         switch (value) {
             case 'all':
                 loadMolecule(mculeParams.molecule, repParams.representation, origin, 0);
@@ -173,7 +211,7 @@ function init() {
             default:
                 break;
         }
-    });
+    }); */
 
     //when molecule changes, selected representation stays the same 
     molMenu.onChange(function(value) {
@@ -181,22 +219,6 @@ function init() {
         loadMolecule(mculeParams.molecule, repParams.representation);
         resetMoleculeOrientation();
     });
-
-    /* toggleMenu.onChange(function(value) {
-        switch (value) {
-            case 'all':
-                loadMolecule(mculeParams.molecule, 'CPK');
-                break;
-            case 'some':
-                loadMolecule(mculeParams.molecule, 'VDW');
-                break;
-            case 'none':
-                loadMolecule(mculeParams.molecule, 'lines');
-                break;
-            default:
-                break;
-        }
-    }); */
 
     //add our gui to its container home 
     moleculeGUIContainer.appendChild(moleculeGUI.domElement);
@@ -263,11 +285,15 @@ function loadMolecule( model, rep ) { // origin is perhaps an atom? distance for
         const position = new THREE.Vector3();
         var color = new THREE.Color(0xffffff);
 
-        //LOAD IN ATOMS 
+        // LOAD IN ATOMS 
         for ( let i = 0; i < positions.count; i ++ ) {
-            /* let x1 = origin.position.x;
-            let y1 = origin.position.y;
-            let z1 = origin.position.z; */
+            //console.log(json[i]);
+
+            if (residueSelected != 'all') { // if residueSelected is not 'all' option
+                if (json.atoms[i][5] != residueSelected) {
+                    continue;
+                }
+            }
 
             // loop through the positions array to get every atom 
             position.x = positions.getX( i );
@@ -296,7 +322,7 @@ function loadMolecule( model, rep ) { // origin is perhaps an atom? distance for
             // create atom object that is a sphere w the position, color, and content we want 
             const object = new THREE.Mesh( sphereGeometry, material );
             object.position.copy( position );
-            object.position.multiplyScalar( 75 );
+            object.position.multiplyScalar( 75 ); // TODO scaling
             object.scale.multiplyScalar( 25 );
 
             object.molecularElement = "Atom";
@@ -313,13 +339,12 @@ function loadMolecule( model, rep ) { // origin is perhaps an atom? distance for
             root.add( object );
         }
 
-        //setup for bond loading 
+        // setup for bond loading 
         positions = geometryBonds.getAttribute( 'position' );
-        //console.log("positions", positionsConect);
         const start = new THREE.Vector3();
         const end = new THREE.Vector3();
 
-        //LOAD IN BONDS 
+        // LOAD IN BONDS 
         
         for ( let i = 0; i < positions.count; i += 2 ) {
                 
@@ -468,7 +493,7 @@ function calculateDistance(object1, object2) { // could combine with drawLine
     let y2 = object2.position.y;
     let z2 = object2.position.z;
 
-    //console.log(x1, y1, z1, x2, y2, z2);
+    console.log(x1, y1, z1, x2, y2, z2);
 
     let distance = ((x2 - x1)**2 + (y2 - y1)**2 + (z2 - z1)**2)**(1/2);
     // console.log(distance.toFixed(4));

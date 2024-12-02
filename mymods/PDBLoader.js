@@ -450,11 +450,12 @@ class PDBLoader extends Loader { // PDBLoader class extends Loader class from th
 				const y = parseFloat( lines[ i ].slice( 38, 45 ) );
 				const z = parseFloat( lines[ i ].slice( 46, 53 ) );
 				const index = parseInt( lines[ i ].slice( 6, 11 ) ) - 1;
+				const resid = parseInt( lines[ i ].slice( 23, 27) ); // TODO potentially refine these numbers
 
 				let e = trim( lines[ i ].slice( 12, 16 ) ).toLowerCase(); 
 				e = e[0] // grab the first letter of e only, e.g. "h" from "hd21"
 
-				const atomData = [ x, y, z, CPK[ e ], capitalize( e ) ];
+				const atomData = [ x, y, z, CPK[ e ], capitalize( e ), resid];
 
 				atoms.push( atomData );
 				_atomMap[ index ] = atomData;
