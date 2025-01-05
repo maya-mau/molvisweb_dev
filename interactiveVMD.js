@@ -18,7 +18,7 @@ console.log("start script")
 let camera, scene, renderer, labelRenderer, container;
 let controls;
 let root;
-let geometryAtoms, geometryBonds, json_atoms, json_bonds, json_bonds_manual, json_bonds_conect;
+let geometryAtoms, geometryBonds, json_atoms, json_bonds, json_bonds_manual, json_bonds_conect, residues;
 //let outlinePass, composer;
 var raycaster, mouse = {x: 0, y: 0 }
 
@@ -37,6 +37,9 @@ var distanceSelected2 = null;
 var distanceMeasurementAtoms = [];
 var mainColor = null; 
 const atomContent = document.getElementsByClassName('atom-content')[0];
+
+var numRepTabs = 1;
+const maxRepTabs = 4;
 
 //set key controls, TODO find a place to move it
 var isDistanceMeasurementMode = false
@@ -59,25 +62,16 @@ const MOLECULES = {
 };
 
 //setting default/on load molecule  
-const mculeParams = {
-    molecule: 'caffeine.pdb'
-};
+const mculeParams = { molecule: 'caffeine.pdb' };
+const repParams = { representation: 'CPK' };
+const residueParams = { residue: 'all' };
+const chainParams = { chain: 'all' };
+const atomParams = { atom: 'all' };
+const withinParams = { within: 0 };
+const withinResParams = { withinRes: 0 };
 
-//setting default/on load representation   
-const repParams = {
-    representation: 'CPK',
-};
 
-//setting default/on load representation   
-const toggleParams = {
-    toggle: 'all'
-};
-
-const residueParams = {
-    residue: 'all'
-};
-
-//call everything! 
+// call everything! 
 init();
 animate();
 
@@ -149,72 +143,27 @@ function init() {
     initialTarget = controls.target.clone();
 
     // the default/first molecule to show up 
-    loadMolecule( mculeParams.molecule, 'CPK');
+    loadMolecule( mculeParams.molecule, 'CPK' );
 
     // dynamic screen size 
     window.addEventListener( 'resize', onWindowResize );
 
-    // container to hold the gui + location // everything below here is the left panel options
-    const moleculeGUIContainer = document.createElement('div');
-    moleculeGUIContainer.className = 'three-gui';
-    document.getElementsByClassName( 'column left' )[0].appendChild(moleculeGUIContainer);
+    // add event listener to add rep button
+    const addRep = document.getElementById('add-rep');
+    addRep.addEventListener('click', onAddRepClick);
+
+    // create rep 1 by default
+    const tabRepContainer = document.getElementsByClassName("tab-rep")[0];
+    const tab = createRepTabButton('gui-' + numRepTabs, true);
+    tabRepContainer.appendChild(tab);
+    createGUI();
+
+    console.log('rep 1 gui created');
     
-    // menus for the gui -- molecule & representation & toggle
-    const moleculeGUI = new GUI({ autoPlace: false }); 
-    const molMenu = moleculeGUI.add(mculeParams, 'molecule', MOLECULES);
-    const repMenu = moleculeGUI.add(repParams, 'representation', ['CPK', 'VDW', 'lines']);
-    const residueMenu = moleculeGUI.add(residueParams, 'residue'); 
-
-    residueMenu.onFinishChange((value) => { // TODO consider difference between .onFinishChange and .onChange for others; onFinishChange require press enter to change
-        
-        if (!isNaN(value) && Number.isInteger(Number(value))) { // if value is not NaN and value is an integer
-            console.log("Number entered:", Number(value));
-            residueSelected = Number(value); // set residueSelected to the residue we want to select
-            loadMolecule(mculeParams.molecule, repParams.representation);
-
-        } else if (value.toLowerCase() === "all") { // display entire molecule
-            console.log("Option 'all' selected");
-            residueSelected = 'all';
-            loadMolecule(mculeParams.molecule, repParams.representation); 
-
-        } else {
-            // pop up text, flashing?
-            console.log("Invalid input. Please enter a number or 'all'.");
-        }
-    }); 
-
-    //when representation changes, selected molecule stays the same 
-    repMenu.onChange(function(value) {
-        switch (value) {
-            case 'CPK':
-                loadMolecule(mculeParams.molecule, 'CPK');
-                break;
-            case 'VDW':
-                loadMolecule(mculeParams.molecule, 'VDW');
-                break;
-            case 'lines':
-                loadMolecule(mculeParams.molecule, 'lines'); // TODO lines color doesn't work
-                break;
-            default:
-                break;
-        }
-    }); 
-
-    //when molecule changes, selected representation stays the same 
-    molMenu.onChange(function(value) {
-        console.log("trying to load", mculeParams.molecule);
-        residueSelected = 'all';
-        loadMolecule(mculeParams.molecule, repParams.representation);
-        resetMoleculeOrientation();
-    });
-
-    //add our gui to its container home 
-    moleculeGUIContainer.appendChild(moleculeGUI.domElement);
 }
 
 // from the given pdb and given representation style, load molecule into scene 
 function loadMolecule( model, rep ) { // origin is perhaps an atom? distance for min dist
-    console.log("inside loadMolecule");
 
     //grab model file 
     const url = '/models/molecules/' + model;
@@ -231,7 +180,6 @@ function loadMolecule( model, rep ) { // origin is perhaps an atom? distance for
     // load by the pdb file 
     PDBloader.load( url, function ( pdb ) {
         // properties of pdb loader that isolate the atoms & bonds
-        console.log("inside PDBloader");
         let manual = true; // TO DO - use manual for now, implement options for manual OR conect later
 
         if (manual) { 
@@ -240,7 +188,7 @@ function loadMolecule( model, rep ) { // origin is perhaps an atom? distance for
             geometryBonds = pdb.geometryBondsConect;
         }
 
-        console.log("pdb.geometryBondsManual", pdb.geometryBondsManual.attributes.position.array);
+        //console.log("pdb.geometryBondsManual", pdb.geometryBondsManual.attributes.position.array);
 
         geometryAtoms = pdb.geometryAtoms;
 
@@ -250,9 +198,12 @@ function loadMolecule( model, rep ) { // origin is perhaps an atom? distance for
 
         json_bonds = json_bonds_manual;
 
-        console.log("json_atoms", json_atoms);
-        console.log("json_bonds_manual", json_bonds_manual);
-        console.log("json_bonds_conect", json_bonds_conect);
+        //console.log("json_atoms", json_atoms);
+        //console.log("json_bonds_manual", json_bonds_manual);
+        //console.log("json_bonds_conect", json_bonds_conect);
+
+        residues = pdb.residues;
+        //console.log("IN js file, residues: ", residues);
 
         // change starting box/sphere contents based on rep style 
         if( rep == 'CPK' ){
@@ -274,7 +225,7 @@ function loadMolecule( model, rep ) { // origin is perhaps an atom? distance for
         geometryAtoms.boundingBox.getCenter( offset ).negate(); // the offset moves the center of the bounding box to the origin?
         geometryAtoms.translate( offset.x, offset.y, offset.z );
         geometryBonds.translate( offset.x, offset.y, offset.z );
-        console.log("offset", offset.x, offset.y, offset.z );
+        //console.log("offset", offset.x, offset.y, offset.z );
 
         //grab atom content from pdb so their position and color go along 
         let positions = geometryAtoms.getAttribute( 'position' );
@@ -336,14 +287,14 @@ function loadMolecule( model, rep ) { // origin is perhaps an atom? distance for
 
         // setup for bond loading 
         positions = geometryBonds.getAttribute( 'position' );
-        console.log("positions", positions);
+        //console.log("positions", positions);
         const start = new THREE.Vector3();
         const end = new THREE.Vector3();
 
         // LOAD IN BONDS 
-        console.log("json_bonds", json_bonds);
+        //console.log("json_bonds", json_bonds);
 
-        console.log("length", positions.count);
+        //console.log("length", positions.count);
 
         for ( let i = 0; i < positions.count; i += 2 ) {
             //console.log("START OF LOOP");
@@ -394,6 +345,198 @@ function loadMolecule( model, rep ) { // origin is perhaps an atom? distance for
         // render the scene after adding all the new atom & bond objects             
         render();
     } );
+}
+
+
+// tab helper functions for creating selection method tabs
+
+function openSelectionMethodTab(event, tabName) {
+    // get all elements with class="tabContent" and hide them
+    const tabContents = Array.from(document.getElementsByClassName('tab-content-selection-method'));
+    tabContents.forEach(content => content.style.display = 'none');
+
+    // get all elements with class="tab-link" and remove the class "active"
+    const tabLinks = Array.from(document.getElementsByClassName('tab-link-selection-method'));
+    tabLinks.forEach(link => link.classList.remove('active'));
+
+    // show the current tab and add an "active" class to the button that opened the tab
+    document.getElementById(tabName).style.display = "block";
+    event.currentTarget.classList.add('active');
+}
+
+// function to create tab buttons for selection methods
+function createSelectionMethodTabButton(buttonText, active) {
+    const tabButton = document.createElement('button');
+    tabButton.classList.add('tab-link-selection-method');
+    tabButton.textContent = buttonText;
+    if (active) { tabButton.classList.add('active'); }
+    tabButton.addEventListener('click', (evt) => openSelectionMethodTab(evt, buttonText.toLowerCase()))
+    return tabButton;
+}
+
+// function to create tab content for selection methods
+function createSelectionMethodTabContent(tabId, menus = [], display) {
+    const tabContent = document.createElement('div');
+    tabContent.id = tabId;
+    tabContent.classList.add('tab-content-selection-method');
+    if (!display) { tabContent.style.display = 'none'; }
+    menus.forEach(menu => tabContent.appendChild(menu.domElement));
+    return tabContent;
+}
+
+
+
+// function to create a GUI for one rep
+function createGUI() {
+
+    // get container to hold the gui 
+    const moleculeGUIContainer = document.getElementsByClassName('three-gui')[0];
+    
+    // create new div for GUI
+    const moleculeGUIdiv = document.createElement('div');
+    moleculeGUIdiv.classList.add('gui-div', 'tab-content-rep');
+    moleculeGUIdiv.id = `gui-${numRepTabs}`;
+
+    // create new GUI
+    const moleculeGUI = new GUI({ autoPlace: false }); 
+
+    // menus for the gui
+    const molMenu = moleculeGUI.add(mculeParams, 'molecule', MOLECULES);
+    const repMenu = moleculeGUI.add(repParams, 'representation', ['CPK', 'VDW', 'lines']);
+    const atomMenu = moleculeGUI.add(atomParams, 'atom');
+    const residueMenu = moleculeGUI.add(residueParams, 'residue');
+    const chainMenu = moleculeGUI.add(chainParams, 'chain'); 
+    const withinMenu = moleculeGUI.add(withinParams, 'within');
+    const withinResMenu = moleculeGUI.add(withinResParams, 'withinRes');
+    
+    withinResMenu.name("of residue");
+
+
+    // on change functions
+
+    residueMenu.onFinishChange((value) => { 
+        if (!isNaN(value) && Number.isInteger(Number(value))) { // if value is not NaN and value is an integer
+            console.log("Number entered:", Number(value));
+
+            if (residues[Number(value)]) { // value does exist in the residues list, this returns true
+                residueSelected = Number(value); // set residueSelected to the residue we want to select
+                loadMolecule(mculeParams.molecule, repParams.representation);
+            } else { // value does not exist in the residues list
+                console.log("please select a valid residue");
+            }
+        } else if (value.toLowerCase() === "all") { // display entire molecule
+            console.log("Option 'all' selected");
+            residueSelected = 'all';
+            loadMolecule(mculeParams.molecule, repParams.representation); 
+
+        } else {
+            // pop up text, flashing?
+            console.log("Invalid input. Please enter a number or 'all'.");
+        }
+    });
+
+    // helper function to highlight certain parts of the molecule based on the within ___ of residue ___ menu
+    function withinAsResidue () {
+        const withinValue = withinParams.within;
+        const withinResValue = withinResParams.withinRes;
+
+        console.log(withinValue, withinResValue);
+    }
+
+    withinMenu.onFinishChange((value) => {
+        console.log("withinMenu value changed: ", value);
+        withinAsResidue();
+    })
+
+    withinResMenu.onFinishChange((value) => {
+        console.log("withinResMenu value changed: ", value);
+        withinAsResidue();
+    })
+
+    // when representation changes, selected molecule stays the same 
+    repMenu.onChange(function(value) {
+        switch (value) {
+            case 'CPK':
+                loadMolecule(mculeParams.molecule, 'CPK');
+                break;
+            case 'VDW':
+                loadMolecule(mculeParams.molecule, 'VDW');
+                break;
+            case 'lines':
+                loadMolecule(mculeParams.molecule, 'lines'); // TODO lines color doesn't work
+                break;
+            default:
+                break;
+        }
+    }); 
+
+    // when molecule changes, selected representation stays the same 
+    molMenu.onChange(function(value) {
+        console.log("trying to load", mculeParams.molecule);
+        residueSelected = 'all';
+
+        loadMolecule(mculeParams.molecule, repParams.representation);
+        resetMoleculeOrientation();
+
+        // reset toggle option to 'all'
+        residueMenu.setValue('all');
+    });
+
+
+
+    // create div to hold molecule and representation options
+    const molRepOptionContainer = document.createElement('div');
+    molRepOptionContainer.classList.add('mol-rep-option');
+
+    // create div to hold selection options, including [atom, residue, chain, distance]
+    const selectionOptionContainer = document.createElement('div');
+    selectionOptionContainer.classList.add('selection-option');
+    const selectionTabContainer = document.createElement('div');
+    selectionTabContainer.classList.add('tab-selection-method');
+
+    // create tab buttons
+    const tabButtonAtom = createSelectionMethodTabButton('Atom', false);
+    const tabButtonResidue = createSelectionMethodTabButton('Residue', true);
+    const tabButtonChain = createSelectionMethodTabButton('Chain', false);
+    const tabButtonDistance = createSelectionMethodTabButton('Distance', false);
+
+    // create tab content
+    const tabContentAtom = createSelectionMethodTabContent('atom', [atomMenu], false);
+    const tabContentResidue = createSelectionMethodTabContent('residue', [residueMenu], true);
+    const tabContentChain = createSelectionMethodTabContent('chain', [chainMenu], false);
+    const tabContentDistance = createSelectionMethodTabContent('distance', [withinMenu, withinResMenu], false);
+
+    // append tab buttons to tab container
+    selectionTabContainer.appendChild(tabButtonAtom);
+    selectionTabContainer.appendChild(tabButtonResidue);
+    selectionTabContainer.appendChild(tabButtonChain);
+    selectionTabContainer.appendChild(tabButtonDistance);
+
+    // append content to container
+    selectionOptionContainer.appendChild(selectionTabContainer);
+    selectionOptionContainer.appendChild(tabContentAtom);
+    selectionOptionContainer.appendChild(tabContentResidue);
+    selectionOptionContainer.appendChild(tabContentChain);
+    selectionOptionContainer.appendChild(tabContentDistance);
+
+    const selectionMethodPara = document.createElement('p');
+    selectionMethodPara.classList.add("text");
+    const node = document.createTextNode("SELECTION METHOD:");
+    selectionMethodPara.appendChild(node);
+
+
+    molRepOptionContainer.appendChild(molMenu.domElement);
+    molRepOptionContainer.appendChild(repMenu.domElement);
+
+    // append everything to GUI div
+    moleculeGUI.domElement.appendChild(molRepOptionContainer);
+    moleculeGUI.domElement.appendChild(selectionMethodPara);
+    moleculeGUI.domElement.appendChild(selectionOptionContainer);
+
+    //add our gui to its container home 
+    moleculeGUIdiv.appendChild(moleculeGUI.domElement);
+    moleculeGUIContainer.appendChild(moleculeGUIdiv);
+
 }
 
 // window resize function specific to container that this scene is in (not just entire window)
@@ -478,7 +621,9 @@ clearButton.addEventListener("click", function () {
     loadMolecule(mculeParams.molecule, 'CPK');
 })
 
+
 // functions to manipulate atom states
+
 function resetAtomState(atom) {
     // resets atom state to default non-wire frame and color
     if (atom == null) {
@@ -503,7 +648,6 @@ function switchAtomState(atom) {
         var val = atom.atomValue;
         console.log("val:", val);
         var selectedAtom = json_atoms.atoms[val]; // ex: [1.67, 2.96, 1.02, [255, 255, 255], 'H']
-        console.log("selectedAtom", selectedAtom);
     
         mainColor = new THREE.Color('rgb(' + selectedAtom[ 3 ][ 0 ] + ',' + selectedAtom[ 3 ][ 1 ] + ',' + selectedAtom[ 3 ][ 2 ] + ')'); 
         atom.material.wireframe = true;
@@ -666,20 +810,20 @@ function raycast(event)
 
         selectedObject = currentAtom;
 
-        console.log("previously selected atom is", previousAtom);
-        console.log("currently selected atom is", currentAtom);
+        //console.log("previously selected atom is", previousAtom);
+        //console.log("currently selected atom is", currentAtom);
 
         if (isDistanceMeasurementMode) { // if selectionMode is on to measure distance between atoms
-            console.log("isDistanceMeasurementMode on");
+            //console.log("isDistanceMeasurementMode on");
 
             if (distanceMeasurementAtoms.length == 0) {
                 console.log("only one atom so far");
                 distanceMeasurementAtoms.push(currentAtom); // now the array has 1 atom in it
                 return;
             } else if (distanceMeasurementAtoms.length == 1) {
-                console.log("now two atoms");
+                //console.log("now two atoms");
                 distanceMeasurementAtoms.push(currentAtom); // now the array has 2 atoms in it
-                console.log(distanceMeasurementAtoms[0], distanceMeasurementAtoms[1])
+                //console.log(distanceMeasurementAtoms[0], distanceMeasurementAtoms[1])
 
                 drawLine(distanceMeasurementAtoms[0], distanceMeasurementAtoms[1]);
                 var bond_para = document.createElement('p')
@@ -687,7 +831,7 @@ function raycast(event)
                 bond_para.textContent = 'bond length: ' + calculateDistance(distanceMeasurementAtoms[0], distanceMeasurementAtoms[1]).toString();
                 atomContent.appendChild(bond_para); 
             } else {
-                console.log("too many atoms, cleared");
+                //console.log("too many atoms, cleared");
                 distanceMeasurementAtoms = []; // clear array
                 distanceMeasurementAtoms.push(currentAtom); // now the array has 1 atom in it
                 return;
@@ -697,17 +841,14 @@ function raycast(event)
             if (!(previousAtom == null)) { // if there was a previously-selected object
                 if (previousAtom == currentAtom) { // if previous selected object is the same as currently selected object
                     switchAtomState(currentAtom); // switch current atom's state
-                    console.log("switched Atom State");
                     return;
                 } else { // if clicking on a different atom
                     resetAtomState(previousAtom); // reset previously-clicked atom
                     switchAtomState(currentAtom); // switch current atom's state
-                    console.log("wire framed new atom");
                     return;
                 };
             } else { // if there was no previously-selected object
                 switchAtomState(currentAtom); // switch current atom's state
-                console.log("wire framed new atom");
                 return;
             }            
         };  
@@ -716,6 +857,68 @@ function raycast(event)
     };
 } 
 
+
+// tab helper functions for adding reps
+
+function hideAllReps() { 
+    // get all elements with class="tab-content-rep" and hide them
+    const tabContents = Array.from(document.getElementsByClassName('tab-content-rep'));
+    console.log("tabContents", tabContents);
+    tabContents.forEach(content => content.style.display = 'none');
+
+    // get all elements with class="tab-link-rep" and remove the class "active"
+    const tabLinks = Array.from(document.getElementsByClassName('tab-link-rep'));
+    tabLinks.forEach(link => link.classList.remove('active'));
+
+}
+
+function openRepTab(event, tabId) { // COME BACK HERE
+    // get all elements with class="tab-content-rep" and hide them
+    hideAllReps();
+
+    // show the current tab and add an "active" class to the button that opened the tab
+    document.getElementById(tabId).style.display = "block"; 
+    event.currentTarget.classList.add('active');
+}
+
+// function to create tab buttons for selection methods
+function createRepTabButton(tabId, active) {
+    const tabButton = document.createElement('button');
+    tabButton.classList.add('tab-link-rep');
+    tabButton.textContent = 'Rep ' + numRepTabs;
+    if (active) { tabButton.classList.add('active'); }
+    tabButton.addEventListener('click', (evt) => openRepTab(evt, tabId)); 
+    return tabButton;
+}
+
+
+// when add rep button is clicked, add a new tab
+function onAddRepClick (event) {
+    if (numRepTabs < maxRepTabs) {
+
+        numRepTabs++;
+
+        let tabId = 'gui-' + numRepTabs;
+
+        // get tab rep container
+        const tabRepContainer = document.getElementsByClassName("tab-rep")[0];
+        
+        // create tab button
+        const tab = createRepTabButton(tabId, true);
+
+        // get all elements with class="tab-link-rep" and remove the class "active", then hide all GUIs
+        hideAllReps();
+
+        // create tab content
+        createGUI();
+
+        // append active tab button to tab container
+        tabRepContainer.appendChild(tab);
+
+    } else {
+        console.log("Maximum number of GUIs reached");
+    }
+}
 
 //get radius size of a given atom name 
 function getRadius(atom){

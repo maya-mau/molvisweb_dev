@@ -4,6 +4,7 @@
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <link rel="stylesheet" href="stylesheet.css">
+        <link rel="stylesheet" type="text/css" href="//fonts.googleapis.com/css?family=Ubuntu+Mono" />
         <script type="importmap">
             {
               "imports": {
@@ -22,11 +23,17 @@
           </div>
           
           <div class="row">
-            <div class="column left" style="background-color:#aaa;">
-              <div class="atom-content">
-                <p> selected atom: <br>none </p>
+            <div class="column left" style="background-color:#C3C3C3;">
+              <div class="three-gui">
+                <div class="tab-rep"></div>
               </div>
               <div class="button-container">
+                <button id="add-rep">add rep</button>
+              </div>
+              <div class="atom-content">
+                <p class="text">selected atom: <br>none </p>
+              </div>
+              <div class="button-container bottom">
                 <button id="reset">reset position</button>
                 <button id="clear">clear</button>
               </div>
@@ -36,7 +43,7 @@
             <div class="column right" style="background-color:#ccc;"> 
 
                 <div id="start"></div>
-                <div class="button-container">
+                <div class="button-container bottom">
                   <button id="back">back</button>
                   <button id="next">next</button>
                 </div>

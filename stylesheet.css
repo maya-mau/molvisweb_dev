@@ -3,10 +3,14 @@
   }
   
   body {
-    font-family: 'Trebuchet MS', sans-serif;
+    font-family: 'Ubuntu Mono';
     font-size: 15px;
     height: 100%;
     overflow-y: auto
+  }
+
+  button {
+    font: inherit;
   }
   
   .header {
@@ -23,7 +27,7 @@
   }
   
   .column.left {
-    width: 200px;
+    width: 210px;
   }
   
   .column.middle {
@@ -32,16 +36,13 @@
 
   .column.right {
     position: relative;
-    width: calc(40% - 100px);
+    width: calc(40% - 110px);
     padding: 12px;
   }
   
   .atom-content {
-    position: absolute;
-    top: 25%; 
-    width: 200px;
+    margin-top: 20px;
     padding: 10px;
-    max-height: 70%;
     overflow-y: auto;
   }
 
@@ -76,6 +77,11 @@
 
   .button-container {
     position: absolute;
+    padding: 5px;
+    
+  }
+
+  .bottom {
     bottom: 0;
   }
 
@@ -85,8 +91,122 @@
   }
 
   .lil-gui {
-    width: 100% !important
+    width: 100% !important;
+    font-family: 'Ubuntu Mono';
   }
+
+  .lil-gui button {
+    font-family: 'Ubuntu Mono';
+    font-size: 12px;
+  }
+
+  .within-container {
+    display: flex;           
+    gap: 0px;              
+    align-items: center;   
+}
+
+
+/* Style the tab */
+.tab-selection-method {
+  display: flex;  
+  justify-content: flex-start;
+  align-items: center;
+  flex-wrap: nowrap;
+  border: none;
+  background-color: #7C7C7C;
+}
+
+.tab-rep {
+  display: flex;  
+  justify-content: flex-start;
+  align-items: center;
+  flex-wrap: nowrap;
+  border: none;
+  background-color: #7C7C7C;
+}
+
+/* Style the buttons that are used to open the tab content */
+.tab-selection-method button {
+  background-color: #7C7C7C;
+  border: none;
+  border-radius: 0px;
+  outline: none;
+  cursor: pointer;
+  white-space: nowrap;
+  padding: 2px 5px;
+  margin: 0;
+  transition: 0.3s;
+}
+
+.tab-rep button {
+  background-color: #7C7C7C;
+  border: none;
+  border-radius: 0px;
+  outline: none;
+  cursor: pointer;
+  white-space: nowrap;
+  padding: 2px 5px;
+  margin: 0;
+  transition: 0.3s;
+}
+
+/* Create an active/current tab-link-selection-method class */
+.tab-selection-method button.active {
+  background-color: #5D5D5D;
+}
+
+.tab-rep button.active {
+  color: white;
+  background-color: #1F1F1F; 
+}
+
+.tab-link-rep.active {
+  background-color: #1F1F1F; 
+}
+
+/* Style the tab content */
+.tab-content-selection-method {
+  padding: 1px 2px;
+  border: none;
+}
+
+.tab-content-rep {
+  border: none;
+}
+
+.selection-option {
+  background-color: #5D5D5D;
+  margin: 10px;
+}
+
+.controller.option {
+  padding-left: 10px;
+  padding-right: 10px;
+  margin: 0 px;
+}
+
+.mol-rep-option {
+  padding: 5px;
+}
+
+.text {
+  padding: 5px;
+  margin: 0px;
+  font-size: 15px;
+}
+
+.title {
+  display: none; /* Hide folder titles */
+}
+
+.children {
+  display: none; /* Hide folder titles */
+}
+
+
+
+
 
   /* Responsive layout - makes the three columns stack on top of each other instead of next to each other */
   @media (max-width: 600px) {
