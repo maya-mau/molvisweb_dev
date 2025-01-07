@@ -10,6 +10,7 @@ import { GUI } from 'three/addons/libs/lil-gui.module.min.js';
 import { TextGeometry } from 'three/addons/geometries/TextGeometry.js';
 
 
+// GLOBAL CONSTANTS
 
 console.log("start script")
 
@@ -39,6 +40,7 @@ var mainColor = null;
 const atomContent = document.getElementsByClassName('atom-content')[0];
 
 var numRepTabs = 1;
+var currentRep = 1;
 const maxRepTabs = 4;
 
 //set key controls, TODO find a place to move it
@@ -154,9 +156,20 @@ function init() {
 
     // create rep 1 by default
     const tabRepContainer = document.getElementsByClassName("tab-rep")[0];
-    const tab = createRepTabButton('gui-' + numRepTabs, true);
+    const tab = createRepTabButton(makeRepTabId(numRepTabs), true);
     tabRepContainer.appendChild(tab);
-    createGUI();
+
+    let params = {
+        mculeParams: { molecule: 'caffeine.pdb' },
+        repParams: { representation: 'CPK' },
+        residueParams: { residue: 'all' },
+        chainParams: { chain: 'all' },
+        atomParams: { atom: 'all' },
+        withinParams: { within: 0 },
+        withinResParams: { withinRes: 0 }
+    }
+
+    createGUI(params);
 
     console.log('rep 1 gui created');
     
@@ -347,20 +360,33 @@ function loadMolecule( model, rep ) { // origin is perhaps an atom? distance for
     } );
 }
 
-
+function getNumFromId(id) {
+    let splitId = id.split('-');
+    let len = splitId.length;
+    return Number(splitId[len - 1]);
+}
 // tab helper functions for creating selection method tabs
 
-function openSelectionMethodTab(event, tabName) {
-    // get all elements with class="tabContent" and hide them
-    const tabContents = Array.from(document.getElementsByClassName('tab-content-selection-method'));
+function openSelectionMethodTab(event, SMtype) { 
+    console.log('in openSelectionMethodTab');
+
+    currentRep = getNumFromId(event.currentTarget.id);
+    console.log('currentRep', currentRep);
+    const smContentId = makeSMContentId(currentRep, SMtype);
+    console.log('smContentId', smContentId);
+    const repContainer = document.getElementById('rep-content-' + currentRep);
+
+    // get all elements with class="tab-content-selection-method" and hide them, within currentRep's div
+    const tabContents = Array.from(repContainer.querySelectorAll('.tab-content-selection-method'));
     tabContents.forEach(content => content.style.display = 'none');
 
     // get all elements with class="tab-link" and remove the class "active"
-    const tabLinks = Array.from(document.getElementsByClassName('tab-link-selection-method'));
+    const tabLinks = Array.from(repContainer.querySelectorAll('.tab-link-selection-method'));
     tabLinks.forEach(link => link.classList.remove('active'));
 
     // show the current tab and add an "active" class to the button that opened the tab
-    document.getElementById(tabName).style.display = "block";
+    document.getElementById(smContentId).style.display = "block";
+    console.log("changed this smContentId to block", smContentId);
     event.currentTarget.classList.add('active');
 }
 
@@ -369,25 +395,29 @@ function createSelectionMethodTabButton(buttonText, active) {
     const tabButton = document.createElement('button');
     tabButton.classList.add('tab-link-selection-method');
     tabButton.textContent = buttonText;
+    tabButton.id = makeSMTabId(currentRep, buttonText.toLowerCase());
     if (active) { tabButton.classList.add('active'); }
-    tabButton.addEventListener('click', (evt) => openSelectionMethodTab(evt, buttonText.toLowerCase()))
+    tabButton.addEventListener('click', (evt) => openSelectionMethodTab(evt, buttonText.toLowerCase()));
+
     return tabButton;
 }
 
 // function to create tab content for selection methods
-function createSelectionMethodTabContent(tabId, menus = [], display) {
+function createSelectionMethodTabContent(SMtype, menus = [], display) {
     const tabContent = document.createElement('div');
-    tabContent.id = tabId;
+    let smTabId = makeSMContentId(currentRep, SMtype);
+    tabContent.id = smTabId;
     tabContent.classList.add('tab-content-selection-method');
     if (!display) { tabContent.style.display = 'none'; }
     menus.forEach(menu => tabContent.appendChild(menu.domElement));
+
     return tabContent;
 }
 
 
 
 // function to create a GUI for one rep
-function createGUI() {
+function createGUI(params) {
 
     // get container to hold the gui 
     const moleculeGUIContainer = document.getElementsByClassName('three-gui')[0];
@@ -395,19 +425,20 @@ function createGUI() {
     // create new div for GUI
     const moleculeGUIdiv = document.createElement('div');
     moleculeGUIdiv.classList.add('gui-div', 'tab-content-rep');
-    moleculeGUIdiv.id = `gui-${numRepTabs}`;
+    const repContentId = makeRepContentId(currentRep);
+    moleculeGUIdiv.id = repContentId;
 
     // create new GUI
     const moleculeGUI = new GUI({ autoPlace: false }); 
 
     // menus for the gui
-    const molMenu = moleculeGUI.add(mculeParams, 'molecule', MOLECULES);
-    const repMenu = moleculeGUI.add(repParams, 'representation', ['CPK', 'VDW', 'lines']);
-    const atomMenu = moleculeGUI.add(atomParams, 'atom');
-    const residueMenu = moleculeGUI.add(residueParams, 'residue');
-    const chainMenu = moleculeGUI.add(chainParams, 'chain'); 
-    const withinMenu = moleculeGUI.add(withinParams, 'within');
-    const withinResMenu = moleculeGUI.add(withinResParams, 'withinRes');
+    const molMenu = moleculeGUI.add(params.mculeParams, 'molecule', MOLECULES);
+    const repMenu = moleculeGUI.add(params.repParams, 'representation', ['CPK', 'VDW', 'lines']);
+    const atomMenu = moleculeGUI.add(params.atomParams, 'atom');
+    const residueMenu = moleculeGUI.add(params.residueParams, 'residue');
+    const chainMenu = moleculeGUI.add(params.chainParams, 'chain'); 
+    const withinMenu = moleculeGUI.add(params.withinParams, 'within');
+    const withinResMenu = moleculeGUI.add(params.withinResParams, 'withinRes');
     
     withinResMenu.name("of residue");
 
@@ -779,8 +810,8 @@ function raycast(event)
 
     //does the mouse intersect with an object in our scene?! 
     var intersects = raycaster.intersectObjects( scene.children );
-    console.log("intersects", intersects);
-    console.log("length", intersects.length);
+    //console.log("intersects", intersects);
+    //console.log("length", intersects.length);
    
     //if so... 
      if (intersects.length > 0) { // if there is stuff intersected with the mouse
@@ -853,7 +884,7 @@ function raycast(event)
             }            
         };  
     } else {
-        console.log("doesn't intersect");
+        //console.log("doesn't intersect");
     };
 } 
 
@@ -861,34 +892,88 @@ function raycast(event)
 // tab helper functions for adding reps
 
 function hideAllReps() { 
+    console.log('in hideAllReps');
+
+    // Get the container element
+    const guiContainer = document.getElementsByClassName('three-gui')[0];
+
     // get all elements with class="tab-content-rep" and hide them
-    const tabContents = Array.from(document.getElementsByClassName('tab-content-rep'));
-    console.log("tabContents", tabContents);
+    const tabContents = Array.from(guiContainer.querySelectorAll('.tab-content-rep'));
     tabContents.forEach(content => content.style.display = 'none');
 
     // get all elements with class="tab-link-rep" and remove the class "active"
-    const tabLinks = Array.from(document.getElementsByClassName('tab-link-rep'));
+    const tabLinks = Array.from(guiContainer.querySelectorAll('.tab-link-rep'));
     tabLinks.forEach(link => link.classList.remove('active'));
 
 }
 
-function openRepTab(event, tabId) { // COME BACK HERE
-    // get all elements with class="tab-content-rep" and hide them
+function openRepTab(evt) { 
     hideAllReps();
 
-    // show the current tab and add an "active" class to the button that opened the tab
-    document.getElementById(tabId).style.display = "block"; 
-    event.currentTarget.classList.add('active');
+    let repTabId = evt.currentTarget.id;
+    console.log("in openRepTab, repTabId", repTabId);
+    console.log('currentRep', currentRep);
+
+    currentRep = getNumFromId(repTabId); 
+    console.log('now currentRep', currentRep); 
+
+    showCurrentRep(currentRep);
+
+    
 }
 
 // function to create tab buttons for selection methods
-function createRepTabButton(tabId, active) {
+function createRepTabButton(repTabId, active) {
     const tabButton = document.createElement('button');
     tabButton.classList.add('tab-link-rep');
+    tabButton.id = repTabId;
     tabButton.textContent = 'Rep ' + numRepTabs;
     if (active) { tabButton.classList.add('active'); }
-    tabButton.addEventListener('click', (evt) => openRepTab(evt, tabId)); 
+    tabButton.addEventListener('click', (evt) => openRepTab(evt)); 
+
     return tabButton;
+}
+
+// functions to make IDs for tabs and tab contents
+
+function makeRepTabId(repNum) {
+    return 'rep-tab-' + repNum;
+}
+
+function makeRepContentId(repNum) {
+    return 'rep-content-' + repNum;
+}
+
+function makeSMTabId(repNum, SMtype) {
+    return SMtype + '-tab-' + repNum;
+}
+
+function makeSMContentId(repNum, SMtype) {
+    return SMtype + '-content-' + repNum;
+}
+
+
+
+function showCurrentRep(repNum) {
+    // get tab container add class 'active'
+    console.log('in showCurrentRep, this is repNum', repNum);
+
+    let repTabId = makeRepTabId(repNum);
+    let repContentId = makeRepContentId(repNum);
+    console.log("repContentId", repContentId);
+    // select specific tab within guiContainer based on guiId
+    //const tabContainer = document.getElementsByClassName('tab-rep')[0]; // TODO maybe change this to id instead of class
+    
+    // add class 'active'
+    document.getElementById(repTabId).classList.add('active');
+        
+    // get GUI container
+    //const guiContainer = document.getElementsByClassName('three-gui')[0];
+   //const currentRepGUI = guiContainer.querySelector('#' + guiId + '.tab-content-rep');
+    //console.log("currentRepGUI", currentRepGUI);
+    // show currentRepGUI
+    document.getElementById(repContentId).style.display = "block"; 
+    console.log("just chainged this repContentId to block:", repContentId);
 }
 
 
@@ -897,30 +982,46 @@ function onAddRepClick (event) {
     if (numRepTabs < maxRepTabs) {
 
         numRepTabs++;
+        currentRep = numRepTabs;
+        console.log("currentRep", currentRep);
 
-        let tabId = 'gui-' + numRepTabs;
+        let repTabId = makeRepTabId(currentRep);
 
         // get tab rep container
         const tabRepContainer = document.getElementsByClassName("tab-rep")[0];
         
         // create tab button
-        const tab = createRepTabButton(tabId, true);
-
-        // get all elements with class="tab-link-rep" and remove the class "active", then hide all GUIs
-        hideAllReps();
-
-        // create tab content
-        createGUI();
+        const tab = createRepTabButton(repTabId, true);
 
         // append active tab button to tab container
         tabRepContainer.appendChild(tab);
+
+        // create a new copy of params
+        let params = {
+            mculeParams: { molecule: 'caffeine.pdb' },
+            repParams: { representation: 'CPK' },
+            residueParams: { residue: 'all' },
+            chainParams: { chain: 'all' },
+            atomParams: { atom: 'all' },
+            withinParams: { within: 0 },
+            withinResParams: { withinRes: 0 }
+        }
+
+        // create tab content and append
+        createGUI(params);
+
+        // hide all reps
+        hideAllReps();
+
+        // show newly-created rep
+        showCurrentRep(currentRep);
 
     } else {
         console.log("Maximum number of GUIs reached");
     }
 }
 
-//get radius size of a given atom name 
+// get radius size of a given atom name 
 function getRadius(atom){
     let rad; 
 

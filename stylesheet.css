@@ -136,7 +136,6 @@
   white-space: nowrap;
   padding: 2px 5px;
   margin: 0;
-  transition: 0.3s;
 }
 
 .tab-rep button {
@@ -148,7 +147,6 @@
   white-space: nowrap;
   padding: 2px 5px;
   margin: 0;
-  transition: 0.3s;
 }
 
 /* Create an active/current tab-link-selection-method class */
