@@ -179,7 +179,7 @@ function init() {
 function loadMolecule( model, rep ) { // origin is perhaps an atom? distance for min dist
 
     //grab model file 
-    const url = '/models/molecules/' + model;
+    const url = './models/molecules/' + model;
     
     //initialize geometries that will change based on representation 
     let boxGeometry, sphereGeometry; // stretched out square for bonds, atoms as spheres
