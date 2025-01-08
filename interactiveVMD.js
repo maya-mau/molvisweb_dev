@@ -2,7 +2,7 @@
 //import three js and all the addons that are used in this script 
 import * as THREE from 'three';
 import { TrackballControls } from 'three/addons/controls/TrackballControls.js';
-import { PDBLoader } from '/mymods/PDBLoader.js';
+import { PDBLoader } from './mymods/PDBLoader.js';
 import { OBJLoader } from 'three/addons/loaders/OBJLoader.js';
 import { MTLLoader } from 'three/addons/loaders/MTLLoader.js';
 import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
