@@ -15,12 +15,12 @@ import { TextGeometry } from 'three/addons/geometries/TextGeometry.js';
 console.log("start script")
 
 
-//initialize the baseline objects  
+// initialize the baseline objects  
 let camera, scene, renderer, labelRenderer, container;
 let controls;
 let root;
 let geometryAtoms, geometryBonds, json_atoms, json_bonds, json_bonds_manual, json_bonds_conect, residues;
-//let outlinePass, composer;
+// let outlinePass, composer;
 var raycaster, mouse = {x: 0, y: 0 }
 
 let initialPosition, initialTarget, initialQuaternion;
@@ -43,7 +43,7 @@ var numRepTabs = 1;
 var currentRep = 1;
 const maxRepTabs = 4;
 
-//set key controls, TODO find a place to move it
+// set key controls, TODO find a place to move it
 var isDistanceMeasurementMode = false
 
 // amount of molecule selected, may change
@@ -63,7 +63,7 @@ const MOLECULES = {
     "Ablkinase": 'Ablkinase.pdb'
 };
 
-//setting default/on load molecule  
+// setting default/on load molecule  
 const mculeParams = { molecule: 'caffeine.pdb' };
 const repParams = { representation: 'CPK' };
 const residueParams = { residue: 'all' };
@@ -77,7 +77,7 @@ const withinResParams = { withinRes: 0 };
 init();
 animate();
 
-//init function - sets up scene, camera, renderer, controls, and gui 
+// init function - sets up scene, camera, renderer, controls, and GUI 
 function init() {
 
     // TODO attempt at orthographic camera
@@ -101,14 +101,14 @@ function init() {
     scene = new THREE.Scene();
     scene.background = new THREE.Color( 0x000000 );
 
-    //gives the user a specific viewpoint of the scene 
+    // gives the user a specific viewpoint of the scene 
     camera = new THREE.PerspectiveCamera( 70, window.innerWidth / window.innerHeight, 1, 5000 );
-    //camera = new THREE.OrthographicCamera(left, right, top, bottom, near, far);
+    // camera = new THREE.OrthographicCamera(left, right, top, bottom, near, far);
     
     camera.position.z = 1000; // could set camera to orthoperspective for toggle TODO
     scene.add( camera );
 
-    //object needs to be illuminated to be visible // TODO, could work on this, lighting is kind of strange
+    // object needs to be illuminated to be visible // TODO, could work on this, lighting is kind of strange
     var ambientLight = new THREE.AmbientLight ( 0xffffff, 1)
     scene.add( ambientLight )
 
@@ -135,7 +135,7 @@ function init() {
     renderer.setSize(containerWidth, containerHeight);
     container.appendChild(renderer.domElement);
 
-    //allow user to move around the molecule 
+    // allow user to move around the molecule 
     controls = new TrackballControls( camera, renderer.domElement ); // TODO, controls zooming out boundaries
     controls.minDistance = 100;
     controls.maxDistance = 3000;
@@ -169,22 +169,19 @@ function init() {
         withinResParams: { withinRes: 0 }
     }
 
-    createGUI(params);
-
-    console.log('rep 1 gui created');
-    
+    createGUI(params);    
 }
 
 // from the given pdb and given representation style, load molecule into scene 
 function loadMolecule( model, rep ) { // origin is perhaps an atom? distance for min dist
 
-    //grab model file 
+    // grab model file 
     const url = './models/molecules/' + model;
     
-    //initialize geometries that will change based on representation 
+    // initialize geometries that will change based on representation 
     let boxGeometry, sphereGeometry; // stretched out square for bonds, atoms as spheres
 
-    //reset the scene because something new is being loaded 
+    // reset the scene because something new is being loaded 
     while ( root.children.length > 0 ) {
         const object = root.children[ 0 ];
         object.parent.remove( object );
@@ -360,12 +357,135 @@ function loadMolecule( model, rep ) { // origin is perhaps an atom? distance for
     } );
 }
 
+
+// returns the rep number from a given id (e.g. getNumFromId('rep-tab-2') returns 2)
 function getNumFromId(id) {
     let splitId = id.split('-');
     let len = splitId.length;
     return Number(splitId[len - 1]);
 }
-// tab helper functions for creating selection method tabs
+
+
+// helper functions for adding reps
+
+// hides all rep contents and removes class='active' from all rep tabs
+function hideAllReps() { 
+    console.log('in hideAllReps');
+
+    // Get the container element
+    const guiContainer = document.getElementsByClassName('three-gui')[0];
+
+    // get all elements with class="tab-content-rep" and hide them
+    const tabContents = Array.from(guiContainer.querySelectorAll('.tab-content-rep'));
+    tabContents.forEach(content => content.style.display = 'none');
+
+    // get all elements with class="tab-link-rep" and remove the class "active"
+    const tabLinks = Array.from(guiContainer.querySelectorAll('.tab-link-rep'));
+    tabLinks.forEach(link => link.classList.remove('active'));
+}
+
+// opens a rep's tab contents based on the tab clicked 
+function openRepTab(evt) { 
+    hideAllReps();
+    let repTabId = evt.currentTarget.id;
+    currentRep = getNumFromId(repTabId); 
+    showCurrentRep(currentRep);
+}
+
+// creates tab buttons for reps
+function createRepTabButton(repTabId, active) {
+    const tabButton = document.createElement('button');
+    tabButton.classList.add('tab-link-rep');
+    tabButton.id = repTabId;
+    tabButton.textContent = 'Rep ' + numRepTabs;
+    if (active) { tabButton.classList.add('active'); }
+    tabButton.addEventListener('click', (evt) => openRepTab(evt)); 
+
+    return tabButton;
+}
+
+// shows a given rep number's contents and assigns class='active' to the tab
+function showCurrentRep(repNum) {
+    // get tab container add class 'active'
+    console.log('in showCurrentRep, this is repNum', repNum);
+
+    let repTabId = makeRepTabId(repNum);
+    let repContentId = makeRepContentId(repNum);
+    console.log("repContentId", repContentId);
+    
+    // add class 'active'
+    document.getElementById(repTabId).classList.add('active');
+        
+    // show currentRepGUI
+    document.getElementById(repContentId).style.display = "block"; 
+    console.log("just chainged this repContentId to block:", repContentId);
+}
+
+
+// functions to make IDs for tabs and tab contents
+
+function makeRepTabId(repNum) {
+    return 'rep-tab-' + repNum;
+}
+
+function makeRepContentId(repNum) {
+    return 'rep-content-' + repNum;
+}
+
+function makeSMTabId(repNum, SMtype) {
+    return SMtype + '-tab-' + repNum;
+}
+
+function makeSMContentId(repNum, SMtype) {
+    return SMtype + '-content-' + repNum;
+}
+
+
+// when add rep button is clicked, add a new tab
+function onAddRepClick () {
+    if (numRepTabs < maxRepTabs) {
+        numRepTabs++;
+        currentRep = numRepTabs;
+        console.log("currentRep", currentRep);
+
+        let repTabId = makeRepTabId(currentRep);
+
+        // get tab rep container
+        const tabRepContainer = document.getElementsByClassName("tab-rep")[0];
+        
+        // create tab button
+        const tab = createRepTabButton(repTabId, true);
+
+        // append active tab button to tab container
+        tabRepContainer.appendChild(tab);
+
+        // create a new copy of params
+        let params = {
+            mculeParams: { molecule: 'caffeine.pdb' },
+            repParams: { representation: 'CPK' },
+            residueParams: { residue: 'all' },
+            chainParams: { chain: 'all' },
+            atomParams: { atom: 'all' },
+            withinParams: { within: 0 },
+            withinResParams: { withinRes: 0 }
+        }
+
+        // create tab content and append
+        createGUI(params);
+
+        // hide all reps
+        hideAllReps();
+
+        // show newly-created rep
+        showCurrentRep(currentRep);
+
+    } else {
+        console.log("Maximum number of GUIs reached");
+    }
+}
+
+
+// helper functions for creating selection method tabs and contents
 
 function openSelectionMethodTab(event, SMtype) { 
     console.log('in openSelectionMethodTab');
@@ -413,8 +533,6 @@ function createSelectionMethodTabContent(SMtype, menus = [], display) {
 
     return tabContent;
 }
-
-
 
 // function to create a GUI for one rep
 function createGUI(params) {
@@ -513,8 +631,6 @@ function createGUI(params) {
         residueMenu.setValue('all');
     });
 
-
-
     // create div to hold molecule and representation options
     const molRepOptionContainer = document.createElement('div');
     molRepOptionContainer.classList.add('mol-rep-option');
@@ -555,7 +671,6 @@ function createGUI(params) {
     const node = document.createTextNode("SELECTION METHOD:");
     selectionMethodPara.appendChild(node);
 
-
     molRepOptionContainer.appendChild(molMenu.domElement);
     molRepOptionContainer.appendChild(repMenu.domElement);
 
@@ -564,10 +679,9 @@ function createGUI(params) {
     moleculeGUI.domElement.appendChild(selectionMethodPara);
     moleculeGUI.domElement.appendChild(selectionOptionContainer);
 
-    //add our gui to its container home 
+    // add GUI to its container  
     moleculeGUIdiv.appendChild(moleculeGUI.domElement);
     moleculeGUIContainer.appendChild(moleculeGUIdiv);
-
 }
 
 // window resize function specific to container that this scene is in (not just entire window)
@@ -600,7 +714,7 @@ function render() {
 
 // keypress event functions
 
-//on keypress, 2
+// on keypress, 2
 function keypress2(event) {
     if (event.key === '2') {
         if (!isDistanceMeasurementMode) {
@@ -621,7 +735,7 @@ function keypress2(event) {
     };
 };
 
-//on keypress, =
+// on keypress, =
 function keypressEqual(event) {
     if (event.key === '=') {
         console.log("in keypressEqual");
@@ -700,25 +814,6 @@ function calculateDistance(object1, object2) { // could combine with drawLine
     return distance.toFixed(4);
 };
 
-// Function to create the label as a sprite
-function createTextSprite(message, fontSize, fontColor) {
-    const canvas = document.createElement('canvas');
-    const context = canvas.getContext('2d');
-    
-    context.font = `${fontSize}px Arial`;
-    context.fillStyle = fontColor;
-    context.fillText(message, 0, fontSize);
-    
-    const texture = new THREE.CanvasTexture(canvas);
-    const material = new THREE.SpriteMaterial({ map: texture });
-    const sprite = new THREE.Sprite(material);
-    
-    // Scale the sprite depending on the font size and message length
-    // sprite.scale.set(2, 1, 1);
-    
-    return sprite;
-};
-
 function drawLine(object1, object2) {
     let distance = calculateDistance(object1, object2);
 
@@ -790,11 +885,8 @@ function drawLine(object1, object2) {
     sprite.position.set(x_cor+50, y_cor, z_cor);
 
     line.add(sprite);
-    
 
     renderer.render(scene, camera);
-
-    console.log("line drawn");
 }
 
 // on click 
@@ -813,8 +905,7 @@ function raycast(event)
     //console.log("intersects", intersects);
     //console.log("length", intersects.length);
    
-    //if so... 
-     if (intersects.length > 0) { // if there is stuff intersected with the mouse
+    if (intersects.length > 0) { // if there is stuff intersected with the mouse
         console.log("intersects");
 
         let numAtoms = 0
@@ -884,142 +975,10 @@ function raycast(event)
             }            
         };  
     } else {
-        //console.log("doesn't intersect");
-    };
+        // console.log("doesn't intersect");
+    }
 } 
 
-
-// tab helper functions for adding reps
-
-function hideAllReps() { 
-    console.log('in hideAllReps');
-
-    // Get the container element
-    const guiContainer = document.getElementsByClassName('three-gui')[0];
-
-    // get all elements with class="tab-content-rep" and hide them
-    const tabContents = Array.from(guiContainer.querySelectorAll('.tab-content-rep'));
-    tabContents.forEach(content => content.style.display = 'none');
-
-    // get all elements with class="tab-link-rep" and remove the class "active"
-    const tabLinks = Array.from(guiContainer.querySelectorAll('.tab-link-rep'));
-    tabLinks.forEach(link => link.classList.remove('active'));
-
-}
-
-function openRepTab(evt) { 
-    hideAllReps();
-
-    let repTabId = evt.currentTarget.id;
-    console.log("in openRepTab, repTabId", repTabId);
-    console.log('currentRep', currentRep);
-
-    currentRep = getNumFromId(repTabId); 
-    console.log('now currentRep', currentRep); 
-
-    showCurrentRep(currentRep);
-
-    
-}
-
-// function to create tab buttons for selection methods
-function createRepTabButton(repTabId, active) {
-    const tabButton = document.createElement('button');
-    tabButton.classList.add('tab-link-rep');
-    tabButton.id = repTabId;
-    tabButton.textContent = 'Rep ' + numRepTabs;
-    if (active) { tabButton.classList.add('active'); }
-    tabButton.addEventListener('click', (evt) => openRepTab(evt)); 
-
-    return tabButton;
-}
-
-// functions to make IDs for tabs and tab contents
-
-function makeRepTabId(repNum) {
-    return 'rep-tab-' + repNum;
-}
-
-function makeRepContentId(repNum) {
-    return 'rep-content-' + repNum;
-}
-
-function makeSMTabId(repNum, SMtype) {
-    return SMtype + '-tab-' + repNum;
-}
-
-function makeSMContentId(repNum, SMtype) {
-    return SMtype + '-content-' + repNum;
-}
-
-
-
-function showCurrentRep(repNum) {
-    // get tab container add class 'active'
-    console.log('in showCurrentRep, this is repNum', repNum);
-
-    let repTabId = makeRepTabId(repNum);
-    let repContentId = makeRepContentId(repNum);
-    console.log("repContentId", repContentId);
-    // select specific tab within guiContainer based on guiId
-    //const tabContainer = document.getElementsByClassName('tab-rep')[0]; // TODO maybe change this to id instead of class
-    
-    // add class 'active'
-    document.getElementById(repTabId).classList.add('active');
-        
-    // get GUI container
-    //const guiContainer = document.getElementsByClassName('three-gui')[0];
-   //const currentRepGUI = guiContainer.querySelector('#' + guiId + '.tab-content-rep');
-    //console.log("currentRepGUI", currentRepGUI);
-    // show currentRepGUI
-    document.getElementById(repContentId).style.display = "block"; 
-    console.log("just chainged this repContentId to block:", repContentId);
-}
-
-
-// when add rep button is clicked, add a new tab
-function onAddRepClick (event) {
-    if (numRepTabs < maxRepTabs) {
-
-        numRepTabs++;
-        currentRep = numRepTabs;
-        console.log("currentRep", currentRep);
-
-        let repTabId = makeRepTabId(currentRep);
-
-        // get tab rep container
-        const tabRepContainer = document.getElementsByClassName("tab-rep")[0];
-        
-        // create tab button
-        const tab = createRepTabButton(repTabId, true);
-
-        // append active tab button to tab container
-        tabRepContainer.appendChild(tab);
-
-        // create a new copy of params
-        let params = {
-            mculeParams: { molecule: 'caffeine.pdb' },
-            repParams: { representation: 'CPK' },
-            residueParams: { residue: 'all' },
-            chainParams: { chain: 'all' },
-            atomParams: { atom: 'all' },
-            withinParams: { within: 0 },
-            withinResParams: { withinRes: 0 }
-        }
-
-        // create tab content and append
-        createGUI(params);
-
-        // hide all reps
-        hideAllReps();
-
-        // show newly-created rep
-        showCurrentRep(currentRep);
-
-    } else {
-        console.log("Maximum number of GUIs reached");
-    }
-}
 
 // get radius size of a given atom name 
 function getRadius(atom){
