@@ -1,0 +1,66 @@
+functions:
+
+openSelectionMethodTab (event, tabName):
+    hides everything and removes class active from every tab
+    show current selection method and add active to its tab
+
+createSelectionMethodTabButton (buttonText, active: Boolean):
+    creates a tab button for a given selection method,
+    adds event listener function, openSelectionMethodTab, to the tab
+    returns tab
+
+createselectionMethodTabContent(tabId, menus = [], display):
+    creates selection method tab content (e.g. part of the GUI)
+    and returns content
+
+createGUI():
+    creates a single GUI
+
+createRepTabButton(guiId, active):
+    creates a tab button for a single rep
+
+hideAllReps():
+    hide all current reps
+
+-------ids: -------
+rep tab: gui-rep-2
+rep content: 
+selection method tab
+selection method content
+
+
+
+structure:
+
+div class=three-gui
+    div class=tab-rep   
+        button class=tab-link-rep id=rep-tab-1
+        button class=tab-link-rep id=rep-tab-2
+    div class=gui-div tab-content-rep id=rep-content-1
+        div class=mol-rep-option
+        div class=selection-option
+            div class=tab-selection-method
+                button class=tab-link-selection-method 'atom' id=atom-1
+                button class=tab-link-selection-method 'residue' id=residue-1
+                button class=tab-link-selection-method 'chain' id=chain-1
+                button class=tab-link-selection-method 'distance' id=distance-1
+            div class=tab-content-selection-method id=atom-1
+            div class=tab-content-selection-method id=residue-1
+            div class=tab-content-selection-method id=chain-1
+            div class=tab-content-selection-method id=distance-1
+    div class=gui-div tab-content-rep id=rep-content-2
+        div class=mol-rep-option
+        div class=selection-option
+            div class=tab-selection-method
+                button class=tab-link-selection-method 'atom' id=atom-tab-2
+                button class=tab-link-selection-method 'residue' id=residue-tab-2
+                button class=tab-link-selection-method 'chain' id=chain-tab-2
+                button class=tab-link-selection-method 'distance' id=distance-tab-2
+            div class=tab-content-selection-method id=atom-content-2
+            div class=tab-content-selection-method id=residue-content-2
+            div class=tab-content-selection-method id=chain-content-2
+            div class=tab-content-selection-method id=distance-content-2
+              
+
+
+

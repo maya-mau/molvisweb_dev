@@ -39,20 +39,11 @@ var distanceMeasurementAtoms = [];
 var mainColor = null; 
 const atomContent = document.getElementsByClassName('atom-content')[0];
 
-var currentMolecule = 'caffeine.pdb';
-
 var numRepTabs = 1;
-var currentRep = 1;
-var currentGUI = null;
+var currentRep = createUniqueId();
+var currentGUI = null
 var prevRep = null;
-
 const maxRepTabs = 4;
-
-const guis = [];
-const guiContainers = [];
-const guiStates = Array(maxRepTabs).fill(false)
-
-
 
 // set key controls, TODO find a place to move it
 var isDistanceMeasurementMode = false
@@ -161,8 +152,6 @@ function init() {
     // dynamic screen size 
     window.addEventListener( 'resize', onWindowResize );
 
-
-
     // add event listener to add rep button
     const addRep = document.getElementById('add-rep');
     addRep.addEventListener('click', onAddRepClick);
@@ -185,23 +174,6 @@ function init() {
         withinParams: { within: 0 },
         withinResParams: { withinRes: 0 }
     }
-
-    // add molecule selection GUI to div with class=molecule-gui
-    const molGUIContainer = document.getElementById('mol-gui');
-    const moleculeGUI = new GUI({ autoPlace: false }); 
-    const molMenu = moleculeGUI.add(params.mculeParams, 'molecule', MOLECULES);
-    molGUIContainer.appendChild(molMenu.domElement);
-
-    // PUT ONCHANGE HERE
-    molMenu.onChange(function(molecule) {
-        console.log("trying to load", molecule);
-        residueSelected = 'all';
-
-        currentMolecule = mculeParams.molecule;
-
-        loadMolecule(molecule, repParams.representation);
-        resetMoleculeOrientation();
-    });
 
     createGUI(params);    
 }
@@ -306,7 +278,7 @@ function loadMolecule( model, rep ) { // origin is perhaps an atom? distance for
             // create atom object that is a sphere w the position, color, and content we want 
             const object = new THREE.Mesh( sphereGeometry, material );
             object.position.copy( position );
-            object.position.multiplyScalar( 75 ); // TODOlater figure out why scaling
+            object.position.multiplyScalar( 75 ); // TODO figure out why scaling
             object.scale.multiplyScalar( 25 );
 
             object.molecularElement = "Atom";
@@ -529,7 +501,7 @@ function onAddRepClick () {
 // when delete rep button is clicked, delete currently active rep
 function onDeleteRepClick () {
     if (numRepTabs > 1) {
-        
+        numRepTabs--;
         
         console.log("currentRep", currentRep);
 
@@ -560,16 +532,7 @@ function onDeleteRepClick () {
         currentRepContent.remove(); */
 
         currentRep = prevRep;
-
-        if (numRepTabs > 2) {
-            prevRep = null;
-        } else { 
-            let id = document.getElementsByClassName('tab-content-rep')[0].id;
-            prevRep = id;
-        }
-
-        numRepTabs--;
-        // TODO deleting rep doesn't work for some reason
+        prevRep = null;
 
         // hide all reps
         hideAllReps();
@@ -649,7 +612,7 @@ function createGUI(params) {
     currentGUI = moleculeGUI;
 
     // menus for the gui
-    // const molMenu = moleculeGUI.add(params.mculeParams, 'molecule', MOLECULES);
+    const molMenu = moleculeGUI.add(params.mculeParams, 'molecule', MOLECULES);
     const repMenu = moleculeGUI.add(params.repParams, 'representation', ['CPK', 'VDW', 'lines']);
     const atomMenu = moleculeGUI.add(params.atomParams, 'atom');
     const residueMenu = moleculeGUI.add(params.residueParams, 'residue');
@@ -668,14 +631,14 @@ function createGUI(params) {
 
             if (residues[Number(value)]) { // value does exist in the residues list, this returns true
                 residueSelected = Number(value); // set residueSelected to the residue we want to select
-                loadMolecule(currentMolecule, repParams.representation);  
+                loadMolecule(mculeParams.molecule, repParams.representation);
             } else { // value does not exist in the residues list
                 console.log("please select a valid residue");
             }
         } else if (value.toLowerCase() === "all") { // display entire molecule
             console.log("Option 'all' selected");
             residueSelected = 'all';
-            loadMolecule(currentMolecule, repParams.representation); 
+            loadMolecule(mculeParams.molecule, repParams.representation); 
 
         } else {
             // pop up text, flashing?
@@ -705,20 +668,20 @@ function createGUI(params) {
     repMenu.onChange(function(value) {
         switch (value) {
             case 'CPK':
-                loadMolecule(currentMolecule, 'CPK');
+                loadMolecule(mculeParams.molecule, 'CPK');
                 break;
             case 'VDW':
-                loadMolecule(currentMolecule, 'VDW');
+                loadMolecule(mculeParams.molecule, 'VDW');
                 break;
             case 'lines':
-                loadMolecule(currentMolecule, 'lines'); // TODOlater lines color doesn't work
+                loadMolecule(mculeParams.molecule, 'lines'); // TODO lines color doesn't work
                 break;
             default:
                 break;
         }
     }); 
 
-    /* // when molecule changes, selected representation stays the same TODOlater delete
+    // when molecule changes, selected representation stays the same 
     molMenu.onChange(function() {
         console.log("trying to load", mculeParams.molecule);
         residueSelected = 'all';
@@ -728,7 +691,7 @@ function createGUI(params) {
 
         // reset toggle option to 'all'
         residueMenu.setValue('all');
-    }); */
+    });
 
     // create div to hold molecule and representation options
     const molRepOptionContainer = document.createElement('div');
@@ -758,7 +721,7 @@ function createGUI(params) {
     selectionTabContainer.appendChild(tabButtonChain);
     selectionTabContainer.appendChild(tabButtonDistance);
 
-    // append content to content container
+    // append content to container
     selectionOptionContainer.appendChild(selectionTabContainer);
     selectionOptionContainer.appendChild(tabContentAtom);
     selectionOptionContainer.appendChild(tabContentResidue);
@@ -767,10 +730,10 @@ function createGUI(params) {
 
     const selectionMethodPara = document.createElement('p');
     selectionMethodPara.classList.add("text");
-    const text = document.createTextNode("SELECTION METHOD:");
-    selectionMethodPara.appendChild(text);
+    const node = document.createTextNode("SELECTION METHOD:");
+    selectionMethodPara.appendChild(node);
 
-    // molRepOptionContainer.appendChild(molMenu.domElement);
+    molRepOptionContainer.appendChild(molMenu.domElement);
     molRepOptionContainer.appendChild(repMenu.domElement);
 
     // append everything to GUI div

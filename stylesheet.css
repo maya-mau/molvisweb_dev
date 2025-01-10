@@ -90,6 +90,13 @@
     margin-bottom: 20px;
   }
 
+  #mol-gui {
+    background-color: inherit;
+    color: black;
+    --widget-color: #7C7C7C;
+    --hover-color: #7C7C7C
+  }
+
   .lil-gui {
     width: 100% !important;
     font-family: 'Ubuntu Mono';
