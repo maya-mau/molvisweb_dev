@@ -194,10 +194,12 @@ function init() {
 
     // PUT ONCHANGE HERE
     molMenu.onChange(function(molecule) {
-        console.log("trying to load", molecule);
+        console.log("trying to load", molecule, repParams.representation);
         residueSelected = 'all';
 
-        currentMolecule = mculeParams.molecule;
+        currentMolecule = molecule;
+
+        console.log('currentMOlecule now: ', currentMolecule);
 
         loadMolecule(molecule, repParams.representation);
         resetMoleculeOrientation();
@@ -705,12 +707,15 @@ function createGUI(params) {
     repMenu.onChange(function(value) {
         switch (value) {
             case 'CPK':
+                console.log(currentMolecule, "CPK");
                 loadMolecule(currentMolecule, 'CPK');
                 break;
             case 'VDW':
+                console.log(currentMolecule, "VDW");
                 loadMolecule(currentMolecule, 'VDW');
                 break;
             case 'lines':
+                console.log(currentMolecule, "lines");
                 loadMolecule(currentMolecule, 'lines'); // TODOlater lines color doesn't work
                 break;
             default:
