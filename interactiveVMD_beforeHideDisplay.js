@@ -42,16 +42,15 @@ const atomContent = document.getElementsByClassName('atom-content')[0];
 var currentMolecule = 'caffeine.pdb';
 
 var numRepTabs = 1;
-var currentRep = 0;
+var currentRep = 1;
 var currentGUI = null;
 var prevRep = null;
 
 const maxRepTabs = 4;
 
-let guis = [];
-let tabs = [];
-let guiContainers = [];
-let repStates = Array(maxRepTabs).fill(false);
+const guis = [];
+const guiContainers = [];
+const guiStates = Array(maxRepTabs).fill(false)
 
 
 
@@ -177,9 +176,9 @@ function init() {
 
 
     // create rep 1 by default
-    /* const tabRepContainer = document.getElementsByClassName("tab-rep")[0];
+    const tabRepContainer = document.getElementsByClassName("tab-rep")[0];
     const tab = createRepTabButton(makeRepTabId(currentRep), true); 
-    tabRepContainer.appendChild(tab);*/
+    tabRepContainer.appendChild(tab);
 
     let params = {
         mculeParams: { molecule: 'caffeine.pdb' },
@@ -195,7 +194,7 @@ function init() {
     const molGUIContainer = document.getElementById('mol-gui');
     const moleculeGUI = new GUI({ autoPlace: false }); 
     const molMenu = moleculeGUI.add(params.mculeParams, 'molecule', MOLECULES);
-    molGUIContainer.appendChild(molMenu.domElement); 
+    molGUIContainer.appendChild(molMenu.domElement);
 
     molMenu.onChange(function(molecule) {
         console.log("trying to load", molecule, repParams.representation);
@@ -209,9 +208,7 @@ function init() {
         resetMoleculeOrientation();
     });
 
-    
-
-    createGUIs(params);    
+    createGUI(params);    
 }
 
 
@@ -447,7 +444,7 @@ function createRepTabButton(repTabId, active) {
     const tabButton = document.createElement('button');
     tabButton.classList.add('tab-link-rep');
     tabButton.id = repTabId;
-    tabButton.textContent = 'Rep ' + getNumFromId(repTabId);
+    tabButton.textContent = 'Rep ' + numRepTabs;
     if (active) { tabButton.classList.add('active'); }
     tabButton.addEventListener('click', (evt) => openRepTab(evt)); 
 
@@ -456,40 +453,19 @@ function createRepTabButton(repTabId, active) {
 
 // shows a given rep number's contents and assigns class='active' to the tab
 function showCurrentRep(repNum) {
-
+    // get tab container add class 'active'
     console.log('in showCurrentRep, this is repNum', repNum);
 
     let repTabId = makeRepTabId(repNum);
     let repContentId = makeRepContentId(repNum);
+    console.log("repContentId", repContentId);
     
     // add class 'active'
     document.getElementById(repTabId).classList.add('active');
-    document.getElementById(repTabId).style.display = 'block';
         
     // show currentRepGUI
     document.getElementById(repContentId).style.display = "block"; 
-}
-
-// hides a given rep number's contents and removes class='active' from the tab
-function hideRep(repNum) {
-
-    console.log('in hideRep, this is repNum', repNum);
-
-    let repTabId = makeRepTabId(repNum);
-    let repContentId = makeRepContentId(repNum);
-    
-    // remove class 'active'
-    document.getElementById(repTabId).classList.remove('active');
-        
-    // hide currentRepGUI
-    document.getElementById(repContentId).style.display = "none"; 
-}
-
-function moveTabToEnd(repNum) {
-    const tabContainer = document.getElementsByClassName('tab-rep')[0];
-    const tab = document.getElementById(makeRepTabId(repNum));
-
-    tabContainer.appendChild(tab); // moves tab to end of tabContainer
+    console.log("just chainged this repContentId to block:", repContentId);
 }
 
 
@@ -512,59 +488,101 @@ function makeSMContentId(id, SMtype) {
 }
 
 
-// when add rep button is clicked, "add" a new tab
+// when add rep button is clicked, add a new tab
 function onAddRepClick () {
     if (numRepTabs < maxRepTabs) {
         numRepTabs++;
 
-        for (let i = 0; i < maxRepTabs; i++) {
+        const id = createUniqueId();
+        let repTabId = makeRepTabId(id);
+        prevRep = currentRep;
+        currentRep = id;
+        console.log("currentRep", currentRep);
 
-            // if current tab in array repStates is marked true, skip (rep already in use)
-            if (repStates[i]) { 
-                continue;
-            }
+        // get tab rep container
+        const tabRepContainer = document.getElementsByClassName("tab-rep")[0];
+        
+        // create tab button
+        const tab = createRepTabButton(repTabId, true);
 
-            // if current tab in array repStates is marked false, rep isn't in use
+        // append active tab button to tab container
+        tabRepContainer.appendChild(tab);
 
-            repStates[i] = true; // mark current rep in use
-
-            hideAllReps();
-
-            currentRep = i;
-            moveTabToEnd(currentRep);
-            showCurrentRep(currentRep);
-
-            console.log("currentRep", currentRep);
-
-            break;
+        // create a new copy of params
+        let params = {
+            mculeParams: { molecule: 'caffeine.pdb' },
+            repParams: { representation: 'CPK' },
+            residueParams: { residue: 'all' },
+            chainParams: { chain: 'all' },
+            atomParams: { atom: 'all' },
+            withinParams: { within: 0 },
+            withinResParams: { withinRes: 0 }
         }
+
+        // create tab content and append
+        createGUI(params);
+
+        // hide all reps
+        hideAllReps();
+
+        // show newly-created rep
+        showCurrentRep(id);
 
     } else {
         console.log("Maximum number of GUIs reached");
     }
 }
 
-// when delete rep button is clicked, "delete" currently active rep
+// when delete rep button is clicked, delete currently active rep
 function onDeleteRepClick () {
     if (numRepTabs > 1) {
         
+        
+        console.log("currentRep", currentRep);
+
+        // delete GUI
+
+        let parentOfGUI = document.getElementById(makeRepContentId(currentRep));
+
+
+        /* currentGUI.listen(!1);
+        currentGUI.parent.children.splice(this.parent.children.indexOf(this), 1);
+        currentGUI.parent.controllers.splice(this.parent.controllers.indexOf(this), 1);
+        currentGUI.parent.$children.removeChild(this.domElement); */
+
+        //parentOfGUI.removeChild(currentGUI.domElement);
+
+        //console.log("successfully removed?", )
+
+        
+        //currentGUI.destroy();
+
+        // delete current rep tab
+        var currentRepTab = document.getElementById(makeRepTabId(currentRep));
+        
+        currentRepTab.remove();
+
+        // delete current rep content (GUI div)
+        /* var currentRepContent = document.getElementById(makeRepContentId(currentRep));
+        currentRepContent.remove(); */
+
+        currentRep = prevRep;
+
+        if (numRepTabs > 2) {
+            prevRep = null;
+        } else { 
+            let id = document.getElementsByClassName('tab-content-rep')[0].id;
+            prevRep = id;
+        }
+
         numRepTabs--;
-
-        tabs[currentRep].style.display = 'none';
-
-        repStates[currentRep] = false;
+        // TODO deleting rep doesn't work for some reason
 
         // hide all reps
         hideAllReps();
 
-        // show an existing rep
-        for (let i = maxRepTabs - 1; i >= 0; i--) {
-            if (repStates[i]) {
-                currentRep = i;
-                showCurrentRep(currentRep);
-                break;
-            }
-        }
+        // show previous (now current) rep
+        showCurrentRep(currentRep);
 
     } else {
         console.log("Cannot delete rep, only one left");
@@ -621,178 +639,161 @@ function createSelectionMethodTabContent(SMtype, menus = [], display) {
     return tabContent;
 }
 
-// function to create a GUI for each of the maxRepTabs reps
-function createGUIs(params) {
+// function to create a GUI for one rep
+function createGUI(params) {
 
-    // get container to hold all the GUIs 
+    // get container to hold the gui 
     const moleculeGUIContainer = document.getElementsByClassName('three-gui')[0];
     
-    for (let i = 0; i < maxRepTabs; i++) {
+    // create new div for GUI
+    const moleculeGUIdiv = document.createElement('div');
+    moleculeGUIdiv.classList.add('gui-div', 'tab-content-rep');
+    const repContentId = makeRepContentId(currentRep);
+    moleculeGUIdiv.id = repContentId;
 
-        // get tab rep container
-        const tabRepContainer = document.getElementsByClassName("tab-rep")[0];
-        
-        // create tab button
-        const tab = createRepTabButton(makeRepTabId(i), false);
+    // create new GUI
+    const moleculeGUI = new GUI({ autoPlace: false }); 
+    currentGUI = moleculeGUI;
 
-        // append tab button to tab container
-        tabRepContainer.appendChild(tab);
+    // menus for the gui
+    // const molMenu = moleculeGUI.add(params.mculeParams, 'molecule', MOLECULES);
+    const repMenu = moleculeGUI.add(params.repParams, 'representation', ['CPK', 'VDW', 'lines']);
+    const atomMenu = moleculeGUI.add(params.atomParams, 'atom');
+    const residueMenu = moleculeGUI.add(params.residueParams, 'residue');
+    const chainMenu = moleculeGUI.add(params.chainParams, 'chain'); 
+    const withinMenu = moleculeGUI.add(params.withinParams, 'within');
+    const withinResMenu = moleculeGUI.add(params.withinResParams, 'withinRes');
+    
+    withinResMenu.name("of residue");
 
-        // create new div for single GUI
-        const moleculeGUIdiv = document.createElement('div');
-        moleculeGUIdiv.classList.add('gui-div', 'tab-content-rep');
-        currentRep = i;
-        const repContentId = makeRepContentId(currentRep);
-        moleculeGUIdiv.id = repContentId;
 
-        // create new GUI
-        const moleculeGUI = new GUI({ autoPlace: false }); 
+    // on change functions
 
-        // store everything in their respective arrays
-        tabs.push(tab);
-        guis.push(moleculeGUI); 
-        guiContainers.push(moleculeGUIdiv);
+    residueMenu.onFinishChange((value) => { 
+        if (!isNaN(value) && Number.isInteger(Number(value))) { // if value is not NaN and value is an integer
+            console.log("Number entered:", Number(value));
 
-        // menus for the gui
-        const repMenu = moleculeGUI.add(params.repParams, 'representation', ['CPK', 'VDW', 'lines']);
-        const atomMenu = moleculeGUI.add(params.atomParams, 'atom');
-        const residueMenu = moleculeGUI.add(params.residueParams, 'residue');
-        const chainMenu = moleculeGUI.add(params.chainParams, 'chain'); 
-        const withinMenu = moleculeGUI.add(params.withinParams, 'within');
-        const withinResMenu = moleculeGUI.add(params.withinResParams, 'withinRes');
-        
-        withinResMenu.name("of residue");
-
-        // on change functions for GUIs
-
-        residueMenu.onFinishChange((value) => { 
-            if (!isNaN(value) && Number.isInteger(Number(value))) { // if value is not NaN and value is an integer
-                console.log("Number entered:", Number(value));
-
-                if (residues[Number(value)]) { // value does exist in the residues list, this returns true
-                    residueSelected = Number(value); // set residueSelected to the residue we want to select
-                    loadMolecule(currentMolecule, repParams.representation);  
-                } else { // value does not exist in the residues list
-                    console.log("please select a valid residue");
-                }
-            } else if (value.toLowerCase() === "all") { // display entire molecule
-                console.log("Option 'all' selected");
-                residueSelected = 'all';
-                loadMolecule(currentMolecule, repParams.representation); 
-
-            } else {
-                // pop up text, flashing?
-                console.log("Invalid input. Please enter a number or 'all'.");
+            if (residues[Number(value)]) { // value does exist in the residues list, this returns true
+                residueSelected = Number(value); // set residueSelected to the residue we want to select
+                loadMolecule(currentMolecule, repParams.representation);  
+            } else { // value does not exist in the residues list
+                console.log("please select a valid residue");
             }
-        });
+        } else if (value.toLowerCase() === "all") { // display entire molecule
+            console.log("Option 'all' selected");
+            residueSelected = 'all';
+            loadMolecule(currentMolecule, repParams.representation); 
 
-        // helper function to highlight certain parts of the molecule based on the within ___ of residue ___ menu
-        function withinAsResidue () {
-            const withinValue = withinParams.within;
-            const withinResValue = withinResParams.withinRes;
-
-            console.log(withinValue, withinResValue);
-        }
-
-        withinMenu.onFinishChange((value) => {
-            console.log("withinMenu value changed: ", value);
-            withinAsResidue();
-        })
-
-        withinResMenu.onFinishChange((value) => {
-            console.log("withinResMenu value changed: ", value);
-            withinAsResidue();
-        })
-
-        // when representation changes, selected molecule stays the same 
-        repMenu.onChange(function(value) {
-            switch (value) {
-                case 'CPK':
-                    console.log(currentMolecule, "CPK");
-                    loadMolecule(currentMolecule, 'CPK');
-                    break;
-                case 'VDW':
-                    console.log(currentMolecule, "VDW");
-                    loadMolecule(currentMolecule, 'VDW');
-                    break;
-                case 'lines':
-                    console.log(currentMolecule, "lines");
-                    loadMolecule(currentMolecule, 'lines'); // TODOlater lines color doesn't work
-                    break;
-                default:
-                    break;
-            }
-        }); 
-
-        // create div to hold molecule and representation options
-        const molRepOptionContainer = document.createElement('div');
-        molRepOptionContainer.classList.add('mol-rep-option');
-
-        // create div to hold selection options, including [atom, residue, chain, distance]
-        const selectionOptionContainer = document.createElement('div');
-        selectionOptionContainer.classList.add('selection-option');
-        const selectionTabContainer = document.createElement('div');
-        selectionTabContainer.classList.add('tab-selection-method');
-
-        // create tab buttons
-        const tabButtonAtom = createSelectionMethodTabButton('Atom', false);
-        const tabButtonResidue = createSelectionMethodTabButton('Residue', true);
-        const tabButtonChain = createSelectionMethodTabButton('Chain', false);
-        const tabButtonDistance = createSelectionMethodTabButton('Distance', false);
-
-        // create tab content
-        const tabContentAtom = createSelectionMethodTabContent('atom', [atomMenu], false);
-        const tabContentResidue = createSelectionMethodTabContent('residue', [residueMenu], true);
-        const tabContentChain = createSelectionMethodTabContent('chain', [chainMenu], false);
-        const tabContentDistance = createSelectionMethodTabContent('distance', [withinMenu, withinResMenu], false);
-
-        // append tab buttons to tab container
-        selectionTabContainer.appendChild(tabButtonAtom);
-        selectionTabContainer.appendChild(tabButtonResidue);
-        selectionTabContainer.appendChild(tabButtonChain);
-        selectionTabContainer.appendChild(tabButtonDistance);
-
-        // append content to content container
-        selectionOptionContainer.appendChild(selectionTabContainer);
-        selectionOptionContainer.appendChild(tabContentAtom);
-        selectionOptionContainer.appendChild(tabContentResidue);
-        selectionOptionContainer.appendChild(tabContentChain);
-        selectionOptionContainer.appendChild(tabContentDistance);
-
-        const selectionMethodPara = document.createElement('p');
-        selectionMethodPara.classList.add("text");
-        const text = document.createTextNode("SELECTION METHOD:");
-        selectionMethodPara.appendChild(text);
-
-        // molRepOptionContainer.appendChild(molMenu.domElement);
-        molRepOptionContainer.appendChild(repMenu.domElement);
-
-        // append everything to GUI div
-        moleculeGUI.domElement.appendChild(molRepOptionContainer);
-        moleculeGUI.domElement.appendChild(selectionMethodPara);
-        moleculeGUI.domElement.appendChild(selectionOptionContainer);
-
-        // add GUI to its container  
-        moleculeGUIdiv.appendChild(moleculeGUI.domElement);
-        moleculeGUIContainer.appendChild(moleculeGUIdiv);
-
-        // default initialized setting: show rep 1 and hide all others
-        if (currentRep == 0) {
-            repStates[i] = true;
-            tab.classList.add('active');
-            tab.style.display = 'block';
-            moleculeGUIdiv.style.display = 'block';
-            currentGUI = moleculeGUI;
         } else {
-            tab.style.display = 'none';
-            moleculeGUIdiv.style.display = 'none';
+            // pop up text, flashing?
+            console.log("Invalid input. Please enter a number or 'all'.");
         }
+    });
+
+    // helper function to highlight certain parts of the molecule based on the within ___ of residue ___ menu
+    function withinAsResidue () {
+        const withinValue = withinParams.within;
+        const withinResValue = withinResParams.withinRes;
+
+        console.log(withinValue, withinResValue);
     }
+
+    withinMenu.onFinishChange((value) => {
+        console.log("withinMenu value changed: ", value);
+        withinAsResidue();
+    })
+
+    withinResMenu.onFinishChange((value) => {
+        console.log("withinResMenu value changed: ", value);
+        withinAsResidue();
+    })
+
+    // when representation changes, selected molecule stays the same 
+    repMenu.onChange(function(value) {
+        switch (value) {
+            case 'CPK':
+                console.log(currentMolecule, "CPK");
+                loadMolecule(currentMolecule, 'CPK');
+                break;
+            case 'VDW':
+                console.log(currentMolecule, "VDW");
+                loadMolecule(currentMolecule, 'VDW');
+                break;
+            case 'lines':
+                console.log(currentMolecule, "lines");
+                loadMolecule(currentMolecule, 'lines'); // TODOlater lines color doesn't work
+                break;
+            default:
+                break;
+        }
+    }); 
+
+    /* // when molecule changes, selected representation stays the same TODOlater delete
+    molMenu.onChange(function() {
+        console.log("trying to load", mculeParams.molecule);
+        residueSelected = 'all';
+
+        loadMolecule(mculeParams.molecule, repParams.representation);
+        resetMoleculeOrientation();
+
+        // reset toggle option to 'all'
+        residueMenu.setValue('all');
+    }); */
+
+    // create div to hold molecule and representation options
+    const molRepOptionContainer = document.createElement('div');
+    molRepOptionContainer.classList.add('mol-rep-option');
+
+    // create div to hold selection options, including [atom, residue, chain, distance]
+    const selectionOptionContainer = document.createElement('div');
+    selectionOptionContainer.classList.add('selection-option');
+    const selectionTabContainer = document.createElement('div');
+    selectionTabContainer.classList.add('tab-selection-method');
+
+    // create tab buttons
+    const tabButtonAtom = createSelectionMethodTabButton('Atom', false);
+    const tabButtonResidue = createSelectionMethodTabButton('Residue', true);
+    const tabButtonChain = createSelectionMethodTabButton('Chain', false);
+    const tabButtonDistance = createSelectionMethodTabButton('Distance', false);
+
+    // create tab content
+    const tabContentAtom = createSelectionMethodTabContent('atom', [atomMenu], false);
+    const tabContentResidue = createSelectionMethodTabContent('residue', [residueMenu], true);
+    const tabContentChain = createSelectionMethodTabContent('chain', [chainMenu], false);
+    const tabContentDistance = createSelectionMethodTabContent('distance', [withinMenu, withinResMenu], false);
+
+    // append tab buttons to tab container
+    selectionTabContainer.appendChild(tabButtonAtom);
+    selectionTabContainer.appendChild(tabButtonResidue);
+    selectionTabContainer.appendChild(tabButtonChain);
+    selectionTabContainer.appendChild(tabButtonDistance);
+
+    // append content to content container
+    selectionOptionContainer.appendChild(selectionTabContainer);
+    selectionOptionContainer.appendChild(tabContentAtom);
+    selectionOptionContainer.appendChild(tabContentResidue);
+    selectionOptionContainer.appendChild(tabContentChain);
+    selectionOptionContainer.appendChild(tabContentDistance);
+
+    const selectionMethodPara = document.createElement('p');
+    selectionMethodPara.classList.add("text");
+    const text = document.createTextNode("SELECTION METHOD:");
+    selectionMethodPara.appendChild(text);
+
+    // molRepOptionContainer.appendChild(molMenu.domElement);
+    molRepOptionContainer.appendChild(repMenu.domElement);
+
+    // append everything to GUI div
+    moleculeGUI.domElement.appendChild(molRepOptionContainer);
+    moleculeGUI.domElement.appendChild(selectionMethodPara);
+    moleculeGUI.domElement.appendChild(selectionOptionContainer);
+
+    // add GUI to its container  
+    moleculeGUIdiv.appendChild(moleculeGUI.domElement);
+    moleculeGUIContainer.appendChild(moleculeGUIdiv);
+
+    //return moleculeGUI
 }
-
-
-
-
 
 // window resize function specific to container that this scene is in (not just entire window)
 function onWindowResize() {
