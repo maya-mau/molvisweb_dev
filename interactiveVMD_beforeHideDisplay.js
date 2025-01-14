@@ -747,6 +747,7 @@ function createGUI(params) {
     // create div to hold selection options, including [atom, residue, chain, distance]
     const selectionOptionContainer = document.createElement('div');
     selectionOptionContainer.classList.add('selection-option');
+    
     const selectionTabContainer = document.createElement('div');
     selectionTabContainer.classList.add('tab-selection-method');
 
