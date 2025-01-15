@@ -113,9 +113,12 @@ function init() {
     //initialize main window 
     scene = new THREE.Scene();
     scene.background = new THREE.Color( 0x000000 );
+    globalThis.scene = scene;
+
 
     // gives the user a specific viewpoint of the scene 
     camera = new THREE.PerspectiveCamera( 70, window.innerWidth / window.innerHeight, 1, 5000 );
+    globalThis.camera = camera;
     // camera = new THREE.OrthographicCamera(left, right, top, bottom, near, far);
     
     camera.position.z = 1000; // could set camera to orthoperspective for toggle TODO
