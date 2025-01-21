@@ -46,7 +46,7 @@ var currentRep = 0;
 var currentGUI = null;
 var prevRep = null;
 
-const maxRepTabs = 1;
+const maxRepTabs = 4;
 
 let guis = [];
 let tabs = [];
@@ -76,14 +76,23 @@ const MOLECULES = {
 };
 
 // setting default/on load molecule  
-const mculeParams = { molecule: 'caffeine.pdb' };
+/* const mculeParams = { molecule: 'caffeine.pdb' };
 const repParams = { representation: 'CPK' };
 const residueParams = { residue: 'all' };
 const chainParams = { chain: 'all' };
 const atomParams = { atom: 'all' };
 const withinParams = { within: 0 };
-const withinResParams = { withinRes: 0 };
+const withinResParams = { withinRes: 0 }; */
 
+const defaultParams = {
+    mculeParams: { molecule: 'caffeine.pdb' },
+    repParams: { representation: 'CPK' },
+    residueParams: { residue: 'all' },
+    chainParams: { chain: 'all' },
+    atomParams: { atom: 'all' },
+    withinParams: { within: 0 },
+    withinResParams: { withinRes: 0 }
+}
 
 // call everything! 
 init();
@@ -139,6 +148,8 @@ function init() {
     // root contains all the objects of the scene 
     root = new THREE.Group();
     scene.add( root );
+    root.visible = true;
+    //console.log("IS PARENT OF ROOT VISIBLE", root.parent.visible);
 
     // renderer makes scene visible 
     renderer = new THREE.WebGLRenderer( { antialias: true } );
@@ -161,7 +172,7 @@ function init() {
     initialTarget = controls.target.clone();
 
     // the default/first molecule to show up 
-    loadMolecule( mculeParams.molecule, 'CPK', currentRep );
+    loadMolecule( defaultParams.mculeParams.molecule, 'CPK', currentRep );
 
     // dynamic screen size 
     window.addEventListener( 'resize', onWindowResize );
@@ -185,20 +196,10 @@ function init() {
     const tab = createRepTabButton(makeRepTabId(currentRep), true); 
     tabRepContainer.appendChild(tab);*/
 
-    let params = {
-        mculeParams: { molecule: 'caffeine.pdb' },
-        repParams: { representation: 'CPK' },
-        residueParams: { residue: 'all' },
-        chainParams: { chain: 'all' },
-        atomParams: { atom: 'all' },
-        withinParams: { within: 0 },
-        withinResParams: { withinRes: 0 }
-    }
-
     // add molecule selection GUI to div with class=molecule-gui
     const molGUIContainer = document.getElementById('mol-gui');
     const moleculeGUI = new GUI({ autoPlace: false }); 
-    const molMenu = moleculeGUI.add(params.mculeParams, 'molecule', MOLECULES);
+    const molMenu = moleculeGUI.add(defaultParams.mculeParams, 'molecule', MOLECULES);
     molGUIContainer.appendChild(molMenu.domElement); 
 
     molMenu.onChange(function(molecule) {
@@ -210,13 +211,11 @@ function init() {
         console.log('currentMolecule now: ', currentMolecule);
 
         resetScene();
-        loadMolecule(molecule, repParams.representation);
+        loadMolecule(molecule, repParams.representation, currentRep);
         resetMoleculeOrientation();
     });
 
-    
-
-    createGUIs(params);    
+    createGUIs();    
 }
 
 function resetScene() {
@@ -227,421 +226,9 @@ function resetScene() {
     }
 }
 
-// original
-// from the given pdb and given representation style, load molecule into scene 
-function loadMolecule3( model, rep ) { // origin is perhaps an atom? distance for min dist
-
-    // grab model file 
-    const url = './models/molecules/' + model;
-    
-    // initialize geometries that will change based on representation 
-    let boxGeometry, sphereGeometry; // stretched out square for bonds, atoms as spheres
-
-    /* // reset the scene because something new is being loaded 
-    while ( root.children.length > 0 ) {
-        const object = root.children[ 0 ];
-        object.parent.remove( object );
-    } */
-
-    // load by the pdb file 
-    PDBloader.load( url, function ( pdb ) {
-        // properties of pdb loader that isolate the atoms & bonds
-        let manual = true; // TO DO - use manual for now, implement options for manual OR conect later
-
-        if (manual) { 
-            geometryBonds = pdb.geometryBondsManual; 
-        } else { 
-            geometryBonds = pdb.geometryBondsConect;
-        }
-
-        //console.log("pdb.geometryBondsManual", pdb.geometryBondsManual.attributes.position.array);
-
-        geometryAtoms = pdb.geometryAtoms;
-
-        json_atoms = pdb.json_atoms;
-        json_bonds_manual = pdb.json_bonds_manual.bonds_manual;
-        json_bonds_conect = pdb.json_bonds_conect.bonds_conect;
-
-        json_bonds = json_bonds_manual;
-
-        //console.log("json_atoms", json_atoms);
-        //console.log("json_bonds_manual", json_bonds_manual);
-        //console.log("json_bonds_conect", json_bonds_conect);
-
-        residues = pdb.residues;
-        //console.log("IN js file, residues: ", residues);
-
-        // change starting box/sphere contents based on rep style 
-        if( rep == 'CPK' ){
-            //thin bonds, consistently sized atoms 
-            boxGeometry = new THREE.BoxGeometry( 1, 1, 1 );
-            sphereGeometry = new THREE.IcosahedronGeometry(1, 3 ); //radius 
-        }
-        
-        if( rep == 'lines' ){
-            // slightly thicker bonds for visibility, no atoms 
-            boxGeometry = new THREE.BoxGeometry( 3, 3, 1 );
-            sphereGeometry = new THREE.BoxGeometry(.5, .5, .5); //radius 
-        }
-
-        //vdw is set up later 
-
-        //starting setup to put atoms into scene 
-        geometryAtoms.computeBoundingBox();
-        geometryAtoms.boundingBox.getCenter( offset ).negate(); // the offset moves the center of the bounding box to the origin?
-        geometryAtoms.translate( offset.x, offset.y, offset.z );
-        geometryBonds.translate( offset.x, offset.y, offset.z );
-        //console.log("offset", offset.x, offset.y, offset.z );
-
-        //grab atom content from pdb so their position and color go along 
-        let positions = geometryAtoms.getAttribute( 'position' );
-        const colors = geometryAtoms.getAttribute( 'color' );
-        const position = new THREE.Vector3();
-        var color = new THREE.Color(0xffffff);
-
-        // LOAD IN ATOMS 
-        for ( let i = 0; i < positions.count; i ++ ) {
-            // loop through the positions array to get every atom 
-            position.x = positions.getX( i );
-            position.y = positions.getY( i );
-            position.z = positions.getZ( i );
-
-            /* let dist_from_origin = ((position.x - x1)**2 + (position.y - y1)**2 + (position.z - z1)**2)**(1/2);
-            
-            if (dist_from_origin > distance) {
-                continue;
-            } */
-
-            color.r = colors.getX( i );
-            color.g = colors.getY( i );
-            color.b = colors.getZ( i );
-
-            const material = new THREE.MeshPhongMaterial();
-
-            //sphere visuals if VDW 
-            if( rep == 'VDW' ){
-                //radius depends on atom and is scaled up for viewing 
-                const rad = getRadius(json_atoms.atoms[i][4])*2
-                //console.log(json_atoms.atoms[i][4]);
-                console.log(json_atoms.atoms[i]);
-                sphereGeometry = new THREE.IcosahedronGeometry(rad, 3 ); //radius 
-            } 
-            
-            // create atom object that is a sphere w the position, color, and content we want 
-            const object = new THREE.Mesh( sphereGeometry, material );
-            object.position.copy( position );
-            object.position.multiplyScalar( 75 ); // TODOlater figure out why scaling
-            object.scale.multiplyScalar( 25 );
-
-            object.molecularElement = "atom";
-
-            if( !(rep == 'lines') ){
-                // all white for lines model so atoms blend in 
-                object.material.color.set(color);
-            } 
-            
-            // reference to original pdb within object for raycaster 
-            object.atomValue = i; 
-
-            //add atom object to scene 
-            root.add( object );
-
-            if (residueSelected != 'all') { // if residueSelected is not 'all' option
-                if (json_atoms.atoms[i][5] != residueSelected) {
-                    object.visible = false;
-                }
-            }
-        }
-
-        // setup for bond loading 
-        positions = geometryBonds.getAttribute( 'position' );
-        //console.log("positions", positions);
-        const start = new THREE.Vector3();
-        const end = new THREE.Vector3();
-
-        // LOAD IN BONDS 
-        //console.log("json_bonds", json_bonds);
-
-        //console.log("length", positions.count);
-
-        for ( let i = 0; i < positions.count; i += 2 ) {
-            //console.log("START OF LOOP");
-            let bond = json_bonds[i/2]; // loops through bonds 0 to however many bonds there are, divide by 2 because i increments by 2 
-            //console.log("bond[0]", bond[0]-1);
-            
-            let atom1 = json_atoms.atoms[bond[0]-1];
-            let atom2 = json_atoms.atoms[bond[1]-1];
-            //console.log(atom1, atom2)
-
-            // get bond start & end locations 
-            /* start.x = atom1[0];
-            start.y = atom1[1];
-            start.z = atom1[2]; */
-
-            start.x = positions.getX( i );
-            start.y = positions.getY( i );
-            start.z = positions.getZ( i );
-    
-            /* end.x = atom2[0];
-            end.y = atom2[1];
-            end.z = atom2[2]; */
-
-            end.x = positions.getX( i+1 );
-            end.y = positions.getY( i+1 );
-            end.z = positions.getZ( i+1 );
-    
-            start.multiplyScalar( 75 );
-            end.multiplyScalar( 75 );
-    
-            //make bond a rectangular prism & add it to scene 
-            const object = new THREE.Mesh( boxGeometry, new THREE.MeshPhongMaterial( { color: 0xffffff } ) );
-            object.position.copy( start );
-            object.position.lerp( end, 0.5 );
-            object.scale.set( 5, 5, start.distanceTo( end ) );
-            object.molecularElement = "bond";
-            object.lookAt( end );
-            root.add( object );
-
-            if (residueSelected != 'all') { // if residueSelected is not 'all' option
-                
-                if (atom1[5] != residueSelected || atom2[5] != residueSelected) { 
-                    object.visible = false;
-                }
-            }
-        }
-        
-        // render the scene after adding all the new atom & bond objects             
-        render();
-    } );
-}
-
-// new, hopefully working version
-// from the given pdb and given representation style, load molecule into scene 
-function loadMolecule1( model, representation ) { // origin is perhaps an atom? distance for min dist
-
-    console.log("loading model", model, "representation", representation);
-
-    // grab model file 
-    const url = './models/molecules/' + model;
-    
-    
-    /* let boxGeometriesArray = [boxGeometryCPK, boxGeometryLines, null];
-    let sphereGeometriesArray = [sphereGeometryCPK, sphereGeometryLines, sphereGeometryVDW]; */
-
-    // load by the pdb file 
-    PDBloader.load( url, function ( pdb ) {
-        // properties of pdb loader that isolate the atoms & bonds
-        let manual = true; // TO DO - use manual for now, implement options for manual OR conect later
-
-        if (manual) { 
-            geometryBonds = pdb.geometryBondsManual; 
-        } else { 
-            geometryBonds = pdb.geometryBondsConect;
-        }
-
-        //console.log("pdb.geometryBondsManual", pdb.geometryBondsManual.attributes.position.array);
-
-        geometryAtoms = pdb.geometryAtoms;
-
-        json_atoms = pdb.json_atoms;
-        //console.log("json_atoms.atoms", json_atoms.atoms);
-        json_bonds_manual = pdb.json_bonds_manual.bonds_manual;
-        json_bonds_conect = pdb.json_bonds_conect.bonds_conect;
-
-        json_bonds = json_bonds_manual;
-
-        residues = pdb.residues;
-
-        // define different representation geometries
-
-        let boxGeometryCPK = new THREE.BoxGeometry( 1, 1, 1 );
-        let sphereGeometryCPK = new THREE.IcosahedronGeometry(1, 3 ); //radius 
-        
-        // slightly thicker bonds for visibility, no atoms 
-        let boxGeometryLines = new THREE.BoxGeometry( 3, 3, 1 );
-        let sphereGeometryLines = new THREE.BoxGeometry(.5, .5, .5); //radius 
-
-        let sphereGeometryVDW;
-
-        let sphereGeometry, boxGeometry;
-
-        let repDict = {'CPK': [boxGeometryCPK, sphereGeometryCPK], 'lines': [boxGeometryLines, sphereGeometryLines], 'VDW': [null, sphereGeometryVDW]}
-        
-        //starting setup to put atoms into scene 
-        geometryAtoms.computeBoundingBox();
-        geometryAtoms.boundingBox.getCenter( offset ).negate(); // the offset moves the center of the bounding box to the origin?
-        geometryAtoms.translate( offset.x, offset.y, offset.z );
-        geometryBonds.translate( offset.x, offset.y, offset.z );
-        //console.log("offset", offset.x, offset.y, offset.z );
-
-        //grab atom content from pdb so their position and color go along 
-        let positions = geometryAtoms.getAttribute( 'position' );
-
-        const colors = geometryAtoms.getAttribute( 'color' );
-        const position = new THREE.Vector3();
-        var color = new THREE.Color(0xffffff);
-
-        // LOAD IN ATOMS 
-        for ( let i = 0; i < positions.count; i ++ ) {
-            // loop through the positions array to get every atom 
-            position.x = positions.getX( i );
-            position.y = positions.getY( i );
-            position.z = positions.getZ( i );
-
-            //console.log("json_atoms.atoms", json_atoms.atoms);
-
-            /* let dist_from_origin = ((position.x - x1)**2 + (position.y - y1)**2 + (position.z - z1)**2)**(1/2);
-            
-            if (dist_from_origin > distance) {
-                continue;
-            } */
-
-            color.r = colors.getX( i );
-            color.g = colors.getY( i );
-            color.b = colors.getZ( i );
-
-            const material = new THREE.MeshPhongMaterial();
-
-            
-
-            for (let key in repDict) {
-
-                //let sphereGeometry = repDict[key][1];
-                
-                if (key == 'VDW') {
-                    // sphere visuals for VDW, radius depends on atom and is scaled up for viewing 
-                    const rad = getRadius(json_atoms.atoms[i][4])*2
-                    sphereGeometry = new THREE.IcosahedronGeometry(rad, 3 ); //radius 
-                } else if (key == 'CPK') {
-                    sphereGeometry = sphereGeometryCPK;
-                } else if (key == 'lines') {
-                    sphereGeometry = sphereGeometryLines;
-                }
-                console.log('sphereGeometry', sphereGeometry);
-
-                // create atom object that is a sphere w the position, color, and content we want 
-                const object = new THREE.Mesh( sphereGeometry, material );
-                object.position.copy( position );
-                object.position.multiplyScalar( 75 ); // TODOlater figure out why scaling
-                object.scale.multiplyScalar( 25 );
-
-                object.molecularElement = "atom";
-                object.representation = key;
-                let rep = object.representation;
-
-                if( !(rep == 'lines') ){
-                    // all white for lines model so atoms blend in 
-                    object.material.color.set(color);
-                } 
-                
-                // reference to original pdb within object for raycaster 
-                object.atomValue = i; 
-
-                //add atom object to scene 
-                root.add( object );
-
-                // only if key is equal to the rep we want, make visible, else hide
-                if (key == representation) {
-                    object.visible = true;
-                } else {
-                    object.visible = false;
-                }
-
-                // TODO figure out what to do with this
-                /* if (residueSelected != 'all') { // if residueSelected is not 'all' option
-                    if (json_atoms.atoms[i][5] != residueSelected) {
-                        object.visible = false;
-                    }
-                } */
-            }
-        }
-
-        console.log('done loading atoms');
-
-        // LOAD BONDS
-        positions = geometryBonds.getAttribute( 'position' );
-        const start = new THREE.Vector3();
-        const end = new THREE.Vector3();
-
-        for ( let i = 0; i < positions.count; i += 2 ) {
-
-            //console.log("START OF LOOP");
-            let bond = json_bonds[i/2]; // loops through bonds 0 to however many bonds there are, divide by 2 because i increments by 2 
-            //console.log("bond[0]", bond[0]-1);
-            
-            let atom1 = json_atoms.atoms[bond[0]-1];
-            let atom2 = json_atoms.atoms[bond[1]-1];
-            //console.log(atom1, atom2)
-
-            // get bond start & end locations 
-            /* start.x = atom1[0];
-            start.y = atom1[1];
-            start.z = atom1[2]; */
-
-            start.x = positions.getX( i );
-            start.y = positions.getY( i );
-            start.z = positions.getZ( i );
-    
-            /* end.x = atom2[0];
-            end.y = atom2[1];
-            end.z = atom2[2]; */
-
-            end.x = positions.getX( i+1 );
-            end.y = positions.getY( i+1 );
-            end.z = positions.getZ( i+1 );
-    
-            start.multiplyScalar( 75 );
-            end.multiplyScalar( 75 );
-
-            for (let key in repDict) {
-
-                // skip bond loading if VWD
-                if (key == 'VDW') {
-                    break;
-                } else if (key == 'CPK') {
-                    boxGeometry = boxGeometryCPK;
-                } else if (key == 'lines') {
-                    boxGeometry = boxGeometryLines;
-                }
-
-                //let boxGeometry = repDict[key][0];
-
-                //make bond a rectangular prism & add it to scene 
-                const object = new THREE.Mesh( boxGeometry, new THREE.MeshPhongMaterial( { color: 0xffffff } ) );
-                object.position.copy( start );
-                object.position.lerp( end, 0.5 );
-                object.scale.set( 5, 5, start.distanceTo( end ) );
-                object.molecularElement = "bond";
-                object.lookAt( end );
-                root.add( object );
-
-                // only if key is equal to the rep we want, make visible, else hide
-                if (key == representation) {
-                    object.visible = true;
-                } else {
-                    object.visible = false;
-                }
-
-                // TODO figure out what to do here
-                /* if (residueSelected != 'all') { // if residueSelected is not 'all' option
-                    if (atom1[5] != residueSelected || atom2[5] != residueSelected) { 
-                        object.visible = false;
-                    }
-                } */
-            }
-        }
-
-        console.log('done loading bonds');
-    
-        // render the scene after adding all the new atom & bond objects    
-        console.log('render');         
-        render();
-    } );
-}
-
 // new, new, version that hopefully creates a new copy of atoms and bonds for every tab
 // from the given pdb and given representation style, load molecule into scene 
-function loadMolecule( model, representation, rep ) { 
+function loadMolecule(model, representation, rep) { 
 
     console.log('in new new version that creates a new copy and atoms/bonds for every tab')
     console.log("loading model", model, "representation", representation);
@@ -702,6 +289,8 @@ function loadMolecule( model, representation, rep ) {
         const position = new THREE.Vector3();
         var color = new THREE.Color(0xffffff);
 
+        root.visible = true;
+
         // LOAD IN ATOMS 
         for ( let i = 0; i < positions.count; i ++ ) {
             // loop through the positions array to get every atom 
@@ -734,7 +323,8 @@ function loadMolecule( model, representation, rep ) {
                     if (key == 'VDW') {
                         // sphere visuals for VDW, radius depends on atom and is scaled up for viewing 
                         const rad = getRadius(json_atoms.atoms[i][4])*2
-                        sphereGeometry = new THREE.IcosahedronGeometry(rad, 3 ); //radius 
+                        //console.log("radius", rad);
+                        sphereGeometry = new THREE.IcosahedronGeometry(rad, 3 );
                     } else if (key == 'CPK') {
                         sphereGeometry = sphereGeometryCPK;
                     } else if (key == 'lines') {
@@ -746,10 +336,15 @@ function loadMolecule( model, representation, rep ) {
                     object.position.copy( position );
                     object.position.multiplyScalar( 75 ); // TODOlater figure out why scaling
                     object.scale.multiplyScalar( 25 );
+                    //sphereGeometry.computeBoundingSphere();
         
                     object.molecularElement = "atom";
                     object.style = key;
                     object.repNum = n;
+
+                    /* if (key == 'VDW') {
+                        console.log(object);
+                    } */
         
                     if( !(key == 'lines') ){
                         // all white for lines model so atoms blend in 
@@ -762,11 +357,13 @@ function loadMolecule( model, representation, rep ) {
                     // add atom object to scene 
                     root.add( object );
 
+                    //console.log(key, representation, n, rep);
+
                     if (key == representation && n == rep) {
                         object.visible = true;
+                        //console.log("should show", object);
                     } else {
                         object.visible = false;
-                        console.log(object);
                     }
 
                     /* if (object.molecularElement == 'atom') {
@@ -776,7 +373,7 @@ function loadMolecule( model, representation, rep ) {
             } 
         }
 
-        console.log('done loading atoms');
+        //console.log('done loading atoms');
 
         // LOAD BONDS
         positions = geometryBonds.getAttribute( 'position' );
@@ -814,10 +411,10 @@ function loadMolecule( model, representation, rep ) {
             end.multiplyScalar( 75 );
 
             for (let n = 0; n < maxRepTabs; n++) {
-                console.log('loaded bonds for tab', n);
+                //console.log('loaded bonds for tab', n);
 
                 for (let key in repDict) {
-                    console.log('loaded bonds for style', key);
+                    //console.log('loaded bonds for style', key);
 
                     // skip bond loading if VWD
                     if (key == 'VDW') {
@@ -844,10 +441,10 @@ function loadMolecule( model, representation, rep ) {
                     // only if key is equal to the rep we want and rep is correct, make visible, else hide
                     if (key == representation && n == rep) {
                         object.visible = true;
-                        console.log("true visible", object);
+                        //console.log("true visible", object);
                     } else {
                         object.visible = false;
-                        console.log("false visible", object);
+                        //console.log("false visible", object);
                     }
     
                     // TODO figure out what to do here
@@ -861,7 +458,10 @@ function loadMolecule( model, representation, rep ) {
             
         }
 
-        console.log('done loading bonds');
+        //console.log('done loading bonds');
+
+        /* geometryAtoms.computeBoundingBox();
+        console.log("geometryAtoms bounding box:", geometryAtoms.boundingBox); */
     
         // render the scene after adding all the new atom & bond objects    
         console.log('render');         
@@ -869,35 +469,26 @@ function loadMolecule( model, representation, rep ) {
     } );
 }
 
-// hide all objects in a scene (could write)
+function hideMolecule(style, repNum) {
 
-// assume only called after loadMolecule is called on the desired molecule,
-// so assume the atoms/bonds for this specific molecule already exist in the scene.
-function showMolecule( molecule, style, repNum) {
+    root.traverse ( (obj) => {
 
-    root.traverse( (obj) => {
         if (obj.style == style && obj.repNum == repNum) {
-
-            /* if (obj.molecularElement == 'atom') {
-                console.log(obj);
-            } */
-            console.log(obj.style, style);
-            console.log(obj.repNum, repNum);
-            console.log(obj);
-            console.log('showing this one');
-            obj.visible = true;
-            console.log(obj);
-        } else {
-            //console.log('not showing this one');
             obj.visible = false;
         }
     })
 }
+// assume only called after loadMolecule is called on the desired molecule,
+// so assume the atoms/bonds for this specific molecule already exist in the scene.
+function showMolecule(molecule, style, repNum) {
 
-// creates unique ID for tabs 
-/* function createUniqueId() {
-    return Math.random().toString().substring(2, 9);
-} */
+    root.traverse( (obj) => {
+        if (obj.style == style && obj.repNum == repNum) {
+            root.visible = true;
+            obj.visible = true;
+        }
+    })
+}
 
 
 // returns the rep number from a given id (e.g. getNumFromId('rep-tab-2') returns 2)
@@ -926,13 +517,37 @@ function hideAllReps() {
     tabLinks.forEach(link => link.classList.remove('active'));
 }
 
-// opens a rep's tab contents based on the tab clicked 
+// opens a rep's tab contents and load molecule based on the tab clicked 
 function openRepTab(evt) { 
+
+    // open rep's tab control panel contents 
     hideAllReps();
     let repTabId = evt.currentTarget.id;
     prevRep = currentRep;
     currentRep = getNumFromId(repTabId); 
     showCurrentRep(currentRep);
+    console.log("in openRepTab, currentRep", currentRep);
+
+    // display correct molecule
+
+    // get selection method 
+    let repContentId = makeRepContentId(currentRep);
+    let currentTabContent = document.getElementById(repContentId);
+    let currentSelectionMethod = currentTabContent.getElementsByClassName('active')[0].innerHTML;
+    console.log("currentSelectionMethod", currentSelectionMethod);
+
+    // get molecule style    
+    let styleGUI = guis[currentRep];
+
+    let style;
+    styleGUI.controllers.forEach((controller) => {
+        if (controller.property == 'representation') {  
+            style = controller.getValue();
+        }
+    });
+    console.log('style', style);
+
+    showMolecule(null, style, currentRep);
 }
 
 // creates tab buttons for reps
@@ -1029,6 +644,9 @@ function onAddRepClick () {
 
             console.log("currentRep", currentRep);
 
+            // show appropriate molecule 
+            showMolecule(null, defaultParams.repParams.representation, currentRep); // use default style CPK
+
             break;
         }
 
@@ -1037,15 +655,55 @@ function onAddRepClick () {
     }
 }
 
+function resetTab(repNum) {  
+    console.log('in reset tab');
+    //let currentTabContent = document.getElementById(makeRepContentId(repNum));
+    let gui = guis[repNum];
+
+    // loop through each controller to reset value to default value
+    gui.controllers.forEach( controller => {
+
+        // find matching menu from defaultParams for the controller
+        let menu = Object.keys(defaultParams).find(key => Object.keys(defaultParams[key])[0] == Object.keys(controller.object)[0]);
+
+        // get controller's property (e.g. 'representation')
+        let property = controller.property; 
+       
+        // assign controller the value from defaultParams
+        controller.object[property] = defaultParams[menu][property];
+
+        controller.updateDisplay();
+    })
+
+}
+
 // when delete rep button is clicked, "delete" currently active rep
 function onDeleteRepClick () {
     if (numRepTabs > 1) {
         
         numRepTabs--;
 
+        // hide rep 
         tabs[currentRep].style.display = 'none';
 
+        // reset rep's GUIs
+        resetTab(currentRep);
+
         repStates[currentRep] = false;
+
+        // hide appropriate molecule
+        let currentTabContent = document.getElementById(makeRepContentId(currentRep));
+        let styleMenuElement = currentTabContent.getElementsByClassName('mol-rep-option')[0].children[0];
+        console.log("styleMenuElement", styleMenuElement);
+
+        let currentStyle = styleMenuElement.dataset.currentStyle;
+
+        console.log('in onDeleteRepClick, hiding', currentStyle, currentRep); 
+        hideMolecule(currentStyle, currentRep);
+
+        // reset styleMenu's data-previous-style and data-current-style to 'CPK' 
+        styleMenuElement.dataset.previousStyle = defaultParams.repParams.representation;
+        styleMenuElement.dataset.currentStyle = defaultParams.repParams.representation;
 
         // hide all reps
         hideAllReps();
@@ -1115,7 +773,7 @@ function createSelectionMethodTabContent(SMtype, menus = [], display) {
 }
 
 // function to create a GUI for each of the maxRepTabs reps
-function createGUIs(params) {
+function createGUIs() {
 
     // get container to hold all the GUIs 
     const moleculeGUIContainer = document.getElementsByClassName('three-gui')[0];
@@ -1140,6 +798,9 @@ function createGUIs(params) {
         // create new GUI
         const moleculeGUI = new GUI({ autoPlace: false }); 
 
+        // creates a deep copy of defaultParams instead of referencing
+        let params = JSON.parse(JSON.stringify(defaultParams));
+
         // store everything in their respective arrays
         tabs.push(tab);
         guis.push(moleculeGUI); 
@@ -1156,6 +817,10 @@ function createGUIs(params) {
         withinMenu.name('show all residues within')
         withinResMenu.name('of residue');
 
+        // set data-current-style and data-previous-style = default style, CPK
+        styleMenu.domElement.dataset.previousStyle = defaultParams.repParams.representation;
+        styleMenu.domElement.dataset.currentStyle = defaultParams.repParams.representation;
+
         // on change functions for GUIs
 
         residueMenu.onFinishChange((value) => { 
@@ -1165,7 +830,7 @@ function createGUIs(params) {
                 if (residues[Number(value)]) { // value does exist in the residues list, this returns true
                     residueSelected = Number(value); // set residueSelected to the residue we want to select
                     resetScene();
-                    loadMolecule(currentMolecule, repParams.representation);  
+                    loadMolecule(currentMolecule, defaultParams.repParams.representation);  
                 } else { // value does not exist in the residues list
                     console.log("please select a valid residue");
                 }
@@ -1173,7 +838,7 @@ function createGUIs(params) {
                 console.log("Option 'all' selected");
                 residueSelected = 'all';
                 resetScene();
-                loadMolecule(currentMolecule, repParams.representation); 
+                loadMolecule(currentMolecule, defaultParams.repParams.representation); 
 
             } else {
                 // pop up text, flashing?
@@ -1199,10 +864,28 @@ function createGUIs(params) {
             withinAsResidue();
         })
 
-        // when representation changes, selected molecule stays the same 
+        //
         styleMenu.onChange(function(value) {
             console.log('styleMenu changing to', value, 'with currentRep', currentRep);
-            showMolecule( currentMolecule, value, currentRep );
+
+            const styleMenuElement = styleMenu.domElement;
+            console.log('styleMenuElement', styleMenuElement);
+            
+            // CPK --> VDW
+            // value = VDW
+            // previousStyle = CPK
+            // currentStyle = VDW
+
+            styleMenuElement.dataset.previousStyle = styleMenuElement.dataset.currentStyle;
+            styleMenuElement.dataset.currentStyle = value;
+
+            let previousStyle = styleMenuElement.dataset.previousStyle || defaultParams.repParams.representation;  // Default to initial value (CPK) if previousStyle is uninitialized
+            let currentStyle = styleMenuElement.dataset.currentStyle;
+
+            console.log('in styleMenu.onChange, hiding', previousStyle, currentRep);
+            hideMolecule(previousStyle, currentRep);
+            console.log('in styleMenu.onChange, showing', currentStyle, currentRep);
+            showMolecule(currentMolecule, currentStyle, currentRep);
         }); 
 
         // create div to hold molecule and representation options
@@ -1257,9 +940,13 @@ function createGUIs(params) {
         moleculeGUIdiv.appendChild(moleculeGUI.domElement);
         moleculeGUIContainer.appendChild(moleculeGUIdiv);
 
+        //
+        /* let guiId = 'gui' + i;
+        moleculeGUI.domElement.dataset.guiId = guiId;
+        window.guiInstances[guiId] = moleculeGUI;   */       
+
         // default initialized setting: show rep 1 and hide all others
         if (i == 0) {
-            console.log(i);
             repStates[i] = true;
             tab.classList.add('active');
             tab.style.display = 'block';
@@ -1505,15 +1192,19 @@ function raycast(event)
         var currentAtom;
 
         intersects.forEach(obj => {
-            let objType = obj.object.type;
+            if (obj.object.visible == true) {
+                let objType = obj.object.type;
+                console.log(obj);
 
-            if (objType == "Mesh") {
-                if (obj.object.molecularElement == "atom") {
-                    numAtoms = numAtoms + 1;
-                    console.log("this is a mesh atom object");
-                    currentAtom = obj.object;
+                if (objType == "Mesh") {
+                    if (obj.object.molecularElement == "atom") {
+                        numAtoms = numAtoms + 1;
+                        console.log("this is a mesh atom object");
+                        currentAtom = obj.object;
+                    }
                 }
             }
+            
         });
 
         if (numAtoms == 0) {
@@ -1600,3 +1291,69 @@ function getRadius(atom){
 
     return rad; 
 }
+
+
+// Scott's helper functions
+
+
+TW.sceneBoundingBoxColor = TW.YELLOW;
+
+// This function creates a bounding box that the user set up the camera with.
+// A keyboard callback can toggle its visibility.
+
+TW.addSceneBoundingBoxHelper = function (scene) {
+
+    var color = TW.sceneBoundingBoxColor;
+
+    var bbh = new THREE.Mesh( new THREE.BoxGeometry( 1, 1, 1 ),
+                              new THREE.MeshBasicMaterial( { color: color,
+                                                             wireframe: true }));
+
+    var state = TW.lastClickTarget.TW_state;
+
+    var cam = state.cameraParams;
+
+    bbh.scale.set(cam.xSize, cam.ySize, cam.zSize);
+
+    bbh.position.copy(cam.center);
+
+    bbh.visible = false;        // initially invisible
+
+    bbh.name = "BoundingBoxHelper";
+
+    scene.add(bbh);
+
+    state.sceneBoundingBoxHelper = bbh;
+
+};
+
+
+TW.toggleBoundingBox = function (mode) {
+
+    /* toggles the visibility of the bounding box helper. With an argument, "show"
+     * turns it on, and "hide" turns it off. Note that because this is a
+     * keyboard event handler, it will typically be invoked with a
+     * keyboard event object as 'mode.' but we don't need that object. */
+
+    var state = TW.lastClickTarget.TW_state;
+
+    if( mode === "show" ) {
+
+        state.sceneBoundingBoxHelper.visible = true;
+
+    } else if( mode === "hide" ) {
+
+        state.sceneBoundingBoxHelper.visible = false;
+
+    } else {
+
+        // this is the normal usage
+
+        state.sceneBoundingBoxHelper.visible = ! state.sceneBoundingBoxHelper.visible;
+
+    }
+
+    state.render();
+
+};
+
