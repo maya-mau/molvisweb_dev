@@ -8,6 +8,9 @@ import { MTLLoader } from 'three/addons/loaders/MTLLoader.js';
 import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
 import { GUI } from 'three/addons/libs/lil-gui.module.min.js';
 import { TextGeometry } from 'three/addons/geometries/TextGeometry.js';
+//import { TW } from '/TWPackage.js';
+//import { TW } from 'tw';
+
 
 
 // GLOBAL CONSTANTS
@@ -76,13 +79,6 @@ const MOLECULES = {
 };
 
 // setting default/on load molecule  
-/* const mculeParams = { molecule: 'caffeine.pdb' };
-const repParams = { representation: 'CPK' };
-const residueParams = { residue: 'all' };
-const chainParams = { chain: 'all' };
-const atomParams = { atom: 'all' };
-const withinParams = { within: 0 };
-const withinResParams = { withinRes: 0 }; */
 
 const defaultParams = {
     mculeParams: { molecule: 'caffeine.pdb' },
@@ -216,6 +212,8 @@ function init() {
     });
 
     createGUIs();    
+
+    //TW.addSceneBoundingBoxHelper(scene);
 }
 
 function resetScene() {
@@ -533,7 +531,7 @@ function openRepTab(evt) {
     // get selection method 
     let repContentId = makeRepContentId(currentRep);
     let currentTabContent = document.getElementById(repContentId);
-    let currentSelectionMethod = currentTabContent.getElementsByClassName('active')[0].innerHTML;
+    let currentSelectionMethod = currentTabContent.getElementsByClassName('active')[0].innerHTML; // ERROR HERE
     console.log("currentSelectionMethod", currentSelectionMethod);
 
     // get molecule style    
@@ -727,6 +725,7 @@ function onDeleteRepClick () {
 
 function openSelectionMethodTab(event, SMtype) { 
     console.log('in openSelectionMethodTab');
+    console.log('event.currentTarget.id', event.currentTarget.id);
 
     currentRep = getNumFromId(event.currentTarget.id);
     console.log('currentRep', currentRep);
@@ -779,6 +778,8 @@ function createGUIs() {
     const moleculeGUIContainer = document.getElementsByClassName('three-gui')[0];
     
     for (let i = 0; i < maxRepTabs; i++) {
+
+        currentRep = i;
 
         // get tab rep container
         const tabRepContainer = document.getElementsByClassName("tab-rep")[0];
@@ -945,7 +946,7 @@ function createGUIs() {
         moleculeGUI.domElement.dataset.guiId = guiId;
         window.guiInstances[guiId] = moleculeGUI;   */       
 
-        // default initialized setting: show rep 1 and hide all others
+        // default initialized setting: show rep 0 and hide all others
         if (i == 0) {
             repStates[i] = true;
             tab.classList.add('active');
@@ -957,6 +958,8 @@ function createGUIs() {
             moleculeGUIdiv.style.display = 'none';
         }
     }
+
+    currentRep = 0;
 }
 
 
@@ -1292,68 +1295,4 @@ function getRadius(atom){
     return rad; 
 }
 
-
-// Scott's helper functions
-
-
-TW.sceneBoundingBoxColor = TW.YELLOW;
-
-// This function creates a bounding box that the user set up the camera with.
-// A keyboard callback can toggle its visibility.
-
-TW.addSceneBoundingBoxHelper = function (scene) {
-
-    var color = TW.sceneBoundingBoxColor;
-
-    var bbh = new THREE.Mesh( new THREE.BoxGeometry( 1, 1, 1 ),
-                              new THREE.MeshBasicMaterial( { color: color,
-                                                             wireframe: true }));
-
-    var state = TW.lastClickTarget.TW_state;
-
-    var cam = state.cameraParams;
-
-    bbh.scale.set(cam.xSize, cam.ySize, cam.zSize);
-
-    bbh.position.copy(cam.center);
-
-    bbh.visible = false;        // initially invisible
-
-    bbh.name = "BoundingBoxHelper";
-
-    scene.add(bbh);
-
-    state.sceneBoundingBoxHelper = bbh;
-
-};
-
-
-TW.toggleBoundingBox = function (mode) {
-
-    /* toggles the visibility of the bounding box helper. With an argument, "show"
-     * turns it on, and "hide" turns it off. Note that because this is a
-     * keyboard event handler, it will typically be invoked with a
-     * keyboard event object as 'mode.' but we don't need that object. */
-
-    var state = TW.lastClickTarget.TW_state;
-
-    if( mode === "show" ) {
-
-        state.sceneBoundingBoxHelper.visible = true;
-
-    } else if( mode === "hide" ) {
-
-        state.sceneBoundingBoxHelper.visible = false;
-
-    } else {
-
-        // this is the normal usage
-
-        state.sceneBoundingBoxHelper.visible = ! state.sceneBoundingBoxHelper.visible;
-
-    }
-
-    state.render();
-
-};
 
