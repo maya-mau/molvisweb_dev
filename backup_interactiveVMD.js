@@ -96,24 +96,23 @@ animate();
 function init() {
 
     // TODO attempt at orthographic camera
-   
+    container = document.getElementsByClassName('column middle')[0]; // TODO try fixing the squish 
+    const containerWidth = container.clientWidth;
+    const containerHeight = container.clientHeight;
 
+    
     //initialize main window 
     scene = new THREE.Scene();
     scene.background = new THREE.Color( 0x000000 );
     globalThis.scene = scene;
 
-    container = document.getElementsByClassName('column middle')[0]; // could try fixing the squish TODO
-    const containerWidth = container.clientWidth;
-    const containerHeight = container.clientHeight;
-
-    const cameraOption = 'orthographic';
+    const cameraOption = 'perspective'; // choose orthographic or perspective
 
     if (cameraOption == 'orthographic') {
-        
+
         // TODO need to edit these to be dynamic based on the molecule
-        let w = containerWidth;
-        let h = containerHeight;
+        let w = containerWidth*2;
+        let h = containerHeight*2;
         let viewSize = h;
         let aspectRatio = w / h;
 
@@ -121,18 +120,24 @@ function init() {
         let right = (aspectRatio * viewSize) / 2;
         let top = viewSize / 2;
         let bottom = -viewSize / 2;
-        let near = -10000;
-        let far = 10000; 
+        let near = -1000;
+        let far = 1000; 
 
         camera = new THREE.OrthographicCamera(left, right, top, bottom, near, far);
-        camera.position.z = 1000;
-        
-    } else {
+        //controls = new OrbitControls( camera, renderer.domElement );
+
+    } else { // perspective camera
+
         camera = new THREE.PerspectiveCamera( 70, window.innerWidth / window.innerHeight, 1, 5000 );
         camera.position.z = 1000;
-    }
 
+
+    }
+    
+    
     globalThis.camera = camera;
+    
+    //camera.position.z = 1000; // could set camera to orthoperspective for toggle TODO
     scene.add( camera );
 
     // object needs to be illuminated to be visible // TODO, could work on this, lighting is kind of strange
@@ -150,6 +155,7 @@ function init() {
     // root contains all the objects of the scene 
     root = new THREE.Group();
     scene.add( root );
+    root.name = 'root';
     root.visible = true;
 
     // renderer makes scene visible 
@@ -157,22 +163,18 @@ function init() {
     renderer.setPixelRatio(window.devicePixelRatio);
 
     // place the scene in the column middle window 
-    
     renderer.setSize(containerWidth, containerHeight);
     container.appendChild(renderer.domElement);
 
     // allow user to move around the molecule 
     if (cameraOption == 'orthographic') {
         controls = new OrbitControls( camera, renderer.domElement );
-        /* controls.minZoom = 0;
-        controls.maxZoom = 3000; */
     } else {
-        controls = new TrackballControls( camera, renderer.domElement ); // TODO, controls zooming out boundaries
-        controls.minDistance = 100;
-        controls.maxDistance = 3000;
+        controls = new TrackballControls( camera, renderer.domElement );
     }
-    
-    
+
+    controls.minDistance = 100;
+    controls.maxDistance = 3000;
 
     initialPosition = camera.position.clone();
     initialQuaternion = camera.quaternion.clone();
@@ -194,15 +196,6 @@ function init() {
     const deleteRep = document.getElementById('delete-rep');
     deleteRep.addEventListener('click', onDeleteRepClick);
 
-
-    // create all 4 reps, hide all but the first
-
-
-    // create rep 1 by default
-    /* const tabRepContainer = document.getElementsByClassName("tab-rep")[0];
-    const tab = createRepTabButton(makeRepTabId(currentRep), true); 
-    tabRepContainer.appendChild(tab);*/
-
     // add molecule selection GUI to div with class=molecule-gui
     const molGUIContainer = document.getElementById('mol-gui');
     const moleculeGUI = new GUI({ autoPlace: false }); 
@@ -222,9 +215,9 @@ function init() {
         resetMoleculeOrientation();
     });
 
+    // create all GUIs
     createGUIs();    
 
-    //TW.addSceneBoundingBoxHelper(scene);
 }
 
 function resetScene() {
@@ -233,6 +226,12 @@ function resetScene() {
         const object = root.children[ 0 ];
         object.parent.remove( object );
     }
+}
+
+
+// helper function to make group names (e.g. CPK-1 for rep 1, CPK style)
+function makeGroupName(repNum, style) {
+    return style + "-" + repNum;
 }
 
 // new, new, version that hopefully creates a new copy of atoms and bonds for every tab
@@ -248,7 +247,7 @@ function loadMolecule(model, representation, rep) {
     // load by the pdb file 
     PDBloader.load( url, function ( pdb ) {
         // properties of pdb loader that isolate the atoms & bonds
-        let manual = true; // TO DO - use manual for now, implement options for manual OR conect later
+        let manual = true; // TODO - use manual for now, implement options for manual OR conect later
 
         if (manual) { 
             geometryBonds = pdb.geometryBondsManual; 
@@ -300,6 +299,19 @@ function loadMolecule(model, representation, rep) {
 
         root.visible = true;
 
+        // make all groups
+        for (let n = 0; n < maxRepTabs; n++) {
+            
+            for (let key in repDict) {
+                let groupName = makeGroupName(n, key);
+                let newGroup = new THREE.Group();
+                root.add(newGroup);
+                //console.log('root', root);
+                newGroup.name = groupName; 
+            }
+        }
+
+
         // LOAD IN ATOMS 
         for ( let i = 0; i < positions.count; i ++ ) {
             // loop through the positions array to get every atom 
@@ -329,6 +341,8 @@ function loadMolecule(model, representation, rep) {
                 for (let key in repDict) {
                     //console.log('loaded atoms for style', key);
 
+                    let groupName = makeGroupName(n, key);
+
                     if (key == 'VDW') {
                         // sphere visuals for VDW, radius depends on atom and is scaled up for viewing 
                         const rad = getRadius(json_atoms.atoms[i][4])*2
@@ -350,10 +364,6 @@ function loadMolecule(model, representation, rep) {
                     object.molecularElement = "atom";
                     object.style = key;
                     object.repNum = n;
-
-                    /* if (key == 'VDW') {
-                        console.log(object);
-                    } */
         
                     if( !(key == 'lines') ){
                         // all white for lines model so atoms blend in 
@@ -362,11 +372,10 @@ function loadMolecule(model, representation, rep) {
                     
                     // reference to original pdb within object for raycaster 
                     object.atomValue = i; 
-        
-                    // add atom object to scene 
-                    root.add( object );
 
-                    //console.log(key, representation, n, rep);
+                    // find appropriate group and add object
+                    let currentGroup = root.getObjectByName(groupName);
+                    currentGroup.add( object );
 
                     if (key == representation && n == rep) {
                         object.visible = true;
@@ -378,11 +387,12 @@ function loadMolecule(model, representation, rep) {
                     /* if (object.molecularElement == 'atom') {
                         console.log(object);
                     } */
+
                 }
             } 
         }
 
-        //console.log('done loading atoms');
+        console.log('done loading atoms');
 
         // LOAD BONDS
         positions = geometryBonds.getAttribute( 'position' );
@@ -425,6 +435,8 @@ function loadMolecule(model, representation, rep) {
                 for (let key in repDict) {
                     //console.log('loaded bonds for style', key);
 
+                    let groupName = makeGroupName(n, key);
+
                     // skip bond loading if VWD
                     if (key == 'VDW') {
                         break;
@@ -445,7 +457,10 @@ function loadMolecule(model, representation, rep) {
                     object.repNum = n;
 
                     object.lookAt( end );
-                    root.add( object );
+
+                    // find appropriate group and add object
+                    let currentGroup = root.getObjectByName(groupName);
+                    currentGroup.add( object );
     
                     // only if key is equal to the rep we want and rep is correct, make visible, else hide
                     if (key == representation && n == rep) {
@@ -467,7 +482,7 @@ function loadMolecule(model, representation, rep) {
             
         }
 
-        //console.log('done loading bonds');
+        console.log('done loading bonds');
 
         /* geometryAtoms.computeBoundingBox();
         console.log("geometryAtoms bounding box:", geometryAtoms.boundingBox); */
@@ -480,22 +495,32 @@ function loadMolecule(model, representation, rep) {
 
 function hideMolecule(style, repNum) {
 
-    root.traverse ( (obj) => {
+    let groupName = makeGroupName(repNum, style);
+    //console.log('groupName', groupName);
 
-        if (obj.style == style && obj.repNum == repNum) {
-            obj.visible = false;
-        }
+    let currentGroup = root.getObjectByName(groupName);
+    currentGroup.visible = false;
+
+    currentGroup.traverse ( (obj) => {
+        obj.visible = false;
     })
 }
 // assume only called after loadMolecule is called on the desired molecule,
 // so assume the atoms/bonds for this specific molecule already exist in the scene.
 function showMolecule(molecule, style, repNum) {
 
-    root.traverse( (obj) => {
-        if (obj.style == style && obj.repNum == repNum) {
-            root.visible = true;
-            obj.visible = true;
-        }
+    let groupName = makeGroupName(repNum, style);
+    console.log('groupName', groupName);
+
+    let currentGroup = root.getObjectByName(groupName);
+    currentGroup.visible = true;
+
+    currentGroup.traverse( (obj) => {
+        obj.visible = true;
+        /* console.log('scene', scene);
+        console.log('root', root);
+        console.log("obj", obj); */
+        
     })
 }
 
@@ -703,7 +728,6 @@ function onDeleteRepClick () {
         // hide appropriate molecule
         let currentTabContent = document.getElementById(makeRepContentId(currentRep));
         let styleMenuElement = currentTabContent.getElementsByClassName('mol-rep-option')[0].children[0];
-        console.log("styleMenuElement", styleMenuElement);
 
         let currentStyle = styleMenuElement.dataset.currentStyle;
 
@@ -735,13 +759,9 @@ function onDeleteRepClick () {
 // helper functions for creating selection method tabs and contents
 
 function openSelectionMethodTab(event, SMtype) { 
-    console.log('in openSelectionMethodTab');
-    console.log('event.currentTarget.id', event.currentTarget.id);
 
     currentRep = getNumFromId(event.currentTarget.id);
-    console.log('currentRep', currentRep);
     const smContentId = makeSMContentId(currentRep, SMtype);
-    console.log('smContentId', smContentId);
     const repContainer = document.getElementById('rep-content-' + currentRep);
 
     // get all elements with class="tab-content-selection-method" and hide them, within currentRep's div
@@ -754,7 +774,6 @@ function openSelectionMethodTab(event, SMtype) {
 
     // show the current tab and add an "active" class to the button that opened the tab
     document.getElementById(smContentId).style.display = "block";
-    console.log("changed this smContentId to block", smContentId);
     event.currentTarget.classList.add('active');
 }
 
@@ -881,12 +900,6 @@ function createGUIs() {
             console.log('styleMenu changing to', value, 'with currentRep', currentRep);
 
             const styleMenuElement = styleMenu.domElement;
-            console.log('styleMenuElement', styleMenuElement);
-            
-            // CPK --> VDW
-            // value = VDW
-            // previousStyle = CPK
-            // currentStyle = VDW
 
             styleMenuElement.dataset.previousStyle = styleMenuElement.dataset.currentStyle;
             styleMenuElement.dataset.currentStyle = value;
@@ -950,12 +963,7 @@ function createGUIs() {
 
         // add GUI to its container  
         moleculeGUIdiv.appendChild(moleculeGUI.domElement);
-        moleculeGUIContainer.appendChild(moleculeGUIdiv);
-
-        //
-        /* let guiId = 'gui' + i;
-        moleculeGUI.domElement.dataset.guiId = guiId;
-        window.guiInstances[guiId] = moleculeGUI;   */       
+        moleculeGUIContainer.appendChild(moleculeGUIdiv); 
 
         // default initialized setting: show rep 0 and hide all others
         if (i == 0) {
@@ -1305,3 +1313,5 @@ function getRadius(atom){
 
     return rad; 
 }
+
+
