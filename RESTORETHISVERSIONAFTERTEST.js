@@ -2,7 +2,6 @@
 //import three js and all the addons that are used in this script 
 import * as THREE from 'three';
 import { TrackballControls } from 'three/addons/controls/TrackballControls.js';
-import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { PDBLoader } from './mymods/PDBLoader.js';
 import { OBJLoader } from 'three/addons/loaders/OBJLoader.js';
 import { MTLLoader } from 'three/addons/loaders/MTLLoader.js';
@@ -99,42 +98,35 @@ animate();
 // init function - sets up scene, camera, renderer, controls, and GUIs 
 function init() {
 
-    
+    // TODO attempt at orthographic camera
+    /* container = document.getElementsByClassName('column middle')[0]; // could try fixing the squish TODO
+    const containerWidth = container.clientWidth;
+    const containerHeight = container.clientHeight;
+
+    let w = containerWidth;
+    let h = containerHeight;
+    let viewSize = h;
+    let aspectRatio = w / h;
+
+    let left = (-aspectRatio * viewSize) / 2;
+    let right = (aspectRatio * viewSize) / 2;
+    let top = viewSize / 2;
+    let bottom = -viewSize / 2;
+    let near = -100;
+    let far = 100; */
+
     //initialize main window 
     scene = new THREE.Scene();
     scene.background = new THREE.Color( 0x000000 );
     globalThis.scene = scene;
-    
-    container = document.getElementsByClassName('column middle')[0]; // could try fixing the squish TODO
-    const containerWidth = container.clientWidth;
-    const containerHeight = container.clientHeight;
-    
-    const cameraOption = 'orthographic';
-    
-    if (cameraOption == 'orthographic') {
-            
-        // TODO need to edit these to be dynamic based on the molecule
-        let w = containerWidth;
-        let h = containerHeight;
-        let viewSize = h;
-        let aspectRatio = w / h;
-    
-        let left = (-aspectRatio * viewSize) / 2;
-        let right = (aspectRatio * viewSize) / 2;
-        let top = viewSize / 2;
-        let bottom = -viewSize / 2;
-        let near = -10000;
-        let far = 10000; 
-    
-        camera = new THREE.OrthographicCamera(left, right, top, bottom, near, far);
-        camera.position.z = 1000;
-            
-    } else {
-        camera = new THREE.PerspectiveCamera( 70, window.innerWidth / window.innerHeight, 1, 5000 );
-        camera.position.z = 1000;
-    }
 
+
+    // gives the user a specific viewpoint of the scene 
+    camera = new THREE.PerspectiveCamera( 70, window.innerWidth / window.innerHeight, 1, 5000 );
     globalThis.camera = camera;
+    // camera = new THREE.OrthographicCamera(left, right, top, bottom, near, far);
+    
+    camera.position.z = 1000; // could set camera to orthoperspective for toggle TODO
     scene.add( camera );
 
     // object needs to be illuminated to be visible // TODO, could work on this, lighting is kind of strange
@@ -153,25 +145,23 @@ function init() {
     root = new THREE.Group();
     scene.add( root );
     root.visible = true;
+    //console.log("IS PARENT OF ROOT VISIBLE", root.parent.visible);
 
     // renderer makes scene visible 
     renderer = new THREE.WebGLRenderer( { antialias: true } );
     renderer.setPixelRatio(window.devicePixelRatio);
 
     // place the scene in the column middle window 
+    container = document.getElementsByClassName('column middle')[0]; // could try fixing the squish TODO
+    const containerWidth = container.clientWidth;
+    const containerHeight = container.clientHeight;
     renderer.setSize(containerWidth, containerHeight);
     container.appendChild(renderer.domElement);
 
     // allow user to move around the molecule 
-    if (cameraOption == 'orthographic') {
-        controls = new OrbitControls( camera, renderer.domElement );
-        /* controls.minZoom = 0;
-        controls.maxZoom = 3000; */
-    } else {
-        controls = new TrackballControls( camera, renderer.domElement ); // TODO, controls zooming out boundaries
-        controls.minDistance = 100;
-        controls.maxDistance = 3000;
-    }
+    controls = new TrackballControls( camera, renderer.domElement ); // TODO, controls zooming out boundaries
+    controls.minDistance = 100;
+    controls.maxDistance = 3000;
 
     initialPosition = camera.position.clone();
     initialQuaternion = camera.quaternion.clone();
@@ -194,6 +184,14 @@ function init() {
     deleteRep.addEventListener('click', onDeleteRepClick);
 
 
+    // create all 4 reps, hide all but the first
+
+
+    // create rep 1 by default
+    /* const tabRepContainer = document.getElementsByClassName("tab-rep")[0];
+    const tab = createRepTabButton(makeRepTabId(currentRep), true); 
+    tabRepContainer.appendChild(tab);*/
+
     // add molecule selection GUI to div with class=molecule-gui
     const molGUIContainer = document.getElementById('mol-gui');
     const moleculeGUI = new GUI({ autoPlace: false }); 
@@ -201,7 +199,7 @@ function init() {
     molGUIContainer.appendChild(molMenu.domElement); 
 
     molMenu.onChange(function(molecule) {
-        console.log("trying to load", molecule, defaultParams.repParams.representation);
+        console.log("trying to load", molecule, repParams.representation);
         residueSelected = 'all';
 
         currentMolecule = molecule;
@@ -209,7 +207,7 @@ function init() {
         console.log('currentMolecule now: ', currentMolecule);
 
         resetScene();
-        loadMolecule(molecule, defaultParams.repParams.representation, currentRep);
+        loadMolecule(molecule, repParams.representation, currentRep);
         resetMoleculeOrientation();
     });
 
@@ -226,9 +224,8 @@ function resetScene() {
     }
 }
 
-// creates a new copy of atoms and bonds for every tab
-// from the given pdb and given representation style, 
-// then loads default molecul (rep 0, CPK) into scene 
+// new, new, version that hopefully creates a new copy of atoms and bonds for every tab
+// from the given pdb and given representation style, load molecule into scene 
 function loadMolecule(model, representation, rep) { 
 
     console.log('in new new version that creates a new copy and atoms/bonds for every tab')
@@ -342,8 +339,10 @@ function loadMolecule(model, representation, rep) {
                     object.molecularElement = "atom";
                     object.style = key;
                     object.repNum = n;
-                    object.residue = json_atoms.atoms[i][5];
-                    object.chain = json_atoms.atoms[i][6];
+
+                    /* if (key == 'VDW') {
+                        console.log(object);
+                    } */
         
                     if( !(key == 'lines') ){
                         // all white for lines model so atoms blend in 
@@ -364,11 +363,15 @@ function loadMolecule(model, representation, rep) {
                     } else {
                         object.visible = false;
                     }
+
+                    /* if (object.molecularElement == 'atom') {
+                        console.log(object);
+                    } */
                 }
             } 
         }
 
-        console.log('done loading atoms');
+        //console.log('done loading atoms');
 
         // LOAD BONDS
         positions = geometryBonds.getAttribute( 'position' );
@@ -377,7 +380,9 @@ function loadMolecule(model, representation, rep) {
 
         for ( let i = 0; i < positions.count; i += 2 ) {
 
+            //console.log("START OF LOOP");
             let bond = json_bonds[i/2]; // loops through bonds 0 to however many bonds there are, divide by 2 because i increments by 2 
+            //console.log("bond[0]", bond[0]-1);
             
             let atom1 = json_atoms.atoms[bond[0]-1];
             let atom2 = json_atoms.atoms[bond[1]-1];
@@ -427,8 +432,6 @@ function loadMolecule(model, representation, rep) {
                     object.molecularElement = "bond";
                     object.style = key;
                     object.repNum = n;
-                    object.startAtom = atom1;
-                    object.endAtom = atom2;
 
                     object.lookAt( end );
                     root.add( object );
@@ -436,14 +439,24 @@ function loadMolecule(model, representation, rep) {
                     // only if key is equal to the rep we want and rep is correct, make visible, else hide
                     if (key == representation && n == rep) {
                         object.visible = true;
+                        //console.log("true visible", object);
                     } else {
                         object.visible = false;
+                        //console.log("false visible", object);
                     }
+    
+                    // TODO figure out what to do here
+                    /* if (residueSelected != 'all') { // if residueSelected is not 'all' option
+                        if (atom1[5] != residueSelected || atom2[5] != residueSelected) { 
+                            object.visible = false;
+                        }
+                    } */
                 }
             }
+            
         }
 
-        console.log('done loading bonds');
+        //console.log('done loading bonds');
 
         /* geometryAtoms.computeBoundingBox();
         console.log("geometryAtoms bounding box:", geometryAtoms.boundingBox); */
@@ -465,69 +478,12 @@ function hideMolecule(style, repNum) {
 }
 // assume only called after loadMolecule is called on the desired molecule,
 // so assume the atoms/bonds for this specific molecule already exist in the scene.
-function showMolecule(style, repNum, selectionMethod, selectionValue) {
+function showMolecule(molecule, style, repNum) {
 
-    //root.visible = true;
     root.traverse( (obj) => {
-
         if (obj.style == style && obj.repNum == repNum) {
-            //console.log('match', obj.style, style, obj.repNum, repNum)
-            if (selectionValue == 'all') {
-                obj.visible = true;
-            } else {
-                if (obj.molecularElement == 'atom') {
-                    //console.log('object is atom');
-                    if (selectionMethod == 'atom') {
-    
-                    } else if (selectionMethod == 'residue') {
-    
-                        console.log('selecting by residue in atom');
-
-                        if (obj.residue == selectionValue) {
-                            obj.visible = true;
-                        } else {
-                            obj.visible = false;  // might try to do this in hide molecule? see if it works here
-                        }
-    
-                    } else if (selectionMethod == 'chain') {
-    
-                        if (obj.chain == selectionValue) {
-                            obj.visible = true;
-                        } else {
-                            obj.visible = false;
-                        }
-                        
-                    } else if (selectionMethod == 'withinAs') {
-            
-                    }
-                } else if (obj.molecularElement == 'bond') {
-                    //console.log('object is bond');
-                    //console.log(obj);
-                    if (selectionMethod == 'atom') {
-    
-                    } else if (selectionMethod == 'residue') {
-    
-                        //console.log('selecting by residue in bond');
-                        let atom1 = obj.startAtom;
-                        let atom2 = obj.endAtom;
-    
-                        /* console.log('atom1.residue', atom1.residue);
-                        console.log('atom2.residue', atom2.residue);
-                        console.log('selection', selection); */
-    
-                        if (atom1[5] == selectionValue && atom2[5] == selectionValue) {
-                            obj.visible = true;
-                        } else {
-                            obj.visible = false; 
-                        }
-    
-                    } else if (selectionMethod == 'chain') {
-                        
-                    } else if (selectionMethod == 'withinAs') {
-            
-                    }
-                }
-            }
+            root.visible = true;
+            obj.visible = true;
         }
     })
 }
@@ -561,12 +517,35 @@ function hideAllReps() {
 
 // opens a rep's tab contents and load molecule based on the tab clicked 
 function openRepTab(evt) { 
+
+    // open rep's tab control panel contents 
     hideAllReps();
     let repTabId = evt.currentTarget.id;
     prevRep = currentRep;
     currentRep = getNumFromId(repTabId); 
     showCurrentRep(currentRep);
     console.log("in openRepTab, currentRep", currentRep);
+
+    // display correct molecule
+
+    // get selection method 
+    let repContentId = makeRepContentId(currentRep);
+    let currentTabContent = document.getElementById(repContentId);
+    let currentSelectionMethod = currentTabContent.getElementsByClassName('active')[0].innerHTML; // ERROR HERE
+    console.log("currentSelectionMethod", currentSelectionMethod);
+
+    // get molecule style    
+    let styleGUI = guis[currentRep];
+
+    let style;
+    styleGUI.controllers.forEach((controller) => {
+        if (controller.property == 'representation') {  
+            style = controller.getValue();
+        }
+    });
+    console.log('style', style);
+
+    showMolecule(null, style, currentRep);
 }
 
 // creates tab buttons for reps
@@ -664,7 +643,7 @@ function onAddRepClick () {
             console.log("currentRep", currentRep);
 
             // show appropriate molecule 
-            showMolecule(defaultParams.repParams.representation, currentRep, null, 'all'); // use default style CPK
+            showMolecule(null, defaultParams.repParams.representation, currentRep); // use default style CPK
 
             break;
         }
@@ -843,54 +822,24 @@ function createGUIs() {
         styleMenu.domElement.dataset.previousStyle = defaultParams.repParams.representation;
         styleMenu.domElement.dataset.currentStyle = defaultParams.repParams.representation;
 
-        atomMenu.domElement.dataset.selection = defaultParams.atomParams.atom;
-        residueMenu.domElement.dataset.selection = defaultParams.residueParams.residue;
-        chainMenu.domElement.dataset.selection = defaultParams.chainParams.chain;
-        withinMenu.domElement.dataset.selection = defaultParams.withinParams.within;
-        withinResMenu.domElement.dataset.selection = defaultParams.withinResParams.withinRes;
-
-        // might just do this (rep-content-0 div) to store data instead of each individual menu?
-        moleculeGUIdiv.dataset.currentStyle = defaultParams.repParams.representation;
-        moleculeGUIdiv.dataset.currentSelectionMethod = 'residue';
-        moleculeGUIdiv.dataset.currentSelectionValue = defaultParams.residueParams.residue;
-
-        console.log(moleculeGUIdiv);
-    
         // on change functions for GUIs
 
         residueMenu.onFinishChange((value) => { 
             if (!isNaN(value) && Number.isInteger(Number(value))) { // if value is not NaN and value is an integer
                 console.log("Number entered:", Number(value));
 
-                console.log("residueMenu.parent", residueMenu.parent);
-                let siblings = residueMenu.parent.children;
-
-                console.log("siblings", siblings);
-
-                let styleMenu = siblings.find(obj => obj.property == 'representation');
-                let styleMenuElement = styleMenu.domElement;
-                console.log("styleMenuElement", styleMenuElement);
-
-                let currentStyle = styleMenuElement.dataset.currentStyle;
-
                 if (residues[Number(value)]) { // value does exist in the residues list, this returns true
-
                     residueSelected = Number(value); // set residueSelected to the residue we want to select
-                    hideMolecule(currentStyle, currentRep);
-                    showMolecule(defaultParams.repParams.representation, currentRep, 'residue', residueSelected);  
-
+                    resetScene();
+                    loadMolecule(currentMolecule, defaultParams.repParams.representation);  
                 } else { // value does not exist in the residues list
-
                     console.log("please select a valid residue");
-
                 }
             } else if (value.toLowerCase() === "all") { // display entire molecule
-
                 console.log("Option 'all' selected");
                 residueSelected = 'all';
-                //resetScene();
-                hideMolecule(currentStyle, currentRep);
-                showMolecule(defaultParams.repParams.representation, currentRep, 'residue', 'all'); 
+                resetScene();
+                loadMolecule(currentMolecule, defaultParams.repParams.representation); 
 
             } else {
                 // pop up text, flashing?
@@ -922,6 +871,11 @@ function createGUIs() {
 
             const styleMenuElement = styleMenu.domElement;
             console.log('styleMenuElement', styleMenuElement);
+            
+            // CPK --> VDW
+            // value = VDW
+            // previousStyle = CPK
+            // currentStyle = VDW
 
             styleMenuElement.dataset.previousStyle = styleMenuElement.dataset.currentStyle;
             styleMenuElement.dataset.currentStyle = value;
@@ -929,26 +883,10 @@ function createGUIs() {
             let previousStyle = styleMenuElement.dataset.previousStyle || defaultParams.repParams.representation;  // Default to initial value (CPK) if previousStyle is uninitialized
             let currentStyle = styleMenuElement.dataset.currentStyle;
 
-            // get selection method
-            /* let n = styleMenuElement.parentElement;
-            let n1 = n.parentElement;
-            console.log("parent ", n);
-            console.log('parent of parent', n1); */
-            let currentRepContent = document.getElementById(makeRepContentId(currentRep));
-            let selectionOptionDiv = currentRepContent.querySelectorAll('.selection-option')[0];
-            console.log(selectionOptionDiv);
-
-            let currentSelectionMethod = currentRepContent.dataset.currentSelectionMethod; 
-            let currentSelectionValue = currentRepContent.dataset.currentSelectionValue;
-            console.log(currentSelectionMethod, currentSelectionValue);
-
-
-
-
             console.log('in styleMenu.onChange, hiding', previousStyle, currentRep);
-            hideMolecule(previousStyle, currentRep); // EDIT HERE
+            hideMolecule(previousStyle, currentRep);
             console.log('in styleMenu.onChange, showing', currentStyle, currentRep);
-            showMolecule(currentStyle, currentRep, currentSelectionMethod, currentSelectionValue); 
+            showMolecule(currentMolecule, currentStyle, currentRep);
         }); 
 
         // create div to hold molecule and representation options
@@ -1025,22 +963,18 @@ function createGUIs() {
 }
 
 
+
+
+
 // window resize function specific to container that this scene is in (not just entire window)
 function onWindowResize() {
+    const containerWidth = container.clientWidth;
+    const containerHeight = container.clientHeight;
 
-    let w = container.clientWidth;
-    let h = container.clientHeight;
-    let viewSize = h;
-    let aspectRatio = w / h;
-
-    camera.left = (-aspectRatio * viewSize) / 2;
-    camera.right = (aspectRatio * viewSize) / 2;
-    camera.top = viewSize / 2;
-    camera.bottom = -viewSize / 2;
-
+    camera.aspect = containerWidth / containerHeight;
     camera.updateProjectionMatrix();
     
-    renderer.setSize(w, h);
+    renderer.setSize(containerWidth, containerHeight);
     render();
 }
 
