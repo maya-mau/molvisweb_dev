@@ -2,7 +2,6 @@
 //import three js and all the addons that are used in this script 
 import * as THREE from 'three';
 import { TrackballControls } from 'three/addons/controls/TrackballControls.js';
-import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { PDBLoader } from './mymods/PDBLoader.js';
 import { OBJLoader } from 'three/addons/loaders/OBJLoader.js';
 import { MTLLoader } from 'three/addons/loaders/MTLLoader.js';
@@ -13,6 +12,9 @@ import { TextGeometry } from 'three/addons/geometries/TextGeometry.js';
 //import { TW } from 'tw';
 
 
+
+// GLOBAL CONSTANTS
+
 console.log("start script")
 
 
@@ -21,6 +23,7 @@ let camera, scene, renderer, labelRenderer, container;
 let controls;
 let root;
 let geometryAtoms, geometryBonds, json_atoms, json_bonds, json_bonds_manual, json_bonds_conect, residues;
+// let outlinePass, composer;
 var raycaster, mouse = {x: 0, y: 0 }
 
 let initialPosition, initialTarget, initialQuaternion;
@@ -56,7 +59,7 @@ let repStates = Array(maxRepTabs).fill(false);
 
 
 // set key controls, TODO find a place to move it
-var isDistanceMeasurementMode = false;
+var isDistanceMeasurementMode = false
 
 // amount of molecule selected, may change
 var residueSelected = 'all'; // default all
@@ -96,43 +99,34 @@ animate();
 function init() {
 
     // TODO attempt at orthographic camera
-   
+    /* container = document.getElementsByClassName('column middle')[0]; // could try fixing the squish TODO
+    const containerWidth = container.clientWidth;
+    const containerHeight = container.clientHeight;
+
+    let w = containerWidth;
+    let h = containerHeight;
+    let viewSize = h;
+    let aspectRatio = w / h;
+
+    let left = (-aspectRatio * viewSize) / 2;
+    let right = (aspectRatio * viewSize) / 2;
+    let top = viewSize / 2;
+    let bottom = -viewSize / 2;
+    let near = -100;
+    let far = 100; */
 
     //initialize main window 
     scene = new THREE.Scene();
     scene.background = new THREE.Color( 0x000000 );
     globalThis.scene = scene;
 
-    container = document.getElementsByClassName('column middle')[0]; // could try fixing the squish TODO
-    const containerWidth = container.clientWidth;
-    const containerHeight = container.clientHeight;
 
-    const cameraOption = 'orthographic';
-
-    if (cameraOption == 'orthographic') {
-        
-        // TODO need to edit these to be dynamic based on the molecule
-        let w = containerWidth;
-        let h = containerHeight;
-        let viewSize = h;
-        let aspectRatio = w / h;
-
-        let left = (-aspectRatio * viewSize) / 2;
-        let right = (aspectRatio * viewSize) / 2;
-        let top = viewSize / 2;
-        let bottom = -viewSize / 2;
-        let near = -10000;
-        let far = 10000; 
-
-        camera = new THREE.OrthographicCamera(left, right, top, bottom, near, far);
-        camera.position.z = 1000;
-        
-    } else {
-        camera = new THREE.PerspectiveCamera( 70, window.innerWidth / window.innerHeight, 1, 5000 );
-        camera.position.z = 1000;
-    }
-
+    // gives the user a specific viewpoint of the scene 
+    camera = new THREE.PerspectiveCamera( 70, window.innerWidth / window.innerHeight, 1, 5000 );
     globalThis.camera = camera;
+    // camera = new THREE.OrthographicCamera(left, right, top, bottom, near, far);
+    
+    camera.position.z = 1000; // could set camera to orthoperspective for toggle TODO
     scene.add( camera );
 
     // object needs to be illuminated to be visible // TODO, could work on this, lighting is kind of strange
@@ -151,28 +145,23 @@ function init() {
     root = new THREE.Group();
     scene.add( root );
     root.visible = true;
+    //console.log("IS PARENT OF ROOT VISIBLE", root.parent.visible);
 
     // renderer makes scene visible 
     renderer = new THREE.WebGLRenderer( { antialias: true } );
     renderer.setPixelRatio(window.devicePixelRatio);
 
     // place the scene in the column middle window 
-    
+    container = document.getElementsByClassName('column middle')[0]; // could try fixing the squish TODO
+    const containerWidth = container.clientWidth;
+    const containerHeight = container.clientHeight;
     renderer.setSize(containerWidth, containerHeight);
     container.appendChild(renderer.domElement);
 
     // allow user to move around the molecule 
-    if (cameraOption == 'orthographic') {
-        controls = new OrbitControls( camera, renderer.domElement );
-        /* controls.minZoom = 0;
-        controls.maxZoom = 3000; */
-    } else {
-        controls = new TrackballControls( camera, renderer.domElement ); // TODO, controls zooming out boundaries
-        controls.minDistance = 100;
-        controls.maxDistance = 3000;
-    }
-    
-    
+    controls = new TrackballControls( camera, renderer.domElement ); // TODO, controls zooming out boundaries
+    controls.minDistance = 100;
+    controls.maxDistance = 3000;
 
     initialPosition = camera.position.clone();
     initialQuaternion = camera.quaternion.clone();
@@ -210,7 +199,7 @@ function init() {
     molGUIContainer.appendChild(molMenu.domElement); 
 
     molMenu.onChange(function(molecule) {
-        console.log("trying to load", molecule, defaultParams.repParams.representation);
+        console.log("trying to load", molecule, repParams.representation);
         residueSelected = 'all';
 
         currentMolecule = molecule;
@@ -218,7 +207,7 @@ function init() {
         console.log('currentMolecule now: ', currentMolecule);
 
         resetScene();
-        loadMolecule(molecule, defaultParams.repParams.representation, currentRep);
+        loadMolecule(molecule, repParams.representation, currentRep);
         resetMoleculeOrientation();
     });
 
@@ -1305,3 +1294,5 @@ function getRadius(atom){
 
     return rad; 
 }
+
+
