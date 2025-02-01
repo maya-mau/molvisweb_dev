@@ -314,7 +314,8 @@ class PDBLoader extends Loader { // PDBLoader class extends Loader class from th
 				json_bonds_conect: {
 					bonds_conect: bonds_conect
 				},
-				residues: residues
+				residues: residues,
+				chains: chains
 			};
 
 
@@ -452,6 +453,7 @@ class PDBLoader extends Loader { // PDBLoader class extends Loader class from th
 
 		const atoms = [];
 		const residues = [];
+		const chains = [];
 		const bonds_manual = [];
 		const bonds_conect = [];
 
@@ -475,6 +477,7 @@ class PDBLoader extends Loader { // PDBLoader class extends Loader class from th
 				const z = parseFloat( lines[ i ].slice( 46, 53 ) );
 				const index = parseInt( lines[ i ].slice( 6, 11 ) ) - 1;
 				const resid = parseInt( lines[ i ].slice( 23, 27) ); // TODO refine these numbers
+				const chain = trim( lines[ i ].slice( 21, 22) );
  
 				let e = trim( lines[ i ].slice( 76, 78 ) ).toLowerCase();
 
@@ -482,13 +485,16 @@ class PDBLoader extends Loader { // PDBLoader class extends Loader class from th
 					e = trim( lines[ i ].slice( 12, 17 ) ).toLowerCase(); 
 				}
 
-				e = e[0] // grab the first letter of e only, e.g. "h" from "hd21"
-				
+				let elem = e[0] // grab the first letter of e only, e.g. "h" from "hd21" - this is the element
 
-				const atomData = [ x, y, z, CPK[ e ], capitalize( e ), resid];
+				const atomData = [ x, y, z, CPK[ elem ], capitalize( elem ), resid, chain, e];
 
 				if (!residues[resid]) { // creates an array of unique residue numbers present in PDB file
 					residues[resid] = true; // mark residue as seen
+				} // might change this system to match chains below
+
+				if (!chains.includes(chain)) { // creates an array of unique chains present in PDB file
+					chains.push(chain); // mark chain as seen
 				}
 
 				atoms.push( atomData );

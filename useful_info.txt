@@ -34,32 +34,32 @@ structure:
 
 div class=three-gui
     div class=tab-rep   
-        button class=tab-link-rep id=rep-tab-1
-        button class=tab-link-rep id=rep-tab-2
-    div class=gui-div tab-content-rep id=rep-content-1
+        button class=tab-link-rep id=rep-tab-1637
+        button class=tab-link-rep id=rep-tab-2918
+    div class=gui-div tab-content-rep id=rep-content-1637
         div class=mol-rep-option
         div class=selection-option
             div class=tab-selection-method
-                button class=tab-link-selection-method 'atom' id=atom-1
-                button class=tab-link-selection-method 'residue' id=residue-1
-                button class=tab-link-selection-method 'chain' id=chain-1
-                button class=tab-link-selection-method 'distance' id=distance-1
-            div class=tab-content-selection-method id=atom-1
-            div class=tab-content-selection-method id=residue-1
-            div class=tab-content-selection-method id=chain-1
-            div class=tab-content-selection-method id=distance-1
-    div class=gui-div tab-content-rep id=rep-content-2
+                button class=tab-link-selection-method 'atom' id=atom-1637
+                button class=tab-link-selection-method 'residue' id=residue-1637
+                button class=tab-link-selection-method 'chain' id=chain-1637
+                button class=tab-link-selection-method 'distance' id=distance-1637
+            div class=tab-content-selection-method id=atom-1637
+            div class=tab-content-selection-method id=residue-1637
+            div class=tab-content-selection-method id=chain-1637
+            div class=tab-content-selection-method id=distance-1637
+    div class=gui-div tab-content-rep id=rep-content-2918
         div class=mol-rep-option
         div class=selection-option
             div class=tab-selection-method
-                button class=tab-link-selection-method 'atom' id=atom-tab-2
-                button class=tab-link-selection-method 'residue' id=residue-tab-2
-                button class=tab-link-selection-method 'chain' id=chain-tab-2
-                button class=tab-link-selection-method 'distance' id=distance-tab-2
-            div class=tab-content-selection-method id=atom-content-2
-            div class=tab-content-selection-method id=residue-content-2
-            div class=tab-content-selection-method id=chain-content-2
-            div class=tab-content-selection-method id=distance-content-2
+                button class=tab-link-selection-method 'atom' id=atom-tab-2918
+                button class=tab-link-selection-method 'residue' id=residue-tab-2918
+                button class=tab-link-selection-method 'chain' id=chain-tab-2918
+                button class=tab-link-selection-method 'distance' id=distance-tab-2918
+            div class=tab-content-selection-method id=atom-content-2918
+            div class=tab-content-selection-method id=residue-content-2918
+            div class=tab-content-selection-method id=chain-content-2918
+            div class=tab-content-selection-method id=distance-content-2918
               
 
 
