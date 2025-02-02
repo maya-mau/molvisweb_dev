@@ -34,6 +34,19 @@ const OBJloader = new OBJLoader();
 const MTLloader = new MTLLoader(); 
 const offset = new THREE.Vector3();
 
+// setting default/on load molecule  
+
+const defaultParams = {
+    mculeParams: { molecule: 'caffeine.pdb' },
+    repParams: { representation: 'CPK' },
+    colorParams: { color: 'Name' },
+    residueParams: { residue: 'all' },
+    chainParams: { chain: 'all' },
+    atomParams: { atom: 'all' },
+    withinParams: { within: 0 },
+    withinResParams: { withinRes: 0 }
+}
+
 var selectedObject = null;
 // variables to keep track of atoms to have distance measured between them
 var distanceSelected1 = null;
@@ -44,6 +57,9 @@ var mainColor = null;
 const atomContent = document.getElementsByClassName('atom-content')[0];
 
 var currentMolecule = 'caffeine';
+var currentStyle = defaultParams.repParams.representation;
+var currentSelectionMethod = 'residue';
+var currentSelectionValue = defaultParams.residueParams.residue;
 
 var numRepTabs = 1;
 var currentRep = 0;
@@ -60,18 +76,9 @@ let tabs = [];
 let guiContainers = [];
 let repStates = Array(maxRepTabs).fill(false);
 
-// setting default/on load molecule  
 
-const defaultParams = {
-    mculeParams: { molecule: 'caffeine.pdb' },
-    repParams: { representation: 'CPK' },
-    colorParams: { color: 'Name' },
-    residueParams: { residue: 'all' },
-    chainParams: { chain: 'all' },
-    atomParams: { atom: 'all' },
-    withinParams: { within: 0 },
-    withinResParams: { withinRes: 0 }
-}
+
+const backboneAtoms = ['c', 'ca', 'n', 'o'];
 
 // set key controls, TODO find a place to move it
 var isDistanceMeasurementMode = false
@@ -498,6 +505,11 @@ function hideMolecule(style, repNum) {
 // so assume the atoms/bonds for this specific molecule already exist in the scene.
 function showMolecule(style, repNum, selectionMethod, selectionValue) {
 
+    currentStyle = style;
+    currentRep = repNum;
+    currentSelectionMethod = selectionMethod;
+    currentSelectionValue = selectionValue;
+
     //root.visible = true;
     root.traverse( (obj) => {
 
@@ -521,13 +533,25 @@ function showMolecule(style, repNum, selectionMethod, selectionValue) {
                         }
     
                     } else if (selectionMethod == 'chain') {  
-                        console.log('showMolecule, selecting by chain in atom');
+                        //console.log('showMolecule, selecting by chain in atom');
+                        if (selectionValue == 'backbone') {
+                            //console.log("obj.atomName", obj.atomName);
 
-                        if (obj.chain == selectionValue) {
-                            obj.visible = true;
+                            if (backboneAtoms.includes(obj.atomName)) { 
+                                console.log("obj.atomName", obj.atomName);
+                                obj.visible = true;
+                            } else {
+                                obj.visible = false;
+                            }
+
                         } else {
-                            obj.visible = false;
+                            if (obj.chain == selectionValue) {
+                                obj.visible = true;
+                            } else {
+                                obj.visible = false;
+                            }
                         }
+                        
                         
                     } else if (selectionMethod == 'withinAs') {
             
@@ -555,19 +579,24 @@ function showMolecule(style, repNum, selectionMethod, selectionValue) {
     
                     } else if (selectionMethod == 'chain') {
 
-                        //console.log('selecting by chain in bond');
                         let atom1 = obj.startAtom;
                         let atom2 = obj.endAtom;
-    
-                        /* console.log('atom1.residue', atom1.residue);
-                        console.log('atom2.residue', atom2.residue);
-                        console.log('selection', selection); */
-    
-                        if (atom1[6] == selectionValue && atom2[6] == selectionValue) {
-                            obj.visible = true;
+
+                        if (selectionValue == 'backbone') {
+                            if (backboneAtoms.includes(atom1[7]) && backboneAtoms.includes(atom2[7])) { 
+                                obj.visible = true;
+                            } else {
+                                obj.visible = false;
+                            }
                         } else {
-                            obj.visible = false; 
+        
+                            if (atom1[6] == selectionValue && atom2[6] == selectionValue) {
+                                obj.visible = true;
+                            } else {
+                                obj.visible = false; 
+                            }
                         }
+                        
                         
                     } else if (selectionMethod == 'withinAs') {
             
@@ -764,7 +793,7 @@ function onDeleteRepClick () {
         let styleMenuElement = currentTabContent.getElementsByClassName('mol-rep-option')[0].children[0];
         console.log("styleMenuElement", styleMenuElement);
 
-        let currentStyle = styleMenuElement.dataset.currentStyle;
+        currentStyle = styleMenuElement.dataset.currentStyle;
 
         console.log('in onDeleteRepClick, hiding', currentStyle, currentRep); 
         hideMolecule(currentStyle, currentRep);
@@ -812,6 +841,7 @@ function openSelectionMethodTab(event, SMtype) {
     tabLinks.forEach(link => link.classList.remove('active'));
 
     // show the current tab and add an "active" class to the button that opened the tab
+    console.log("document.getElementById(smContentId)", document.getElementById(smContentId));
     document.getElementById(smContentId).style.display = "block";
     console.log("changed this smContentId to block", smContentId);
     event.currentTarget.classList.add('active');
@@ -890,6 +920,7 @@ function createGUIs() {
         withinResMenu.name('of residue');
         styleMenu.name('drawing method');
         colorMenu.name('coloring method');
+        chainMenu.name('molecule');
 
         // set data-current-style and data-previous-style = default style, CPK
         styleMenu.domElement.dataset.previousStyle = defaultParams.repParams.representation;
@@ -914,25 +945,28 @@ function createGUIs() {
         // on change functions for GUIs
 
         residueMenu.onFinishChange((value) => { 
-            console.log("residueMenu.parent", residueMenu.parent);
+            //console.log("residueMenu.parent", residueMenu.parent);
             let siblings = residueMenu.parent.children;
 
 
             let styleMenu = siblings.find(obj => obj.property == 'representation');
             let styleMenuElement = styleMenu.domElement;
-            console.log("styleMenuElement", styleMenuElement);
+            //console.log("styleMenuElement", styleMenuElement);
 
-            let currentStyle = styleMenuElement.dataset.currentStyle;
+            currentStyle = styleMenuElement.dataset.currentStyle;
             console.log('currentStyle does this work', currentStyle);
+
+            let repContent = document.getElementById(makeRepContentId(currentRep));
+            //console.log("repContent", repContent);
 
             if (!isNaN(value) && Number.isInteger(Number(value))) { // if value is not NaN and value is an integer
                 console.log("Number entered:", Number(value));
 
-                
-
                 if (residues[Number(value)]) { // value does exist in the residues list, this returns true
 
                     residueSelected = Number(value); // set residueSelected to the residue we want to select
+                    repContent.dataset.currentSelectionMethod = 'residue';
+                    repContent.dataset.currentSelectionValue = residueSelected;
                     hideMolecule(currentStyle, currentRep);
                     showMolecule(currentStyle, currentRep, 'residue', residueSelected);  
 
@@ -945,9 +979,12 @@ function createGUIs() {
 
                 console.log("Option 'all' selected");
                 residueSelected = 'all';
+                repContent.dataset.currentSelectionMethod = 'residue';
+                repContent.dataset.currentSelectionValue = residueSelected;
+                
                 //resetScene();
                 hideMolecule(currentStyle, currentRep);
-                showMolecule(defaultParams.repParams.representation, currentRep, 'residue', 'all'); 
+                showMolecule(defaultParams.repParams.representation, currentRep, 'residue', residueSelected); 
 
             } else {
                 // pop up text, flashing?
@@ -958,21 +995,36 @@ function createGUIs() {
         chainMenu.onFinishChange((value) => {
 
             // find currentStyle
-            console.log("chainMenu.parent", chainMenu.parent);
+            //console.log("chainMenu.parent", chainMenu.parent);
             let siblings = residueMenu.parent.children;
+
+            console.log('value', value);
 
             let styleMenu = siblings.find(obj => obj.property == 'representation');
             let styleMenuElement = styleMenu.domElement;
             console.log("styleMenuElement", styleMenuElement);
 
-            let currentStyle = styleMenuElement.dataset.currentStyle;
+            currentStyle = styleMenuElement.dataset.currentStyle;
             console.log('currentStyle does this work', currentStyle);
 
-            if (chains.includes(value)) { // value does exist in the chains list, this returns true
+            let repContent = document.getElementById(makeRepContentId(currentRep));
+
+            if (chains.includes(value) || value == 'backbone') { // value does exist in the chains list or value is 'backbone'
 
                 chainSelected = value; // set chainSelected to the chain we want to select
+                console.log('chainSelected', chainSelected);
+
+                repContent.dataset.currentSelectionMethod = 'chain';
+                repContent.dataset.currentSelectionValue = chainSelected;
+
                 hideMolecule(currentStyle, currentRep);
                 showMolecule(currentStyle, currentRep, 'chain', chainSelected);  
+
+            } else if (value == 'all') {
+
+                repContent.dataset.currentSelectionMethod = 'chain';
+                repContent.dataset.currentSelectionValue = value;
+                showMolecule(currentStyle, currentRep, 'chain', value);  
 
             } else { // value does not exist in the chains list
 
@@ -1014,7 +1066,7 @@ function createGUIs() {
             styleMenuElement.dataset.currentStyle = value;
 
             let previousStyle = styleMenuElement.dataset.previousStyle || defaultParams.repParams.representation;  // Default to initial value (CPK) if previousStyle is uninitialized
-            let currentStyle = styleMenuElement.dataset.currentStyle;
+            currentStyle = styleMenuElement.dataset.currentStyle;
 
             // get selection method
             /* let n = styleMenuElement.parentElement;
@@ -1023,13 +1075,12 @@ function createGUIs() {
             console.log('parent of parent', n1); */
             let currentRepContent = document.getElementById(makeRepContentId(currentRep));
             let selectionOptionDiv = currentRepContent.querySelectorAll('.selection-option')[0];
-            console.log(selectionOptionDiv);
+            //console.log(selectionOptionDiv);
 
+            
             let currentSelectionMethod = currentRepContent.dataset.currentSelectionMethod; 
             let currentSelectionValue = currentRepContent.dataset.currentSelectionValue;
-            console.log(currentSelectionMethod, currentSelectionValue);
-
-
+            console.log("currentSelectionMethod", currentSelectionMethod, "currentSelectionValue", currentSelectionValue);
 
 
             console.log('in styleMenu.onChange, hiding', previousStyle, currentRep);
@@ -1051,13 +1102,13 @@ function createGUIs() {
         // create tab buttons
         const tabButtonAtom = createSelectionMethodTabButton('Atom', false);
         const tabButtonResidue = createSelectionMethodTabButton('Residue', true);
-        const tabButtonChain = createSelectionMethodTabButton('Chain', false);
+        const tabButtonChain = createSelectionMethodTabButton('Molecule', false);
         const tabButtonDistance = createSelectionMethodTabButton('Distance', false);
 
         // create tab content
         const tabContentAtom = createSelectionMethodTabContent('atom', [atomMenu], false);
         const tabContentResidue = createSelectionMethodTabContent('residue', [residueMenu], true);
-        const tabContentChain = createSelectionMethodTabContent('chain', [chainMenu], false);
+        const tabContentChain = createSelectionMethodTabContent('molecule', [chainMenu], false);
         const tabContentDistance = createSelectionMethodTabContent('distance', [withinMenu, withinResMenu], false);
 
         // append tab buttons to tab container
@@ -1107,6 +1158,8 @@ function createGUIs() {
             tab.style.display = 'none';
             moleculeGUIdiv.style.display = 'none';
         }
+
+        currentStyle = defaultParams.repParams.representation;
     }
 
     currentRep = 0;
