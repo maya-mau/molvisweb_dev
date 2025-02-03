@@ -94,11 +94,12 @@ raycaster.far = Infinity;
 raycaster.params.Points.threshold = 0.1; 
 raycaster.params.Line.threshold = 0.1;  
 
-//names to display + associated filename of pdb files 
+// names to display + associated filename of pdb files 
 const MOLECULES = {
     'Ponatinib': 'ponatinib_Sep2022.pdb',
     'Caffeine': 'caffeine.pdb',
-    "Ablkinase": 'Ablkinase.pdb'
+    'Ablkinase': 'Ablkinase.pdb',
+    'Ponatinib ablkinase': 'ponatinib_Ablkinase_Jun2022.pdb'
 };
 
 
@@ -111,8 +112,7 @@ animate();
 // init function - sets up scene, camera, renderer, controls, and GUIs 
 function init() {
 
-    
-    //initialize main window 
+    // initialize main window 
     scene = new THREE.Scene();
     scene.background = new THREE.Color( 0x000000 );
     globalThis.scene = scene;
@@ -1043,17 +1043,48 @@ function createGUIs() {
             const withinResValue = withinResParams.withinRes;
 
             console.log(withinValue, withinResValue);
+
+            // get current style
+            let siblings = residueMenu.parent.children;
+
+            let styleMenu = siblings.find(obj => obj.property == 'representation');
+            let styleMenuElement = styleMenu.domElement;
+            //console.log("styleMenuElement", styleMenuElement);
+
+            currentStyle = styleMenuElement.dataset.currentStyle;
+            console.log('currentStyle does this work', currentStyle);
+
+            let repContent = document.getElementById(makeRepContentId(currentRep));
+
+
+
+            // deal with residue
+            if (!isNaN(value) && Number.isInteger(Number(value))) { // if value is not NaN and value is an integer
+                console.log("Number entered:", Number(value));
+
+                if (residues[Number(value)]) { // value does exist in the residues list, this returns true
+
+                    residueSelected = Number(value); // set residueSelected to the residue we want to select
+                    repContent.dataset.currentSelectionMethod = 'residue';
+                    repContent.dataset.currentSelectionValue = residueSelected;
+                    hideMolecule(currentStyle, currentRep);
+                    showMolecule(currentStyle, currentRep, 'residue', residueSelected);  
+
+                } else { // value does not exist in the residues list
+
+                    console.log("please select a valid residue");
+
+                }
+            } else {
+                // pop up text, flashing?
+                console.log("Invalid input. Please enter a number or 'all'.");
+            }
+
         }
 
-        withinMenu.onFinishChange((value) => {
-            console.log("withinMenu value changed: ", value);
-            withinAsResidue();
-        })
+        withinMenu.onFinishChange(withinAsResidue);
 
-        withinResMenu.onFinishChange((value) => {
-            console.log("withinResMenu value changed: ", value);
-            withinAsResidue();
-        })
+        withinResMenu.onFinishChange(withinAsResidue);
 
         //
         styleMenu.onChange(function(value) {
