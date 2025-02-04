@@ -170,6 +170,15 @@
   background-color: #1F1F1F; 
 }
 
+.distance .controller > .name {
+  min-width: 0px; 
+}
+
+.distance {
+  display: flex;
+  gap: 20px; 
+}
+
 /* Style the tab content */
 .tab-content-selection-method {
   padding: 1px 2px;
@@ -186,8 +195,6 @@
 }
 
 .controller.option {
-  padding-left: 10px;
-  padding-right: 10px;
   margin: 0 px;
 }
 

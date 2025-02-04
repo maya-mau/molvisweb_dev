@@ -44,7 +44,8 @@ const defaultParams = {
     chainParams: { chain: 'all' },
     atomParams: { atom: 'all' },
     withinParams: { within: 0 },
-    withinResParams: { withinRes: 0 }
+    withinDropdownParams: { withinDropdown: 'molecule' },
+    withinResParams: { withinRes: "" }
 }
 
 var selectedObject = null;
@@ -465,8 +466,8 @@ function loadMolecule(model, representation, rep) {
                     object.molecularElement = "bond";
                     object.style = key;
                     object.repNum = n;
-                    object.startAtom = atom1;
-                    object.endAtom = atom2;
+                    object.atom1 = atom1;
+                    object.atom2 = atom2;
 
                     object.lookAt( end );
                     root.add( object );
@@ -501,8 +502,10 @@ function hideMolecule(style, repNum) {
         }
     })
 }
+
 // assume only called after loadMolecule is called on the desired molecule,
 // so assume the atoms/bonds for this specific molecule already exist in the scene.
+// all selection values should be valid by the time they reach this function
 function showMolecule(style, repNum, selectionMethod, selectionValue) {
 
     currentStyle = style;
@@ -510,8 +513,62 @@ function showMolecule(style, repNum, selectionMethod, selectionValue) {
     currentSelectionMethod = selectionMethod;
     currentSelectionValue = selectionValue;
 
+    // target array for distance calculations
+    let target = [];
+    let validResidues = {};
+
+    if (selectionMethod == 'distance') {
+        //console.log('in distance of showMolecule');
+
+        const distance = currentSelectionValue[0];
+        const type = currentSelectionValue[1];
+        const selected = currentSelectionValue[2];
+        
+        // find all target molecule atoms
+        if (type == 'residue') {
+
+            root.traverse( (obj) => {
+                if (obj.residue == selected) {
+                    //console.log(obj.residue, obj.position.x);
+                    target.push([obj.position.x, obj.position.y, obj.position.z]);
+                }
+            })
+
+        } else if (type == 'molecule') {
+
+            root.traverse( (obj) => {
+                if (obj.chain == selected) {
+                    //console.log(obj.chain, obj.position.x);
+                    target.push([obj.position.x, obj.position.y, obj.position.z]);
+                }
+            })
+        }
+        
+        //console.log(target);
+
+        // find all residues within the required distance to the target atoms
+        root.traverse( (obj) => {
+            for (let coord of target) {
+
+                let dist = calculateDistanceXYZ(coord, [obj.position.x, obj.position.y, obj.position.z]);
+    
+                if (dist <= distance) {
+                    
+                    validResidues[obj.residue] = true;
+                } 
+            }
+        })
+
+        console.log("validResidues", validResidues);
+
+
+    }
+
+
+
     //root.visible = true;
     root.traverse( (obj) => {
+        //console.log('target', target); 
 
         if (obj.style == style && obj.repNum == repNum) {
             //console.log('match', obj.style, style, obj.repNum, repNum)
@@ -552,10 +609,37 @@ function showMolecule(style, repNum, selectionMethod, selectionValue) {
                             }
                         }
                         
-                        
-                    } else if (selectionMethod == 'withinAs') {
-            
+                    } else if (selectionMethod == 'distance') { 
+                        //console.log('in selectionMethod distancce of showMolecule');
+
+                        const type = currentSelectionValue[1];
+                        const selected = currentSelectionValue[2];
+
+                        if (type == 'residue') {
+
+                            // check if residue is within distance and if obj isn't part of the original target
+                            if (validResidues[obj.residue] && obj.residue != selected) {
+                                //console.log('residue', obj.residue);
+                                //console.log('atom', obj.position.x, obj.position.y, obj.position.z);
+                                obj.visible = true;
+                            } else {
+                                obj.visible = false;
+                            }
+
+                        } else if (type == 'molecule') {
+
+                            if (validResidues[obj.residue] && obj.chain != selected) {
+                                //console.log('residue', obj.residue);
+                                //console.log('atom', obj.position.x, obj.position.y, obj.position.z);
+                                obj.visible = true;
+                            } else {
+                                obj.visible = false;
+                            }
+
+                        }
+
                     }
+
                 } else if (obj.molecularElement == 'bond') {
                     //console.log('object is bond');
                     //console.log(obj);
@@ -564,8 +648,8 @@ function showMolecule(style, repNum, selectionMethod, selectionValue) {
                     } else if (selectionMethod == 'residue') {
     
                         //console.log('selecting by residue in bond');
-                        let atom1 = obj.startAtom;
-                        let atom2 = obj.endAtom;
+                        let atom1 = obj.atom1;
+                        let atom2 = obj.atom2;
     
                         /* console.log('atom1.residue', atom1.residue);
                         console.log('atom2.residue', atom2.residue);
@@ -579,8 +663,8 @@ function showMolecule(style, repNum, selectionMethod, selectionValue) {
     
                     } else if (selectionMethod == 'chain') {
 
-                        let atom1 = obj.startAtom;
-                        let atom2 = obj.endAtom;
+                        let atom1 = obj.atom1;
+                        let atom2 = obj.atom2;
 
                         if (selectionValue == 'backbone') {
                             if (backboneAtoms.includes(atom1[7]) && backboneAtoms.includes(atom2[7])) { 
@@ -598,8 +682,38 @@ function showMolecule(style, repNum, selectionMethod, selectionValue) {
                         }
                         
                         
-                    } else if (selectionMethod == 'withinAs') {
+                    } else if (selectionMethod == 'distance') {
             
+                        const type = currentSelectionValue[1];
+                        const selected = currentSelectionValue[2];
+
+                        let atom1 = obj.atom1;
+                        let atom2 = obj.atom2;
+                        //console.log(obj);
+                        //console.log(atom1);
+
+                        if (type == 'residue') {
+
+                            // check if residue is within distance and if obj isn't part of the original target
+                            if (validResidues[atom1[5]] && validResidues[atom2[5]] && atom1[5] != selected && atom2[5] != selected) {
+                                //console.log('residue', obj.residue);
+                                //console.log('atom', obj.position.x, obj.position.y, obj.position.z);
+                                obj.visible = true;
+                            } else {
+                                obj.visible = false;
+                            }
+
+                        } else if (type == 'molecule') {
+
+                            if (validResidues[atom1[5]] && validResidues[atom2[5]] && atom1[6] != selected && atom2[6] != selected) {
+                                //console.log('residue', obj.residue);
+                                //console.log('atom', obj.position.x, obj.position.y, obj.position.z);
+                                obj.visible = true;
+                            } else {
+                                obj.visible = false;
+                            }
+
+                        }
                     }
                 }
             }
@@ -864,7 +978,7 @@ function createSelectionMethodTabContent(SMtype, menus = [], display) {
     const tabContent = document.createElement('div');
     let smTabId = makeSMContentId(currentRep, SMtype);
     tabContent.id = smTabId;
-    tabContent.classList.add('tab-content-selection-method');
+    tabContent.classList.add('tab-content-selection-method', SMtype);
     if (!display) { tabContent.style.display = 'none'; }
     menus.forEach(menu => tabContent.appendChild(menu.domElement));
 
@@ -899,7 +1013,7 @@ function createGUIs() {
         // create new GUI
         const moleculeGUI = new GUI({ autoPlace: false }); 
 
-        // creates a deep copy of defaultParams instead of referencing
+        // creates a deep copy of defaultParams instead of referencing the original dictionary
         let params = JSON.parse(JSON.stringify(defaultParams));
 
         // store everything in their respective arrays
@@ -909,15 +1023,17 @@ function createGUIs() {
 
         // menus for the gui
         const styleMenu = moleculeGUI.add(params.repParams, 'representation', ['CPK', 'VDW', 'lines']);
-        const colorMenu = moleculeGUI.add(params.colorParams, 'color', ['Name', 'Chain']);
+        const colorMenu = moleculeGUI.add(params.colorParams, 'color', ['Name', 'Molecule']);
         const atomMenu = moleculeGUI.add(params.atomParams, 'atom');
         const residueMenu = moleculeGUI.add(params.residueParams, 'residue');
         const chainMenu = moleculeGUI.add(params.chainParams, 'chain'); 
         const withinMenu = moleculeGUI.add(params.withinParams, 'within');
+        const withinDropdown = moleculeGUI.add(params.withinDropdownParams, 'withinDropdown', ['residue', 'molecule']);
         const withinResMenu = moleculeGUI.add(params.withinResParams, 'withinRes');
         
-        withinMenu.name('show all residues within')
-        withinResMenu.name('of residue');
+        withinMenu.name('show all residues within');
+        withinDropdown.name('of');
+        withinResMenu.name('');
         styleMenu.name('drawing method');
         colorMenu.name('coloring method');
         chainMenu.name('molecule');
@@ -933,6 +1049,7 @@ function createGUIs() {
         residueMenu.domElement.dataset.selection = defaultParams.residueParams.residue;
         chainMenu.domElement.dataset.selection = defaultParams.chainParams.chain;
         withinMenu.domElement.dataset.selection = defaultParams.withinParams.within;
+        withinDropdown.domElement.dataset.selection = defaultParams.withinDropdownParams.withinDropdown;
         withinResMenu.domElement.dataset.selection = defaultParams.withinResParams.withinRes;
 
         // might just do this (rep-content-0 div) to store data instead of each individual menu?
@@ -1037,14 +1154,60 @@ function createGUIs() {
             console.log("colorMenu value changed: ", value);
         })
 
+        // helper function to validate residue number
+        function validateResidue(resNum) {
+            console.log('in validateResidue');
+
+            if (!isNaN(resNum) && Number.isInteger(Number(resNum))) { // if value is not NaN and value is an integer
+                console.log("Number entered:", resNum);
+
+                if (residues[resNum]) { // if value does exist in the residues list, this returns true
+                    return resNum;
+                } else { // value does not exist in the residues list
+                    console.log("please select a valid residue");
+                    return false;
+                }
+            } else {
+                // pop up text, flashing?
+                console.log("Invalid input. Please enter a number or 'all'.");
+                return false;
+            }
+        }
+
+        // helper function to validate chain TODO
+        function validateChain(chain) { // finish validate chain
+
+            if (chains.includes(chain) || chain == 'backbone') { // value does exist in the chains list or value is 'backbone'
+
+                chainSelected = chain; // set chainSelected to the chain we want to select
+                console.log('chainSelected', chainSelected);
+
+                /* repContent.dataset.currentSelectionMethod = 'chain';
+                repContent.dataset.currentSelectionValue = chainSelected; */
+
+                return chain; 
+
+            } else { // value does not exist in the chains list
+
+                console.log("please select a valid chain:", chains);
+                return false;
+            }
+            
+            
+        }
+
         // helper function to highlight certain parts of the molecule based on the within ___ of residue ___ menu
         function withinAsResidue () {
-            const withinValue = withinParams.within;
-            const withinResValue = withinResParams.withinRes;
+            console.log("withinAsResidue function");
 
-            console.log(withinValue, withinResValue);
+            const distance = params.withinParams.within;
+            const type = params.withinDropdownParams.withinDropdown; 
+            const value = params.withinResParams.withinRes;
 
-            // get current style
+            console.log("distance", distance, 'type', type, "value", value);
+
+
+            // get current style 
             let siblings = residueMenu.parent.children;
 
             let styleMenu = siblings.find(obj => obj.property == 'representation');
@@ -1057,33 +1220,45 @@ function createGUIs() {
             let repContent = document.getElementById(makeRepContentId(currentRep));
 
 
+            // deal with residue or chain LOSERRRR
 
-            // deal with residue
-            if (!isNaN(value) && Number.isInteger(Number(value))) { // if value is not NaN and value is an integer
-                console.log("Number entered:", Number(value));
+            if (type == 'residue') { // do residue number validation
 
-                if (residues[Number(value)]) { // value does exist in the residues list, this returns true
+                let resNum = validateResidue(value);
+                if (resNum != false) { // if residue is valid
 
-                    residueSelected = Number(value); // set residueSelected to the residue we want to select
+                    residueSelected = Number(resNum); // set residueSelected to the residue we want to select
                     repContent.dataset.currentSelectionMethod = 'residue';
                     repContent.dataset.currentSelectionValue = residueSelected;
                     hideMolecule(currentStyle, currentRep);
-                    showMolecule(currentStyle, currentRep, 'residue', residueSelected);  
+                    showMolecule(currentStyle, currentRep, 'distance', [distance, type, residueSelected]);  
 
-                } else { // value does not exist in the residues list
+                } 
 
-                    console.log("please select a valid residue");
+            } else if (type == 'molecule') { // do chain validation LOSERRRR
+                
+                let moleculeVal = validateChain(value);
+                if (moleculeVal != false) {
 
-                }
-            } else {
-                // pop up text, flashing?
-                console.log("Invalid input. Please enter a number or 'all'.");
+                    // maybe don't use global var chainSelected? might interfere with Selection method chain?
+                    chainSelected = moleculeVal; // set chainSelected to the chain we want to select
+                    console.log('chainSelected', chainSelected);
+
+                    repContent.dataset.currentSelectionMethod = 'distance';
+                    repContent.dataset.currentSelectionValue = distance + " " + type + " " + value; // TODO edit here probably
+
+                    hideMolecule(currentStyle, currentRep);
+                    showMolecule(currentStyle, currentRep, 'distance', [distance, type, chainSelected]);  
+
+                } 
             }
+
+            
 
         }
 
         withinMenu.onFinishChange(withinAsResidue);
-
+        withinDropdown.onFinishChange(withinAsResidue);
         withinResMenu.onFinishChange(withinAsResidue);
 
         //
@@ -1140,7 +1315,7 @@ function createGUIs() {
         const tabContentAtom = createSelectionMethodTabContent('atom', [atomMenu], false);
         const tabContentResidue = createSelectionMethodTabContent('residue', [residueMenu], true);
         const tabContentChain = createSelectionMethodTabContent('molecule', [chainMenu], false);
-        const tabContentDistance = createSelectionMethodTabContent('distance', [withinMenu, withinResMenu], false);
+        const tabContentDistance = createSelectionMethodTabContent('distance', [withinMenu, withinDropdown, withinResMenu], false);
 
         // append tab buttons to tab container
         selectionTabContainer.appendChild(tabButtonAtom);
@@ -1335,6 +1510,20 @@ function calculateDistance(object1, object2) { // could combine with drawLine
     let distance = ((x2 - x1)**2 + (y2 - y1)**2 + (z2 - z1)**2)**(1/2);
     return distance.toFixed(4);
 };
+
+function calculateDistanceXYZ(ls1, ls2) {
+    let x1 = ls1[0] / 75;
+    let y1 = ls1[1] / 75;
+    let z1 = ls1[2] / 75;
+    let x2 = ls2[0] / 75;
+    let y2 = ls2[1] / 75;
+    let z2 = ls2[2] / 75;
+
+    //console.log(x1, y1, z1, x2, y2, z2);
+
+    let distance = ((x2 - x1)**2 + (y2 - y1)**2 + (z2 - z1)**2)**(1/2);
+    return distance.toFixed(4);
+}
 
 function drawLine(object1, object2) {
     let distance = calculateDistance(object1, object2);
