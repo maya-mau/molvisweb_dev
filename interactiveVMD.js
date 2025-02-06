@@ -27,6 +27,8 @@ let geometryAtoms, geometryBonds, json_atoms, json_bonds, json_bonds_manual, jso
 // let outlinePass, composer;
 var raycaster, mouse = {x: 0, y: 0 }
 
+const cameraOption = 'orthographic';
+
 let initialPosition, initialTarget, initialQuaternion;
 
 const PDBloader = new PDBLoader();
@@ -122,11 +124,11 @@ function init() {
     const containerWidth = container.clientWidth;
     const containerHeight = container.clientHeight;
     
-    const cameraOption = 'orthographic';
+    
     
     if (cameraOption == 'orthographic') {
             
-        // TODO need to edit these to be dynamic based on the molecule
+        // TODO need to edit these to be dynamic based on the molecule maybe
         let w = containerWidth;
         let h = containerHeight;
         let viewSize = h;
@@ -195,6 +197,8 @@ function init() {
 
     // dynamic screen size 
     window.addEventListener( 'resize', onWindowResize );
+    //onWindowResize(); // squashing again, not sure why TODO LOSER
+    //recenterCamera(camera, controls);
 
 
 
@@ -214,6 +218,7 @@ function init() {
     molGUIContainer.appendChild(molMenu.domElement); 
 
     molMenu.onChange(function(molecule) {
+        //popup();
         console.log("trying to load", molecule, defaultParams.repParams.representation);
         residueSelected = 'all';
 
@@ -226,6 +231,7 @@ function init() {
         resetMoleculeOrientation();
         resetGUIs();
         hideAllReps();
+        
 
         tabs.forEach( (tab) => { tab.style.display = 'none'; })
 
@@ -237,11 +243,20 @@ function init() {
         currentRep = 0;
         numRepTabs = 1;
         showCurrentRep(currentRep);
+        //popdown();
     });
 
     createGUIs();    
 
     //TW.addSceneBoundingBoxHelper(scene);
+
+    onWindowResize();
+}
+
+function storeInitialView() {
+    initialPosition.copy(camera.position);
+    initialQuaternion.copy(camera.quaternion);
+    initialTarget.copy(controls.target);
 }
 
 function resetScene() {
@@ -252,13 +267,185 @@ function resetScene() {
     }
 }
 
+function getVisibleBoundingBox() {
+    let box = new THREE.Box3();
+    let tempBox = new THREE.Box3();
+
+    root.traverse( (obj) => {
+        //console.log('obj', obj);
+        if (obj.isMesh && obj.visible) {
+            //console.log('inside conditional')
+            /* if (obj.style = "VDW") {
+                console.log('obj', obj);
+                
+            } */
+
+            obj.geometry.computeBoundingBox();
+            tempBox.copy(obj.geometry.boundingBox).applyMatrix4(obj.matrixWorld);
+            box.union(tempBox);
+        } 
+    })
+
+    let helper = new THREE.Box3Helper(box, new THREE.Color(0xff0000)); // Red color
+    scene.add(helper);  // Add helper to scene for visualization
+    helper.visible = true;
+
+
+    return box;
+}
+
+function getBoundingBoxCenter() {
+
+    let boundingBox = getVisibleBoundingBox();
+    let center = new THREE.Vector3();
+    boundingBox.getCenter(center);
+    return center;
+}
+
+function recenterCamera(camera, controls) {
+
+    let boundingBox = getVisibleBoundingBox();
+    let center = getBoundingBoxCenter();
+    
+    let size = boundingBox.getSize(new THREE.Vector3());
+    console.log('size', size);
+    let maxDim = Math.max(size.x, size.y, size.z);
+
+    if (camera.isPerspectiveCamera) {
+        let distanceMultiplier = 2.5; // Adjust this value to zoom out more
+        let distance = maxDim * distanceMultiplier;
+    
+        camera.position.set(
+            center.x,
+            center.y,
+            center.z + distance
+        );
+    
+        let aspect = window.innerWidth / window.innerHeight;
+        let fov = 2 * Math.atan((maxDim / 2) / distance) * (180 / Math.PI);
+        camera.fov = Math.min(Math.max(fov, 30), 75); // Clamp FOV between 30 and 75 degrees
+        camera.aspect = aspect;
+        camera.near = 0.1;
+        camera.far = maxDim * 10;
+    
+        controls.minDistance = maxDim * 0.5;
+        controls.maxDistance = maxDim * 10;
+        controls.target.copy(center);
+
+    } else {
+
+        console.log('camera is orthographic');
+
+        let scaleFactor = 1.2; // Increase this value to zoom out more
+        let left = (-size.x) / 2 * scaleFactor;
+        let right = (size.x) / 2 * scaleFactor;
+        let top = size.y / 2 * scaleFactor;
+        let bottom = -size.y / 2 * scaleFactor;
+        let near = -maxDim * 5;
+        let far = maxDim * 5;
+
+        camera.left = left;
+        camera.right = right;
+        camera.top = top;
+        camera.bottom = bottom;
+        camera.near = near;
+        camera.far = far;
+
+        camera.position.set(center.x, center.y, maxDim * 2);
+        controls.target.copy(center);
+
+        
+        
+    }
+
+    
+    camera.updateProjectionMatrix();
+    controls.update();
+
+    console.log('storing intial view');//LOSER
+    storeInitialView();
+}
+
+function recenterCamera1(camera, controls) {
+
+    let boundingBox = getVisibleBoundingBox();
+    let center = getBoundingBoxCenter();
+    
+    let size = boundingBox.getSize(new THREE.Vector3());
+    console.log('size', size);
+    let maxDim = Math.max(size.x, size.y, size.z);
+
+    /* let fov = camera.fov * (Math.PI / 180);
+    let distance = Math.abs(size / Math.sin(fov / 2)); */
+
+    if (camera.isOrthographicCamera) {
+        console.log('camera is orthographic');
+    
+        let left = (-size.x) / 2;
+        //console.log('left', left);
+        let right = (size.x) / 2;
+        //console.log('right', right);
+        let top = size.y / 2;
+        //console.log('top', top);
+        let bottom = -size.y / 2;
+        //console.log('bottom', bottom);
+        /* let near = -1000;
+        let far = 1000;  */
+        let near = -1000;
+        let far = maxDim * 15;
+        //console.log('far', far);
+    
+        camera.left = left;
+        camera.right = right;
+        camera.top = top;
+        camera.bottom = bottom;
+        camera.near = near;
+        camera.far = far;
+        //camera.position.z = 1000;
+
+        controls.target.set(center.x, center.y, -maxDim * 3);
+        
+
+    } else if (camera.isPerspectiveCamera) { 
+        //console.log("x, y, z coords"); //LOSER
+        //console.log(center.x + maxDim * 1.5, center.y + maxDim * 1.5, center.z + maxDim * 1.5);
+        let distanceMultiplier = 2; // Increase this value to zoom out more
+        let distance = maxDim * distanceMultiplier;
+    
+        camera.position.copy(center.x + maxDim * 1.5, center.y + maxDim * 1.5, center.z + maxDim * 1.5);
+
+         // Adjust FOV based on the size of the molecule
+        let aspect = window.innerWidth / window.innerHeight;
+        let fov = 2 * Math.atan((maxDim / 2) / distance) * (180 / Math.PI);
+        camera.fov = Math.min(Math.max(fov, 30), 75); // Clamp FOV between 30 and 75 degrees
+
+        camera.near = 0.1;
+        camera.far = maxDim * 4; // Increased far plane
+
+        controls.minDistance = maxDim * 0.5;
+        controls.maxDistance = maxDim * 10; // Increased max 
+
+        /* controls.minDistance = 100;
+        controls.maxDistance = 3000; */
+    
+        controls.target.copy(center);
+        controls.update();
+    }
+
+    camera.updateProjectionMatrix();
+    //console.log(camera);
+
+    
+    controls.update();
+
+    resetMoleculeOrientation();
+}
+
 // reset all GUIs to default
 function resetGUIs() {
-
     for (let i = 0; i < maxRepTabs; i++) {
         resetTab(i);
     }
-
 }
 
 // creates a new copy of atoms and bonds for every tab
@@ -304,10 +491,16 @@ function loadMolecule(model, representation, rep) {
         let sphereGeometryCPK = new THREE.IcosahedronGeometry(1, 3 ); 
         
         // slightly thicker bonds for visibility, no atoms 
+        /* let boxGeometryLines = new THREE.BoxGeometry( 3, 3, 1 );
+        let sphereGeometryLines = new THREE.BoxGeometry(.5, .5, .5);  */
+
         let boxGeometryLines = new THREE.BoxGeometry( 3, 3, 1 );
         let sphereGeometryLines = new THREE.BoxGeometry(.5, .5, .5); 
 
-        let sphereGeometryVDW; // defined later due to dependence of radius of each atom
+        // figure out how to get lines atoms to be half a bond and colored
+        
+
+        let sphereGeometryVDW = new THREE.IcosahedronGeometry(); // defined later due to dependence of radius of each atom
 
         let sphereGeometry, boxGeometry;
 
@@ -358,11 +551,21 @@ function loadMolecule(model, representation, rep) {
                 for (let key in repDict) {
                     //console.log('loaded atoms for style', key);
 
+                    let isNaN;
                     if (key == 'VDW') {
                         // sphere visuals for VDW, radius depends on atom and is scaled up for viewing 
-                        const rad = getRadius(json_atoms.atoms[i][4])*2
+                        let rad = getRadius(json_atoms.atoms[i][4])*2
                         //console.log("radius", rad);
+
+                        if (Number.isNaN(rad)) {
+                            console.log('rad is NaN!!!');
+                            isNaN = true;
+                            rad = 1;
+                        }
+
                         sphereGeometry = new THREE.IcosahedronGeometry(rad, 3 );
+
+                        //console.log('position', position);
                     } else if (key == 'CPK') {
                         sphereGeometry = sphereGeometryCPK;
                     } else if (key == 'lines') {
@@ -384,10 +587,15 @@ function loadMolecule(model, representation, rep) {
                     object.atomName = json_atoms.atoms[i][7];
                     //console.log(object);
         
-                    if( !(key == 'lines') ){
-                        // all white for lines model so atoms blend in 
+                    /* if( !(key == 'lines') ){
                         object.material.color.set(color);
-                    } 
+                    }  */
+
+                    /* if (key == 'VDW') {
+                        console.log("object", object);
+                    } */
+
+                    object.material.color.set(color);
                     
                     // reference to original pdb within object for raycaster 
                     object.atomValue = i; 
@@ -402,6 +610,10 @@ function loadMolecule(model, representation, rep) {
                         //console.log("should show", object);
                     } else {
                         object.visible = false;
+                    }
+
+                    if (isNaN) {
+                        console.log('object', object);
                     }
                 }
             } 
@@ -487,7 +699,17 @@ function loadMolecule(model, representation, rep) {
         /* geometryAtoms.computeBoundingBox();
         console.log("geometryAtoms bounding box:", geometryAtoms.boundingBox); */
     
-        // render the scene after adding all the new atom & bond objects    
+        // render the scene after adding all the new atom & bond objects   
+        
+        recenterCamera(camera, controls);
+
+        storeInitialView();
+
+        console.log('after cloning in loadMolecule after recentering camera, should be correct');
+
+        console.log(initialPosition, initialQuaternion, initialTarget);
+
+
         console.log('render');         
         render();
     } );
@@ -507,6 +729,7 @@ function hideMolecule(style, repNum) {
 // so assume the atoms/bonds for this specific molecule already exist in the scene.
 // all selection values should be valid by the time they reach this function
 function showMolecule(style, repNum, selectionMethod, selectionValue) {
+    console.log('in showMOlecule');
 
     currentStyle = style;
     currentRep = repNum;
@@ -559,11 +782,8 @@ function showMolecule(style, repNum, selectionMethod, selectionValue) {
             }
         })
 
-        console.log("validResidues", validResidues);
-
-
+        //console.log("validResidues", validResidues);
     }
-
 
 
     //root.visible = true;
@@ -595,7 +815,7 @@ function showMolecule(style, repNum, selectionMethod, selectionValue) {
                             //console.log("obj.atomName", obj.atomName);
 
                             if (backboneAtoms.includes(obj.atomName)) { 
-                                console.log("obj.atomName", obj.atomName);
+                                //console.log("obj.atomName", obj.atomName);
                                 obj.visible = true;
                             } else {
                                 obj.visible = false;
@@ -629,15 +849,12 @@ function showMolecule(style, repNum, selectionMethod, selectionValue) {
                         } else if (type == 'molecule') {
 
                             if (validResidues[obj.residue] && obj.chain != selected) {
-                                //console.log('residue', obj.residue);
-                                //console.log('atom', obj.position.x, obj.position.y, obj.position.z);
+                                //console.log('obj', obj);
                                 obj.visible = true;
                             } else {
                                 obj.visible = false;
                             }
-
                         }
-
                     }
 
                 } else if (obj.molecularElement == 'bond') {
@@ -719,6 +936,7 @@ function showMolecule(style, repNum, selectionMethod, selectionValue) {
             }
         }
     })
+
 }
 
 
@@ -1199,6 +1417,7 @@ function createGUIs() {
         // helper function to highlight certain parts of the molecule based on the within ___ of residue ___ menu
         function withinAsResidue () {
             console.log("withinAsResidue function");
+            //popup();
 
             const distance = params.withinParams.within;
             const type = params.withinDropdownParams.withinDropdown; 
@@ -1252,8 +1471,7 @@ function createGUIs() {
 
                 } 
             }
-
-            
+            //popdown();
 
         }
 
@@ -1370,10 +1588,44 @@ function createGUIs() {
 
     currentRep = 0;
 }
+function onWindowResize() {
 
+    let w = container.clientWidth;
+    let h = container.clientHeight;
+    let aspectRatio = w / h;
+    let center = getBoundingBoxCenter();
+
+    // Adjust the camera's aspect ratio
+    if (camera.isOrthographicCamera) {
+
+        // For orthographic camera
+        let currentHeight = camera.top - camera.bottom;
+        let newWidth = currentHeight * aspectRatio;
+        let centerX = (camera.left + camera.right) / 2;
+
+        camera.left = centerX - newWidth / 2;
+        camera.right = centerX + newWidth / 2;
+
+    } else if (camera.isPerspectiveCamera) {
+
+        // For perspective camera
+        camera.aspect = aspectRatio;
+    }
+
+    camera.updateProjectionMatrix();
+    controls.target.set(center.x, center.y, center.z);
+    controls.update();
+
+    
+    // Update renderer size
+    renderer.setSize(w, h);
+    
+    render();
+}
 
 // window resize function specific to container that this scene is in (not just entire window)
-function onWindowResize() {
+function onWindowResize1() {
+    //console.log('in window resize');
 
     let w = container.clientWidth;
     let h = container.clientHeight;
@@ -1384,6 +1636,8 @@ function onWindowResize() {
     camera.right = (aspectRatio * viewSize) / 2;
     camera.top = viewSize / 2;
     camera.bottom = -viewSize / 2;
+ 
+    //recenterCamera(camera, controls);
 
     camera.updateProjectionMatrix();
     
@@ -1393,13 +1647,14 @@ function onWindowResize() {
 
 // animate the molecule (allow it to move, be clicked)
 function animate() {
-    console.log("animated")
+    //console.log("animated")
     requestAnimationFrame( animate );
     controls.update();
     render();
     window.addEventListener('click', raycast);
     window.addEventListener('keypress', keypress2);
     window.addEventListener('keypress', keypressEqual);
+    onWindowResize();
 }
 
 // render the molecule (adding scene and camera + objects)
@@ -1434,23 +1689,48 @@ function keypress2(event) {
 function keypressEqual(event) {
     if (event.key === '=') {
         console.log("in keypressEqual");
-        resetMoleculeOrientation();
+        console.log('before resetToInitialView');
+        console.log(initialPosition, initialQuaternion, initialTarget);
+        resetToInitialView();
+        /* console.log(initialPosition, initialQuaternion, initialTarget);
+        recenterCamera(camera, controls);
+        resetMoleculeOrientation(); */
+
+        console.log('after resetToInitialView');
+        console.log(initialPosition, initialQuaternion, initialTarget);
+
+        recenterCamera(camera, controls);
     }
+}
+
+function resetToInitialView() {
+    console.log("Resetting to initial molecule view");
+
+    camera.position.copy(initialPosition);
+    camera.quaternion.copy(initialQuaternion);
+    
+    controls.target.copy(initialTarget);
+    controls.update();
+    controls.reset();  // Apply changes to controls
+
+    camera.updateProjectionMatrix();
 }
 
 // resets molecule to original orientation and camera angle
 // TODO might have to edit this one not sure what's going on with conditionals
 function resetMoleculeOrientation () {
-    if (residueSelected == 'all') {
-        console.log("inside resetMolecule, entire molecule");
-        camera.position.copy(initialPosition);
-        camera.quaternion.copy(initialQuaternion);
-        controls.reset();
-        renderer.render(scene, camera);
+    console.log("inside resetMolecule, entire molecule");
+
+    //recenterCamera(camera, controls);
+    storeInitialView();
+    controls.update();
+    camera.updateProjectionMatrix();
+    controls.reset();
+    /* if (residueSelected == 'all') {
+        
     } else {
         console.log("inside resetMolecule, part of molecule");
-
-    }
+    } */
 }
 
 const resetButton = document.getElementById("reset");
@@ -1617,7 +1897,6 @@ function raycast(event)
     //console.log("length", intersects.length);
    
     if (intersects.length > 0) { // if there is stuff intersected with the mouse
-        console.log("intersects");
 
         let numAtoms = 0
         var currentAtom;
@@ -1625,7 +1904,6 @@ function raycast(event)
         intersects.forEach(obj => {
             if (obj.object.visible == true) {
                 let objType = obj.object.type;
-                console.log(obj);
 
                 if (objType == "Mesh") {
                     if (obj.object.molecularElement == "atom") {
@@ -1694,6 +1972,20 @@ function raycast(event)
     }
 } 
 
+/* function popup() {
+    console.log('inside popup');
+    let popup = document.getElementById("loading-popup");
+    popup.style.display = 'block';
+    console.log(popup);
+}
+
+function popdown() {
+    console.log('inside popdown');
+    let popup = document.getElementById("loading-popup");
+    popup.style.display = "none";
+    console.log(popup);
+} */
+
 
 // get radius size of a given atom name 
 function getRadius(atom){
@@ -1719,6 +2011,9 @@ function getRadius(atom){
 
     if(atom == "O"){
         rad = 1.52 }
+
+    if(atom == "S"){
+        rad = 1.80 }
 
     return rad; 
 }

@@ -350,6 +350,7 @@ class PDBLoader extends Loader { // PDBLoader class extends Loader class from th
 				let r = atom1[ 3 ][ 0 ] / 255;
 				let g = atom1[ 3 ][ 1 ] / 255;
 				let b = atom1[ 3 ][ 2 ] / 255;
+				//console.log(atom1[3], atom1);
 
 				c.setRGB( r, g, b, SRGBColorSpace );
 
