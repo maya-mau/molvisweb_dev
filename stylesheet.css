@@ -36,8 +36,8 @@
 
   .column.right {
     position: relative;
-    width: calc(40% - 110px);
-    padding: 12px;
+    width: calc(40% - 125px);
+    /* padding: 12px; */
   }
   
   .atom-content {

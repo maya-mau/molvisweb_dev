@@ -9,6 +9,7 @@ import { MTLLoader } from 'three/addons/loaders/MTLLoader.js';
 import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
 import { GUI } from 'three/addons/libs/lil-gui.module.min.js';
 import { TextGeometry } from 'three/addons/geometries/TextGeometry.js';
+import { color } from 'three/tsl';
 //import { TW } from '/TWPackage.js';
 //import { TW } from 'tw';
 
@@ -31,7 +32,9 @@ const cameraOption = 'orthographic';
 
 let initialPosition, initialTarget, initialQuaternion;
 
-const PDBloader = new PDBLoader(); 
+const PDBloader = new PDBLoader();
+const OBJloader = new OBJLoader();
+const MTLloader = new MTLLoader(); 
 const offset = new THREE.Vector3();
 
 // setting default/on load molecule  
@@ -49,6 +52,9 @@ const defaultParams = {
 }
 
 var selectedObject = null;
+// variables to keep track of atoms to have distance measured between them
+var distanceSelected1 = null;
+var distanceSelected2 = null;
 
 var distanceMeasurementAtoms = [];
 var mainColor = null; 
@@ -222,8 +228,20 @@ function init() {
         resetScene();
         loadMolecule(molecule, defaultParams.repParams.representation, currentRep);
         resetMoleculeOrientation();
+        resetGUIs();
+        hideAllReps();
         
-        resetEverything();
+
+        tabs.forEach( (tab) => { tab.style.display = 'none'; })
+
+        for (let i = 0; i < maxRepTabs; i++) {
+            resetTab(i);
+            repStates[i] = false;
+        }
+
+        currentRep = 0;
+        numRepTabs = 1;
+        showCurrentRep(currentRep);
         //popdown();
     });
 
@@ -232,27 +250,6 @@ function init() {
     //TW.addSceneBoundingBoxHelper(scene);
 
     onWindowResize();
-}
-
-
-function resetEverything () {
-    resetGUIs();
-    hideAllReps();
-        
-
-    tabs.forEach( (tab) => { tab.style.display = 'none'; })
-
-    for (let i = 0; i < maxRepTabs; i++) {
-        resetTab(i);
-        repStates[i] = false;
-    }
-
-    currentRep = 0;
-    numRepTabs = 1;
-    showCurrentRep(currentRep);
-
-    Array.from(document.getElementsByClassName('bond-length')).forEach( (elem) => elem.remove() );
-    Array.from(document.getElementsByClassName('error-para')).forEach( (elem) => elem.remove() );
 }
 
 function storeInitialView() {
@@ -364,14 +361,6 @@ function recenterCamera(camera, controls) {
 function resetGUIs() {
     for (let i = 0; i < maxRepTabs; i++) {
         resetTab(i);
-        //HERE LOSER
-        let moleculeGUIdiv = document.getElementById(makeRepContentId(i));
-        moleculeGUIdiv.dataset.currentColorValue = 'Name'; // TODO stop hardcoding these later
-        moleculeGUIdiv.dataset.previousStyle = defaultParams.repParams.representation;
-        moleculeGUIdiv.dataset.currentStyle = defaultParams.repParams.representation;
-        moleculeGUIdiv.dataset.currentSelectionMethod = 'residue';
-        moleculeGUIdiv.dataset.currentSelectionValue = 'all';
-
     }
 }
 
@@ -414,22 +403,24 @@ function loadMolecule(model, representation, rep) {
 
         // define different representation geometries
 
-        /* let boxGeometryCPK = new THREE.BoxGeometry( 1, 1, 1 );
+        let boxGeometryCPK = new THREE.BoxGeometry( 1, 1, 1 );
         let sphereGeometryCPK = new THREE.IcosahedronGeometry(1, 3 ); 
         
         // slightly thicker bonds for visibility, no atoms 
         /* let boxGeometryLines = new THREE.BoxGeometry( 3, 3, 1 );
         let sphereGeometryLines = new THREE.BoxGeometry(.5, .5, .5);  */
 
+        let boxGeometryLines = new THREE.BoxGeometry( 3, 3, 1 );
+        let sphereGeometryLines = new THREE.BoxGeometry(.5, .5, .5); 
+
         // figure out how to get lines atoms to be half a bond and colored
         
 
         let sphereGeometryVDW = new THREE.IcosahedronGeometry(); // defined later due to dependence of radius of each atom
- 
+
         let sphereGeometry, boxGeometry;
 
-        //let repDict = {'CPK': [boxGeometryCPK, sphereGeometryCPK], 'lines': [boxGeometryLines, sphereGeometryLines], 'VDW': [null, sphereGeometryVDW]}
-        let repDict = {'CPK': [], 'lines': [], 'VDW': []};
+        let repDict = {'CPK': [boxGeometryCPK, sphereGeometryCPK], 'lines': [boxGeometryLines, sphereGeometryLines], 'VDW': [null, sphereGeometryVDW]}
         
         //starting setup to put atoms into scene 
         geometryAtoms.computeBoundingBox();
@@ -456,9 +447,11 @@ function loadMolecule(model, representation, rep) {
 
             //console.log("json_atoms.atoms", json_atoms.atoms)            
 
-            
+            let color = new THREE.Color().setRGB(colors.getX( i ), colors.getY( i ), colors.getZ( i ));
 
-            
+            const material = new THREE.MeshPhongMaterial();
+            material.color = color;
+
             // create a set of atoms/bonds for each tab
             for (let n = 0; n < maxRepTabs; n++) {
                 //console.log('loaded atoms for tab', n);
@@ -466,11 +459,6 @@ function loadMolecule(model, representation, rep) {
                 // create a set of atoms/bonds in each of the 3 styles for each tab
                 for (let key in repDict) {
                     //console.log('loaded atoms for style', key);
-
-                    let color = new THREE.Color().setRGB(colors.getX( i ), colors.getY( i ), colors.getZ( i ));
-
-                    let material = new THREE.MeshPhongMaterial();
-                    material.color = color;
 
                     let isNaN;
                     if (key == 'VDW') {
@@ -485,10 +473,8 @@ function loadMolecule(model, representation, rep) {
                         sphereGeometry = new THREE.IcosahedronGeometry(rad, 3 );
 
                     } else if (key == 'CPK') {
-                        let sphereGeometryCPK = new THREE.IcosahedronGeometry(1, 3 );
                         sphereGeometry = sphereGeometryCPK;
                     } else if (key == 'lines') {
-                        let sphereGeometryLines = new THREE.BoxGeometry(.5, .5, .5);
                         sphereGeometry = sphereGeometryLines;
                     }
         
@@ -569,10 +555,8 @@ function loadMolecule(model, representation, rep) {
                     if (key == 'VDW') {
                         break;
                     } else if (key == 'CPK') {
-                        let boxGeometryCPK = new THREE.BoxGeometry( 1, 1, 1 );
                         boxGeometry = boxGeometryCPK;
                     } else if (key == 'lines') {
-                        let boxGeometryLines = new THREE.BoxGeometry( 3, 3, 1 );
                         boxGeometry = boxGeometryLines;
                     }
 
@@ -860,10 +844,7 @@ function showMolecule(style, repNum, selectionMethod, selectionValue, colorValue
 
 }
 
-
 function setColor(obj, colorValue) {
-
-    //console.log('setting color of', obj, colorValue);
     if (colorValue == 'Blue') {                        
         obj.material.color.set(new THREE.Color('rgb(0, 0, 255)')); 
     } else if (colorValue == 'Green') {
@@ -871,10 +852,10 @@ function setColor(obj, colorValue) {
     } else if (colorValue == 'Red') {
         obj.material.color.set(new THREE.Color('rgb(255, 0, 0)')); 
     } else if (colorValue == 'Name') {
-        /* if (obj.molecularElement == 'bond') {
+        if (obj.molecularElement == 'bond') {
             console.log("obj", obj);
             console.log("obj.originalColor", obj.originalColor);
-        } */
+        }
         
         obj.material.color.set(new THREE.Color(obj.originalColor));
     }
@@ -1047,11 +1028,6 @@ function resetTab(repNum) {
 
 }
 
-//TODO write
-function resetMenu() {
-
-}
-
 // when delete rep button is clicked, "delete" currently active rep
 function onDeleteRepClick () {
     if (numRepTabs > 1) {
@@ -1076,18 +1052,9 @@ function onDeleteRepClick () {
         console.log('in onDeleteRepClick, hiding', currentStyle, currentRep); 
         hideMolecule(currentStyle, currentRep);
 
-        // reset dataset values
-
-        let moleculeGUIdiv = document.getElementById(makeRepContentId(currentRep));
-
+        // reset styleMenu's data-previous-style and data-current-style to 'CPK' 
         styleMenuElement.dataset.previousStyle = defaultParams.repParams.representation;
         styleMenuElement.dataset.currentStyle = defaultParams.repParams.representation;
-
-        moleculeGUIdiv.dataset.currentColorValue = 'Name'; // TODO stop hardcoding these later
-        moleculeGUIdiv.dataset.previousStyle = defaultParams.repParams.representation;
-        moleculeGUIdiv.dataset.currentStyle = defaultParams.repParams.representation;
-        moleculeGUIdiv.dataset.currentSelectionMethod = 'residue';
-        moleculeGUIdiv.dataset.currentSelectionValue = 'all';
 
         // hide all reps
         hideAllReps();
@@ -1249,9 +1216,11 @@ function createGUIs() {
             currentStyle = styleMenuElement.dataset.currentStyle;
             console.log('currentStyle does this work', currentStyle);
 
+            let repContent = document.getElementById(makeRepContentId(currentRep));
+            //console.log("repContent", repContent);
+
             let moleculeGUIdiv = document.getElementById(makeRepContentId(currentRep));
             let currentColorValue = moleculeGUIdiv.dataset.currentColorValue;
-
 
             if (!isNaN(value) && Number.isInteger(Number(value))) { // if value is not NaN and value is an integer
                 console.log("Number entered:", Number(value));
@@ -1263,11 +1232,9 @@ function createGUIs() {
                     moleculeGUIdiv.dataset.currentSelectionValue = residueSelected;
                     hideMolecule(currentStyle, currentRep);
                     showMolecule(currentStyle, currentRep, 'residue', residueSelected, currentColorValue);  
-                    removeErrorMessages();
 
                 } else { // value does not exist in the residues list
 
-                    displayErrorMessage("Please select a valid residue.");
                     console.log("please select a valid residue");
 
                 }
@@ -1281,11 +1248,9 @@ function createGUIs() {
                 //resetScene();
                 hideMolecule(currentStyle, currentRep);
                 showMolecule(defaultParams.repParams.representation, currentRep, 'residue', residueSelected, currentColorValue); 
-                removeErrorMessages();
 
             } else {
                 // pop up text, flashing?
-                displayErrorMessage("Invalid input. Please enter a number or 'all'.");
                 console.log("Invalid input. Please enter a number or 'all'.");
             }
         })
@@ -1298,12 +1263,6 @@ function createGUIs() {
 
             console.log('value', value);
 
-            if (value.toLowerCase() == 'abl kinase') {
-                value = 'A';
-            } else if (value.toLowerCase() == 'drug') {
-                value = 'D';
-            }
-
             let styleMenu = siblings.find(obj => obj.property == 'representation');
             let styleMenuElement = styleMenu.domElement;
             console.log("styleMenuElement", styleMenuElement);
@@ -1314,9 +1273,8 @@ function createGUIs() {
             let repContent = document.getElementById(makeRepContentId(currentRep));
 
             let moleculeGUIdiv = document.getElementById(makeRepContentId(currentRep));
-            let currentColorValue = moleculeGUIdiv.dataset.currentColorValue;
 
-            if (chains.includes(value) || value.toLowerCase() == 'backbone') { // value does exist in the chains list or value is 'backbone'
+            if (chains.includes(value) || value == 'backbone') { // value does exist in the chains list or value is 'backbone'
 
                 chainSelected = value; // set chainSelected to the chain we want to select
                 console.log('chainSelected', chainSelected);
@@ -1326,18 +1284,15 @@ function createGUIs() {
 
                 hideMolecule(currentStyle, currentRep);
                 showMolecule(currentStyle, currentRep, 'chain', chainSelected, currentColorValue);  
-                removeErrorMessages();
 
             } else if (value == 'all') {
 
                 moleculeGUIdiv.dataset.currentSelectionMethod = 'chain';
                 moleculeGUIdiv.dataset.currentSelectionValue = value;
                 showMolecule(currentStyle, currentRep, 'chain', value, currentColorValue);  
-                removeErrorMessages();
 
             } else { // value does not exist in the chains list
 
-                displayErrorMessage("Please select a valid molecule.");
                 console.log("please select a valid chain:", chains);
 
             }
@@ -1363,7 +1318,7 @@ function createGUIs() {
             moleculeGUIdiv.dataset.currentColorValue = value;
             console.log("MOLECULEGUIDIV CHANGED TO ", moleculeGUIdiv.dataset.currentColorValue);
 
-            let style = moleculeGUIdiv.dataset.currentStyle; // LOSER
+            let style = moleculeGUIdiv.dataset.currentStyle;
             let repNum = currentRep;
             let selectionMethod = moleculeGUIdiv.dataset.currentSelectionMethod;
             let selectionValue = moleculeGUIdiv.dataset.currentSelectionValue;
@@ -1373,19 +1328,6 @@ function createGUIs() {
 
         })
 
-        function displayErrorMessage (message) {
-            let atomContent = document.getElementsByClassName('atom-content')[0];
-                    let error_para = document.createElement('p');
-                    error_para.textContent = message;
-                    error_para.classList.add("error-para");
-                    atomContent.appendChild(error_para); 
-                    console.log(atomContent);
-        }
-
-        function removeErrorMessages() {
-            Array.from(document.getElementsByClassName('error-para')).forEach( (elem) => elem.remove() );
-        }
-
         // helper function to validate residue number
         function validateResidue(resNum) {
             console.log('in validateResidue');
@@ -1394,31 +1336,13 @@ function createGUIs() {
                 console.log("Number entered:", resNum);
 
                 if (residues[resNum]) { // if value does exist in the residues list, this returns true
-                    Array.from(document.getElementsByClassName('error-para')).forEach( (elem) => elem.remove() );
                     return resNum;
                 } else { // value does not exist in the residues list
-
-                    let atomContent = document.getElementsByClassName('atom-content')[0];
-                    let error_para = document.createElement('p');
-                    error_para.textContent = "Please select a valid residue.";
-                    error_para.classList.add("error-para");
-                    atomContent.appendChild(error_para); 
-                    console.log(atomContent);
-
                     console.log("please select a valid residue");
                     return false;
                 }
             } else {
                 // pop up text, flashing?
-
-                let atomContent = document.getElementsByClassName('atom-content')[0];
-                let error_para = document.createElement('p');
-                error_para.textContent = "Invalid input. Please enter a number or 'all'.";
-                error_para.classList.add("error-para");
-                atomContent.appendChild(error_para); 
-                console.log(atomContent);
-
-
                 console.log("Invalid input. Please enter a number or 'all'.");
                 return false;
             }
@@ -1435,17 +1359,9 @@ function createGUIs() {
                 /* repContent.dataset.currentSelectionMethod = 'chain';
                 repContent.dataset.currentSelectionValue = chainSelected; */
 
-                Array.from(document.getElementsByClassName('error-para')).forEach( (elem) => elem.remove() );
-
                 return chain; 
 
             } else { // value does not exist in the chains list
-
-                let atomContent = document.getElementsByClassName('atom-content')[0];
-                let error_para = document.createElement('p');
-                error_para.textContent = "Please select a valid molecule.";
-                error_para.classList.add("error-para");
-                atomContent.appendChild(error_para); 
 
                 console.log("please select a valid chain:", chains);
                 return false;
@@ -1476,8 +1392,9 @@ function createGUIs() {
             currentStyle = styleMenuElement.dataset.currentStyle;
             console.log('currentStyle does this work', currentStyle);
 
+            let repContent = document.getElementById(makeRepContentId(currentRep));
 
-            let moleculeGUIdiv = document.getElementById(makeRepContentId(currentRep));
+            let moleculeGUIdiv = document.getElementById(makeRepContentId(currentGUI));
             let currentColorValue = moleculeGUIdiv.dataset.currentColorValue;
             // deal with residue or chain LOSERRRR
 
@@ -1533,7 +1450,6 @@ function createGUIs() {
             currentStyle = styleMenuElement.dataset.currentStyle;
 
             let moleculeGUIdiv = document.getElementById(makeRepContentId(currentRep));
-            moleculeGUIdiv.dataset.currentStyle = value;
             let currentColorValue = moleculeGUIdiv.dataset.currentColorValue;
 
             // get selection method
@@ -1722,43 +1638,26 @@ function keypress2(event) {
             isDistanceMeasurementMode = false;
             document.body.style.cursor = 'auto';
             console.log("Distance measurement mode deactivated");
-        }
-    }
-    
-}
+        };
+    };
+};
 
 // on keypress, =
 function keypressEqual(event) {
-
     if (event.key === '=') {
         console.log("in keypressEqual");
         console.log('before resetToInitialView');
         console.log(initialPosition, initialQuaternion, initialTarget);
         resetToInitialView();
-            /* console.log(initialPosition, initialQuaternion, initialTarget);
-            recenterCamera(camera, controls);
-            resetMoleculeOrientation(); */
+        /* console.log(initialPosition, initialQuaternion, initialTarget);
+        recenterCamera(camera, controls);
+        resetMoleculeOrientation(); */
 
         console.log('after resetToInitialView');
         console.log(initialPosition, initialQuaternion, initialTarget);
 
         recenterCamera(camera, controls);
     }
-}
-
-function tempReset () {
-    console.log("in keypressEqual");
-        console.log('before resetToInitialView');
-        console.log(initialPosition, initialQuaternion, initialTarget);
-        resetToInitialView();
-            /* console.log(initialPosition, initialQuaternion, initialTarget);
-            recenterCamera(camera, controls);
-            resetMoleculeOrientation(); */
-
-        console.log('after resetToInitialView');
-        console.log(initialPosition, initialQuaternion, initialTarget);
-
-        recenterCamera(camera, controls);
 }
 
 function resetToInitialView() {
@@ -1792,16 +1691,13 @@ function resetMoleculeOrientation () {
 }
 
 const resetButton = document.getElementById("reset");
-resetButton.addEventListener("click", tempReset); 
+resetButton.addEventListener("click", resetMoleculeOrientation);
 
 const clearButton = document.getElementById("clear");
 clearButton.addEventListener("click", function () {
     console.log("in clearButton event listener");
     resetScene();
-    
-    loadMolecule(defaultParams.mculeParams.molecule, 'CPK', 0);
-
-    resetEverything();
+    loadMolecule(mculeParams.molecule, 'CPK');
 })
 
 
@@ -2017,7 +1913,6 @@ function raycast(event)
                 var bond_para = document.createElement('p')
                 //console.log(distanceMeasurementAtoms[0], distanceMeasurementAtoms[1]);
                 bond_para.textContent = 'bond length: ' + calculateDistance(distanceMeasurementAtoms[0], distanceMeasurementAtoms[1]).toString();
-                bond_para.classList.add("bond-length");
                 atomContent.appendChild(bond_para); 
             } else {
                 //console.log("too many atoms, cleared");
