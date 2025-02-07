@@ -256,6 +256,8 @@ function resetEverything () {
 
     Array.from(document.getElementsByClassName('bond-length')).forEach( (elem) => elem.remove() );
     Array.from(document.getElementsByClassName('error-para')).forEach( (elem) => elem.remove() );
+
+    distanceMeasurementAtoms = [];
 }
 
 function storeInitialView() {
