@@ -787,7 +787,7 @@ function showMolecule(style, repNum, selectionMethod, selectionValue, colorValue
                                 //console.log('residue', obj.residue);
                                 //console.log('atom', obj.position.x, obj.position.y, obj.position.z);
                                 setColor(obj, colorValue);
-                                console.log('set color of', obj, colorValue);
+                                //console.log('set color of', obj, colorValue);
                                 obj.visible = true;
                             } else {
                                 obj.visible = false;
