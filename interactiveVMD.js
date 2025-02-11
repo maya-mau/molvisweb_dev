@@ -369,14 +369,6 @@ function recenterCamera(camera, controls) {
 function resetGUIs() {
     for (let i = 0; i < maxRepTabs; i++) {
         resetTab(i);
-        //HERE LOSER
-        let moleculeGUIdiv = document.getElementById(makeRepContentId(i));
-        moleculeGUIdiv.dataset.currentColorValue = 'Name'; // TODO stop hardcoding these later
-        moleculeGUIdiv.dataset.previousStyle = defaultParams.repParams.representation;
-        moleculeGUIdiv.dataset.currentStyle = defaultParams.repParams.representation;
-        moleculeGUIdiv.dataset.currentSelectionMethod = 'residue';
-        moleculeGUIdiv.dataset.currentSelectionValue = 'all';
-
     }
 }
 
@@ -636,6 +628,10 @@ function hideMolecule(style, repNum) {
 
         if (obj.style == style && obj.repNum == repNum) {
             obj.visible = false;
+
+            // reset color???
+            obj.material.color.set(new THREE.Color(obj.originalColor));
+            
         }
     })
 }
@@ -1069,7 +1065,7 @@ function onAddRepClick () {
             console.log("currentRep", currentRep);
 
             // show appropriate molecule 
-            showMolecule(defaultParams.repParams.representation, currentRep, null, 'all', 'Name'); // use default style CPK
+            showMolecule(defaultParams.repParams.representation, currentRep, 'residue', 'all', 'Name'); // use default style CPK
 
             break;
         }
@@ -1081,7 +1077,6 @@ function onAddRepClick () {
 
 function resetTab(repNum) {  
     console.log('in reset tab');
-    //let currentTabContent = document.getElementById(makeRepContentId(repNum));
     let gui = guis[repNum];
 
     // loop through each controller to reset value to default value
@@ -1099,6 +1094,17 @@ function resetTab(repNum) {
         controller.updateDisplay();
     })
 
+    let moleculeGUIdiv = document.getElementById(makeRepContentId(repNum));
+
+    moleculeGUIdiv.dataset.currentColorValue = defaultParams.colorParams.color; // TODO stop hardcoding these later
+    moleculeGUIdiv.dataset.previousStyle = defaultParams.repParams.representation;
+    moleculeGUIdiv.dataset.currentStyle = defaultParams.repParams.representation;
+    moleculeGUIdiv.dataset.currentSelectionMethod = 'residue';
+    moleculeGUIdiv.dataset.currentSelectionValue = 'all';
+
+    console.log('reset', moleculeGUIdiv);
+
+
 }
 
 //TODO write
@@ -1106,11 +1112,36 @@ function resetMenu() {
 
 }
 
+function resetMoleculeColor(repNum) { // might also have argument style? decide later
+    root.traverse( (obj) => {
+        //console.log('obj', obj);
+        if (obj.isMesh && obj.repNum == repNum) {
+            obj.material.color.set(new THREE.Color(obj.originalColor));
+        }
+    })
+}
+
 // when delete rep button is clicked, "delete" currently active rep
 function onDeleteRepClick () {
     if (numRepTabs > 1) {
         
         numRepTabs--;
+
+        
+        // hide appropriate molecule
+        let moleculeGUIdiv = document.getElementById(makeRepContentId(currentRep));
+        console.log("moleculeGUIdiv", moleculeGUIdiv);
+        let currentStyle = moleculeGUIdiv.dataset.currentStyle;
+
+        console.log('in onDeleteRepClick, hiding', currentStyle, currentRep); 
+
+        // reset atoms to default color
+        resetMoleculeColor(currentRep);
+
+        hideMolecule(currentStyle, currentRep);
+
+        // hide all reps
+        hideAllReps();
 
         // hide rep 
         tabs[currentRep].style.display = 'none';
@@ -1120,30 +1151,6 @@ function onDeleteRepClick () {
 
         repStates[currentRep] = false;
 
-        // hide appropriate molecule
-        let currentTabContent = document.getElementById(makeRepContentId(currentRep));
-        let styleMenuElement = currentTabContent.getElementsByClassName('mol-rep-option')[0].children[0];
-
-        currentStyle = styleMenuElement.dataset.currentStyle;
-
-        console.log('in onDeleteRepClick, hiding', currentStyle, currentRep); 
-        hideMolecule(currentStyle, currentRep);
-
-        // reset dataset values
-
-        let moleculeGUIdiv = document.getElementById(makeRepContentId(currentRep));
-
-        styleMenuElement.dataset.previousStyle = defaultParams.repParams.representation;
-        styleMenuElement.dataset.currentStyle = defaultParams.repParams.representation;
-
-        moleculeGUIdiv.dataset.currentColorValue = 'Name'; // TODO stop hardcoding these later
-        moleculeGUIdiv.dataset.previousStyle = defaultParams.repParams.representation;
-        moleculeGUIdiv.dataset.currentStyle = defaultParams.repParams.representation;
-        moleculeGUIdiv.dataset.currentSelectionMethod = 'residue';
-        moleculeGUIdiv.dataset.currentSelectionValue = 'all';
-
-        // hide all reps
-        hideAllReps();
 
         // show an existing rep
         for (let i = maxRepTabs - 1; i >= 0; i--) {
@@ -1265,22 +1272,23 @@ function createGUIs() {
         chainMenu.name('molecule');
 
         // set data-current-style and data-previous-style = default style, CPK
-        styleMenu.domElement.dataset.previousStyle = defaultParams.repParams.representation;
-        styleMenu.domElement.dataset.currentStyle = defaultParams.repParams.representation;
+        /* styleMenu.domElement.dataset.previousStyle = defaultParams.repParams.representation;
+        styleMenu.domElement.dataset.currentStyle = defaultParams.repParams.representation; */
 
         /* colorMenu.domElement.dataset.previousColor = defaultParams.colorParams.color;
         colorMenu.domElement.dataset.currentColor = defaultParams.colorParams.color; */
 
-        colorMenu.domElement.dataset.previousColor = defaultParams.colorParams.color;
+        /* colorMenu.domElement.dataset.previousColor = defaultParams.colorParams.color;
 
         atomMenu.domElement.dataset.selection = defaultParams.atomParams.atom;
         residueMenu.domElement.dataset.selection = defaultParams.residueParams.residue;
         chainMenu.domElement.dataset.selection = defaultParams.chainParams.chain;
         withinMenu.domElement.dataset.selection = defaultParams.withinParams.within;
         withinDropdown.domElement.dataset.selection = defaultParams.withinDropdownParams.withinDropdown;
-        withinResMenu.domElement.dataset.selection = defaultParams.withinResParams.withinRes;
+        withinResMenu.domElement.dataset.selection = defaultParams.withinResParams.withinRes; */
 
         // might just do this (rep-content-0 div) to store data instead of each individual menu?
+        moleculeGUIdiv.dataset.previousStyle = defaultParams.repParams.representation;
         moleculeGUIdiv.dataset.currentStyle = defaultParams.repParams.representation;
         moleculeGUIdiv.dataset.currentSelectionMethod = 'residue';
         moleculeGUIdiv.dataset.currentSelectionValue = defaultParams.residueParams.residue;
@@ -1289,18 +1297,18 @@ function createGUIs() {
         // on change functions for GUIs
 
         residueMenu.onFinishChange((value) => { 
-            //console.log("residueMenu.parent", residueMenu.parent);
+            /* //console.log("residueMenu.parent", residueMenu.parent);
             let siblings = residueMenu.parent.children;
 
             // TODO change everything to use moleculeGUIdiv
             let styleMenu = siblings.find(obj => obj.property == 'representation');
             let styleMenuElement = styleMenu.domElement;
-            //console.log("styleMenuElement", styleMenuElement);
-
-            currentStyle = styleMenuElement.dataset.currentStyle;
-            //console.log('currentStyle does this work', currentStyle);
+            //console.log("styleMenuElement", styleMenuElement); */
 
             let moleculeGUIdiv = document.getElementById(makeRepContentId(currentRep));
+            let currentStyle = moleculeGUIdiv.dataset.currentStyle;
+            //console.log('currentStyle does this work', currentStyle);
+
             let currentColorValue = moleculeGUIdiv.dataset.currentColorValue;
 
 
@@ -1345,8 +1353,8 @@ function createGUIs() {
 
             // find currentStyle
             //console.log("chainMenu.parent", chainMenu.parent);
-            let siblings = residueMenu.parent.children;
-
+            //let siblings = residueMenu.parent.children;
+            let moleculeGUIdiv = document.getElementById(makeRepContentId(currentRep));
 
             if (value.toLowerCase() == 'abl kinase') {
                 value = 'A';
@@ -1354,14 +1362,11 @@ function createGUIs() {
                 value = 'D';
             }
 
-            let styleMenu = siblings.find(obj => obj.property == 'representation');
-            let styleMenuElement = styleMenu.domElement;
+            /* let styleMenu = siblings.find(obj => obj.property == 'representation');
+            let styleMenuElement = styleMenu.domElement; */
             //console.log("styleMenuElement", styleMenuElement);
 
-            currentStyle = styleMenuElement.dataset.currentStyle;
-
-
-            let moleculeGUIdiv = document.getElementById(makeRepContentId(currentRep));
+            let currentStyle = moleculeGUIdiv.dataset.currentStyle;
             let currentColorValue = moleculeGUIdiv.dataset.currentColorValue;
 
             if (chains.includes(value) || value.toLowerCase() == 'backbone') { // value does exist in the chains list or value is 'backbone'
@@ -1505,8 +1510,6 @@ function createGUIs() {
                 console.log("please select a valid chain:", chains);
                 return false;
             }
-            
-            
         }
 
         // helper function to highlight certain parts of the molecule based on the within ___ of residue ___ menu
@@ -1527,16 +1530,15 @@ function createGUIs() {
 
 
             // get current style 
-            let siblings = residueMenu.parent.children;
+            let moleculeGUIdiv = document.getElementById(makeRepContentId(currentRep));
+            /* let siblings = residueMenu.parent.children;
 
             let styleMenu = siblings.find(obj => obj.property == 'representation');
-            let styleMenuElement = styleMenu.domElement;
+            let styleMenuElement = styleMenu.domElement; */
 
-            currentStyle = styleMenuElement.dataset.currentStyle;
+            let currentStyle = moleculeGUIdiv.dataset.currentStyle;
             console.log('currentStyle does this work', currentStyle);
 
-
-            let moleculeGUIdiv = document.getElementById(makeRepContentId(currentRep));
             let currentColorValue = moleculeGUIdiv.dataset.currentColorValue;
 
             if (type == 'residue') { // do residue number validation
@@ -1581,17 +1583,16 @@ function createGUIs() {
         styleMenu.onChange(function(value) {
             console.log('styleMenu changing to', value, 'with currentRep', currentRep);
 
-            const styleMenuElement = styleMenu.domElement;
+            //const styleMenuElement = styleMenu.domElement;
+            let moleculeGUIdiv = document.getElementById(makeRepContentId(currentRep));
             //console.log('styleMenuElement', styleMenuElement);
 
-            styleMenuElement.dataset.previousStyle = styleMenuElement.dataset.currentStyle;
-            styleMenuElement.dataset.currentStyle = value;
-
-            let previousStyle = styleMenuElement.dataset.previousStyle || defaultParams.repParams.representation;  // Default to initial value (CPK) if previousStyle is uninitialized
-            currentStyle = styleMenuElement.dataset.currentStyle;
-
-            let moleculeGUIdiv = document.getElementById(makeRepContentId(currentRep));
+            moleculeGUIdiv.dataset.previousStyle = moleculeGUIdiv.dataset.currentStyle;
             moleculeGUIdiv.dataset.currentStyle = value;
+
+            let previousStyle = moleculeGUIdiv.dataset.previousStyle; // || defaultParams.repParams.representation;  // Default to initial value (CPK) if previousStyle is uninitialized
+            let currentStyle = moleculeGUIdiv.dataset.currentStyle;
+
             let currentColorValue = moleculeGUIdiv.dataset.currentColorValue;
 
             // get selection method
@@ -1599,12 +1600,10 @@ function createGUIs() {
             let n1 = n.parentElement;
             console.log("parent ", n);
             console.log('parent of parent', n1); */
-            let currentRepContent = document.getElementById(makeRepContentId(currentRep));
             
-            let currentSelectionMethod = currentRepContent.dataset.currentSelectionMethod; 
-            let currentSelectionValue = currentRepContent.dataset.currentSelectionValue;
+            let currentSelectionMethod = moleculeGUIdiv.dataset.currentSelectionMethod; 
+            let currentSelectionValue = moleculeGUIdiv.dataset.currentSelectionValue;
             //console.log("currentSelectionMethod", currentSelectionMethod, "currentSelectionValue", currentSelectionValue);
-
 
             console.log('in styleMenu.onChange, hiding', previousStyle, currentRep);
             hideMolecule(previousStyle, currentRep); 
@@ -1874,9 +1873,12 @@ function resetAtomState(atom) {
 
     let moleculeGUIdiv = document.getElementById(makeRepContentId(atom.repNum));
     let currentColorValue = moleculeGUIdiv.dataset.currentColorValue;
+    console.log('atom', atom);
+    console.log('currentColorValue', currentColorValue);
     
     if (currentColorValue == 'Name') {
-        atom.material.color.set(mainColor);
+        //obj.material.color.set(new THREE.Color(obj.originalColor));
+        atom.material.color.set(new THREE.Color(atom.originalColor));
     } else if (currentColorValue == 'Blue') {
         atom.material.color.set(new THREE.Color('rgb(0, 0, 255)'));
     } else if (currentColorValue == 'Green') {
