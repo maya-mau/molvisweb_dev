@@ -27,16 +27,16 @@
   }
   
   .column.left {
-    width: 225px;
+    width: 265px;
   }
   
   .column.middle {
-    width: calc(60% - 100px);
+    width: calc(60% - 120px);
   }
 
   .column.right {
     position: relative;
-    width: calc(40% - 125px);
+    width: calc(40% - 145px);
     /* padding: 12px; */
   }
   
@@ -93,18 +93,23 @@
   #mol-gui {
     background-color: inherit;
     color: black;
-    --widget-color: #7C7C7C;
+    --widget-color: #949494;
     --hover-color: #7C7C7C
+  }
+
+  .tab-rep button {
+    font-size: 17px;
   }
 
   .lil-gui {
     width: 100% !important;
     font-family: 'Ubuntu Mono';
+    font-size: 13px;
   }
 
   .lil-gui button {
     font-family: 'Ubuntu Mono';
-    font-size: 12px;
+    font-size: 15px;
   }
 
   .within-container {
@@ -183,6 +188,8 @@
 .tab-content-selection-method {
   padding: 1px 2px;
   border: none;
+  margin: 5px;
+  
 }
 
 .tab-content-rep {
@@ -192,10 +199,13 @@
 .selection-option {
   background-color: #5D5D5D;
   margin: 10px;
+  
 }
 
 .controller.option {
-  margin: 0 px;
+  margin: 5px;
+  margin-top: 10px;
+  margin-bottom: 10px;
 }
 
 .mol-rep-option {
