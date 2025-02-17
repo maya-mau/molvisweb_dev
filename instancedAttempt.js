@@ -9,6 +9,7 @@ import { MTLLoader } from 'three/addons/loaders/MTLLoader.js';
 import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
 import { GUI } from 'three/addons/libs/lil-gui.module.min.js';
 import { TextGeometry } from 'three/addons/geometries/TextGeometry.js';
+//import { instancedMesh } from 'three/tsl';
 //import { TW } from '/TWPackage.js';
 //import { TW } from 'tw';
 
@@ -24,6 +25,7 @@ const detail = 3;
 
 console.log("start script")
 
+const instanceMetadata = [];
 
 // initialize the baseline objects  
 let camera, scene, renderer, labelRenderer, container;
@@ -292,7 +294,7 @@ function getVisibleBoundingBox() {
 
     let helper = new THREE.Box3Helper(box, new THREE.Color(0xff0000)); // Red color
     scene.add(helper);  // Add helper to scene for visualization
-    helper.visible = false;
+    helper.visible = true;
 
     return box;
 }
@@ -436,7 +438,7 @@ function loadMolecule(model, representation, rep) {
         let sphereGeometry, boxGeometry;
 
         //let repDict = {'CPK': [boxGeometryCPK, sphereGeometryCPK], 'lines': [boxGeometryLines, sphereGeometryLines], 'VDW': [null, sphereGeometryVDW]}
-        let repDict = {"Ball-and-stick": [], 'Lines': [], 'Space filling': []};
+        
         
         let randTime = new Date();
         //starting setup to put atoms into scene 
@@ -456,9 +458,38 @@ function loadMolecule(model, representation, rep) {
         let randTimeEnd = new Date();
         calculateTime(randTime, randTimeEnd, 'stuff before atom loading');
 
+        
+
+
         let atomStartTime = new Date();
+
+        const sphereGeometryVDW = new THREE.IcosahedronGeometry(1, detail);
+        const sphereGeometryCPK = new THREE.IcosahedronGeometry(0.5, detail);
+        const boxGeometryLines = new THREE.BoxGeometry(0.5,0.5,0.5);
+        
+        let styles = [VDW, CPK, lines];
+        //let repDict = {"Ball-and-stick": sphereGeometryCPK, 'Lines': boxGeometryLines, 'Space filling': sphereGeometryVDW};
+        let instancesPerStyle = {};
+        for (let style of styles) {
+            console.log('style', style);
+            if (style === CPK) {
+                instancesPerStyle[CPK] = new THREE.InstancedMesh(sphereGeometryCPK, new THREE.MeshPhongMaterial(), positions.count);
+                instancesPerStyle[CPK].visible = true;
+            } else if (style === VDW) {
+                instancesPerStyle[VDW] = new THREE.InstancedMesh(sphereGeometryVDW, new THREE.MeshPhongMaterial(), positions.count);
+                instancesPerStyle[VDW].visible = true;
+            } else if (style === lines) {
+                instancesPerStyle[lines] = new THREE.InstancedMesh(boxGeometryLines, new THREE.MeshPhongMaterial(), positions.count);
+                instancesPerStyle[lines].visible = true;
+            }
+        }
+        console.log('instancesPerStyle', instancesPerStyle);
+
+        const matrix = new THREE.Matrix4();
+        const color = new THREE.Color();
+        
         // LOAD IN ATOMS 
-        for ( let i = 0; i < positions.count; i ++ ) {
+        for ( let i = 0; i < positions.count; i++ ) {
 
             // loop through the positions array to get every atom 
             position.x = positions.getX( i );
@@ -471,67 +502,104 @@ function loadMolecule(model, representation, rep) {
             for (let n = 0; n < maxRepTabs; n++) {
                 //console.log('loaded atoms for tab', n);
                 
+                
                 // create a set of atoms/bonds in each of the 3 styles for each tab
-                for (let key in repDict) {
+                for (let key in instancesPerStyle) {
                     //console.log('loaded atoms for style', key);
+                    let instancedMesh = instancesPerStyle[key];
 
-                    let color = new THREE.Color().setRGB(colors.getX( i ), colors.getY( i ), colors.getZ( i ));
+                    color.setRGB(colors.getX( i ), colors.getY( i ), colors.getZ( i ));
 
-                    let material = new THREE.MeshPhongMaterial();
-                    material.color = color;
+                   /*  let material = new THREE.MeshPhongMaterial();
+                    material.color = color; */
 
                     let isNaN;
-                    if (key == VDW) {
+                    if (key === VDW) {
                         // sphere visuals for VDW, radius depends on atom and is scaled up for viewing 
-                        let rad = getRadius(json_atoms.atoms[i][4])*2
+                        let rad = getRadius(json_atoms.atoms[i][4])*2;
 
                         if (Number.isNaN(rad)) {
                             isNaN = true;
                             rad = 1;
                         }
 
-                        sphereGeometry = new THREE.IcosahedronGeometry(rad, detail );
+                        matrix.makeScale(rad, rad, rad);
 
-                    } else if (key == CPK) {
-                        let sphereGeometryCPK = new THREE.IcosahedronGeometry(1, detail );
-                        sphereGeometry = sphereGeometryCPK;
-                    } else if (key == lines) {
-                        let sphereGeometryLines = new THREE.BoxGeometry(.5, .5, .5);
-                        sphereGeometry = sphereGeometryLines;
+                    } else if (key === CPK) {
+                        //let sphereGeometryCPK = new THREE.IcosahedronGeometry(1, detail );
+                        //sphereGeometry = sphereGeometryCPK;
+                        matrix.identity();
+                        matrix.setPosition(position);
+                    } else if (key === lines) {
+                        //let sphereGeometryLines = new THREE.BoxGeometry(.5, .5, .5);
+                        //sphereGeometry = sphereGeometryLines;
+                        matrix.identity();
+                        matrix.setPosition(position);
                     }
+
+                    
+                    //matrix.scale(new THREE.Vector3(75, 75, 75));
         
                     // create atom object that is a sphere with the position, color, and content we want 
-                    const object = new THREE.Mesh( sphereGeometry, material );
-                    object.position.copy( position );
-                    object.position.multiplyScalar( 75 ); // TODOlater figure out why scaling
-                    object.scale.multiplyScalar( 25 );
+                    const object = instancedMesh; //new THREE.Mesh( sphereGeometry, material );
+                    //object.position.copy( position );
+                    //object.position.multiplyScalar( 75 ); // TODOlater figure out why scaling
+                    //object.scale.multiplyScalar( 25 ); 
                     //sphereGeometry.computeBoundingSphere();
         
-                    object.molecularElement = "atom";
+                    /* object.molecularElement = "atom";
                     object.style = key;
                     object.repNum = n;
                     object.residue = json_atoms.atoms[i][5];
                     object.chain = json_atoms.atoms[i][6];
                     object.atomName = json_atoms.atoms[i][7];
                     object.originalColor = new THREE.Color().setRGB(colors.getX( i ), colors.getY( i ), colors.getZ( i ));
+ */
+                    instanceMetadata.push({
+                        repNum: n,
+                        residue: json_atoms.atoms[i][5],
+                        chain: json_atoms.atoms[i][6],
+                        atomName: json_atoms.atoms[i][7],
+                        originalColor: color.clone(),
+                        style: key,
+                        molecularElement: "atom"
+                    });
 
-                    object.material.color.set(color);
+                    //object.material.color.set(color);
                     
                     // reference to original pdb within object for raycaster 
                     object.atomValue = i; 
         
                     // add atom object to scene 
-                    root.add( object );
+                    //root.add( object );
+                    
+                    //object.visible = true;
 
                     if (key == representation && n == rep) {
-                        object.visible = true;
+                        //object.visible = true;
+                        console.log('supposed to be visible');
+                        matrix.scale(new THREE.Vector3(75, 75, 75));
                     } else {
-                        object.visible = false;
+                        //object.visible = false;
+                        matrix.scale(new THREE.Vector3(0, 0, 0));
                     }
 
+                    instancedMesh.setMatrixAt(i, matrix);
+                    instancedMesh.setColorAt(i, color);
+
+                    instancedMesh.instanceColor.needsUpdate = true;
+                    instancedMesh.instanceMatrix.needsUpdate = true;
+
+                    instancedMesh.computeBoundingSphere();
                 }
             } 
         }
+
+        for (let key in instancesPerStyle) {
+            console.log('instancesPerStyle[key]', instancesPerStyle[key]);
+            root.add(instancesPerStyle[key]);
+        }
+        
 
         let atomEndTime = new Date();
         calculateTime(atomStartTime, atomEndTime, 'time to load atoms');
@@ -573,7 +641,7 @@ function loadMolecule(model, representation, rep) {
             for (let n = 0; n < maxRepTabs; n++) {
                 //console.log('loaded bonds for tab', n);
 
-                for (let key in repDict) {
+                for (let key in instancesPerStyle) {
                     //console.log('loaded bonds for style', key);
 
                     // skip bond loading if VWD
@@ -595,9 +663,6 @@ function loadMolecule(model, representation, rep) {
                     object.position.copy( start );
                     object.position.lerp( end, 0.5 );
                     object.scale.set( 5, 5, start.distanceTo( end ) );
-
-
-                    // figure out why bonds are still blue after switching back
 
                     object.molecularElement = "bond";
                     object.style = key;
@@ -623,8 +688,8 @@ function loadMolecule(model, representation, rep) {
         let bondEndTime = new Date();
         calculateTime(bondStartTime, bondEndTime, 'time to load bonds');
 
-        /* geometryAtoms.computeBoundingBox();
-        console.log("geometryAtoms bounding box:", geometryAtoms.boundingBox); */
+        geometryAtoms.computeBoundingBox();
+        console.log("geometryAtoms bounding box:", geometryAtoms.boundingBox);
     
         // render the scene after adding all the new atom & bond objects   
         
