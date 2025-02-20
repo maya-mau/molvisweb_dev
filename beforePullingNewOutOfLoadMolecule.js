@@ -80,7 +80,8 @@ let tabs = [];
 let guiContainers = [];
 let repStates = Array(maxRepTabs).fill(false);
 
-
+let frames = 0, prevTime = performance.now();
+const framesOn = true;
 
 const backboneAtoms = ['c', 'ca', 'n', 'o'];
 
@@ -181,6 +182,7 @@ function init() {
     // allow user to move around the molecule 
     if (cameraOption == 'orthographic') {
         controls = new OrbitControls( camera, renderer.domElement );
+        controls.autoRotate = true;
         /* controls.minZoom = 0;
         controls.maxZoom = 3000; */
     } else {
@@ -417,6 +419,7 @@ function loadMolecule(model, representation, rep) {
 
         residues = pdb.residues;
         chains = pdb.chains;
+        console.log('chains', chains);
 
         // define different representation geometries
 
@@ -434,16 +437,10 @@ function loadMolecule(model, representation, rep) {
  
         let sphereGeometry, boxGeometry;
 
-        // pre-build geometries for atoms and bonds for CPK and lines
-        let sphereGeometryCPK = new THREE.IcosahedronGeometry(1, detail );
-        let sphereGeometryLines = new THREE.BoxGeometry(.5, .5, .5);
+        //let repDict = {'CPK': [boxGeometryCPK, sphereGeometryCPK], 'lines': [boxGeometryLines, sphereGeometryLines], 'VDW': [null, sphereGeometryVDW]}
+        let repDict = {"Ball-and-stick": [], 'Lines': [], 'Space filling': []};
         
-        let boxGeometryCPK = new THREE.BoxGeometry( 1, 1, 1 );
-        let boxGeometryLines = new THREE.BoxGeometry( 3, 3, 1 );
-
-
-        let repDict = {"Ball-and-stick": [sphereGeometryCPK, boxGeometryCPK], 'Lines': [sphereGeometryLines, boxGeometryLines], 'Space filling': []};
-        
+        let randTime = new Date();
         //starting setup to put atoms into scene 
         geometryAtoms.computeBoundingBox();
         geometryAtoms.boundingBox.getCenter( offset ).negate(); // the offset moves the center of the bounding box to the origin?
@@ -458,11 +455,11 @@ function loadMolecule(model, representation, rep) {
         const position = new THREE.Vector3();
         
         root.visible = true;
+        let randTimeEnd = new Date();
+        calculateTime(randTime, randTimeEnd, 'stuff before atom loading');
 
-        
-        // LOAD IN ATOMS
-        let atomStartTime = new Date(); 
-
+        let atomStartTime = new Date();
+        // LOAD IN ATOMS 
         for ( let i = 0; i < positions.count; i ++ ) {
 
             // loop through the positions array to get every atom 
@@ -498,9 +495,11 @@ function loadMolecule(model, representation, rep) {
                         sphereGeometry = new THREE.IcosahedronGeometry(rad, detail );
 
                     } else if (key == CPK) {
-                        sphereGeometry = repDict[key][0];
+                        let sphereGeometryCPK = new THREE.IcosahedronGeometry(1, detail );
+                        sphereGeometry = sphereGeometryCPK;
                     } else if (key == lines) {
-                        sphereGeometry = repDict[key][0];
+                        let sphereGeometryLines = new THREE.BoxGeometry(.5, .5, .5);
+                        sphereGeometry = sphereGeometryLines;
                     }
         
                     // create atom object that is a sphere with the position, color, and content we want 
@@ -583,9 +582,11 @@ function loadMolecule(model, representation, rep) {
                     if (key == VDW) {
                         break;
                     } else if (key == CPK) {
-                        boxGeometry = repDict[key][1];
+                        let boxGeometryCPK = new THREE.BoxGeometry( 1, 1, 1 );
+                        boxGeometry = boxGeometryCPK;
                     } else if (key == lines) {
-                        boxGeometry = repDict[key][1];
+                        let boxGeometryLines = new THREE.BoxGeometry( 3, 3, 1 );
+                        boxGeometry = boxGeometryLines;
                     }
 
                     //object.originalColor = new THREE.Color().setRGB(colors.getX( i ), colors.getY( i ), colors.getZ( i ))
@@ -1773,6 +1774,24 @@ function onWindowResize1() {
 function animate() {
     //console.log("animated")
     requestAnimationFrame( animate );
+
+    // FPS
+    if (framesOn) {
+        frames ++;
+        const time = performance.now();
+        
+        if ( time >= prevTime + 1000 ) {
+        
+            console.log( Math.round( ( frames * 1000 ) / ( time - prevTime ) ) );
+        
+        frames = 0;
+        prevTime = time;
+        
+        }
+    }
+    
+
+
     controls.update();
     render();
     window.addEventListener('click', raycast);
@@ -2177,3 +2196,5 @@ function getRadius(atom){
 
     return rad; 
 }
+
+
