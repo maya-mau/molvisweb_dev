@@ -81,7 +81,7 @@ let guiContainers = [];
 let repStates = Array(maxRepTabs).fill(false);
 
 let frames = 0, prevTime = performance.now();
-const framesOn = true;
+const framesOn = false;
 
 const backboneAtoms = ['c', 'ca', 'n', 'o'];
 
@@ -182,7 +182,7 @@ function init() {
     // allow user to move around the molecule 
     if (cameraOption == 'orthographic') {
         controls = new OrbitControls( camera, renderer.domElement );
-        controls.autoRotate = true;
+        //controls.autoRotate = true;
         /* controls.minZoom = 0;
         controls.maxZoom = 3000; */
     } else {
@@ -419,22 +419,10 @@ function loadMolecule(model, representation, rep) {
 
         residues = pdb.residues;
         chains = pdb.chains;
-        console.log('chains', chains);
+        //console.log('chains', chains);
 
-        // define different representation geometries
-
-        /* let boxGeometryCPK = new THREE.BoxGeometry( 1, 1, 1 );
-        let sphereGeometryCPK = new THREE.IcosahedronGeometry(1, detail ); 
-        
-        // slightly thicker bonds for visibility, no atoms 
-        /* let boxGeometryLines = new THREE.BoxGeometry( 3, 3, 1 );
-        let sphereGeometryLines = new THREE.BoxGeometry(.5, .5, .5);  */
-
-        // figure out how to get lines atoms to be half a bond and colored
-        
-
-        //let sphereGeometryVDW = new THREE.IcosahedronGeometry(); // defined later due to dependence of radius of each atom
- 
+        // TODO figure out how to get lines atoms to be half a bond and colored
+         
         let sphereGeometry, boxGeometry;
 
         // pre-build geometries for atoms and bonds for CPK and lines
@@ -486,7 +474,7 @@ function loadMolecule(model, representation, rep) {
                 // create a set of atoms/bonds in each of the 3 styles for each tab
                 for (let key in repDict) {
                     //console.log('loaded atoms for style', key);
-
+                    
                     let atomName = json_atoms.atoms[i][7];
 
                     let color = new THREE.Color().setRGB(colors.getX( i ), colors.getY( i ), colors.getZ( i ));
@@ -710,6 +698,8 @@ function showMolecule(style, repNum, selectionMethod, selectionValue, colorValue
         const distance = Number(selectionValue[0]);
         const type = selectionValue[1];
         let selected = selectionValue[2];
+
+        console.log('distance', distance, "type", type, "selected", selected);
 
         if (isString(selected)) {
             if (selected.toLowerCase() == 'drug') {
@@ -1587,8 +1577,8 @@ function createGUIs() {
                 if (resNum != false) { // if residue is valid
 
                     residueSelected = Number(resNum); // set residueSelected to the residue we want to select
-                    moleculeGUIdiv.dataset.currentSelectionMethod = 'residue';
-                    moleculeGUIdiv.dataset.currentSelectionValue = residueSelected;
+                    moleculeGUIdiv.dataset.currentSelectionMethod = 'distance';
+                    moleculeGUIdiv.dataset.currentSelectionValue = distance + " " + type + " " + value;
                     hideMolecule(currentStyle, currentRep);
                     showMolecule(currentStyle, currentRep, 'distance', [distance, type, residueSelected], currentColorValue);  
 
@@ -1646,7 +1636,7 @@ function createGUIs() {
             
             let currentSelectionMethod = moleculeGUIdiv.dataset.currentSelectionMethod; 
             let currentSelectionValue = moleculeGUIdiv.dataset.currentSelectionValue;
-            //console.log("currentSelectionMethod", currentSelectionMethod, "currentSelectionValue", currentSelectionValue);
+            console.log("currentSelectionMethod", currentSelectionMethod, "currentSelectionValue", currentSelectionValue);
 
             console.log('in styleMenu.onChange, hiding', previousStyle, currentRep);
             hideMolecule(previousStyle, currentRep); 
