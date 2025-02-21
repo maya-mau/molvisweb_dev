@@ -20,7 +20,7 @@ const VDW = 'Space filling';
 const lines = 'Lines';
 
 // icosahedron 
-const detail = 3;
+const detail = 1;
 
 console.log("start script")
 
@@ -486,7 +486,6 @@ function loadMolecule(model, representation, rep) {
                 // create a set of atoms/bonds in each of the 3 styles for each tab
                 for (let key in repDict) {
                     //console.log('loaded atoms for style', key);
-
                     let atomName = json_atoms.atoms[i][7];
 
                     let color = new THREE.Color().setRGB(colors.getX( i ), colors.getY( i ), colors.getZ( i ));
@@ -497,22 +496,23 @@ function loadMolecule(model, representation, rep) {
                     let isNaN;
                     if (key == VDW) {
                         // sphere visuals for VDW, radius depends on atom and is scaled up for viewing 
-                        
+
                         // if element doesn't yet exist in VDW cache
                         if (!(atomName in sphereGeometryVDWCache)) {
                             let rad = getRadius(json_atoms.atoms[i][4])*2
-                        
+
                             if (Number.isNaN(rad)) {
                                 isNaN = true;
                                 rad = 1;
                             }
-                        
+
                             sphereGeometry = new THREE.IcosahedronGeometry(rad, detail);
                             sphereGeometryVDWCache[atomName] = sphereGeometry;
-                                                    
+                            
                         } else {
                             sphereGeometry = sphereGeometryVDWCache[atomName];
                         }
+                        
 
                     } else if (key == CPK) {
                         sphereGeometry = repDict[key][0];
