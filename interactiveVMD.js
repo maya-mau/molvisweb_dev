@@ -28,7 +28,7 @@ console.log("start script")
 // initialize the baseline objects  
 let camera, scene, renderer, labelRenderer, container;
 let controls;
-let root;
+let root = new THREE.Group();
 let geometryAtoms, geometryBonds, json_atoms, json_bonds, json_bonds_manual, json_bonds_conect, residues, chains;
 // let outlinePass, composer;
 var raycaster, mouse = {x: 0, y: 0 }
@@ -167,7 +167,6 @@ function init() {
     scene.add( light2 );
 
     // root contains all the objects of the scene 
-    root = new THREE.Group();
     scene.add( root );
     root.visible = true;
 
@@ -1350,6 +1349,7 @@ function createGUIs() {
                     moleculeGUIdiv.dataset.currentSelectionValue = residueSelected;
                     hideMolecule(currentStyle, currentRep);
                     showMolecule(currentStyle, currentRep, 'residue', residueSelected, currentColorValue);  
+                    deleteBondDistances();
                     removeErrorMessages();
 
                 } else { // value does not exist in the residues list
@@ -1368,6 +1368,7 @@ function createGUIs() {
                 //resetScene();
                 hideMolecule(currentStyle, currentRep);
                 showMolecule(defaultParams.repParams.representation, currentRep, 'residue', residueSelected, currentColorValue); 
+                deleteBondDistances();
                 removeErrorMessages();
 
             } else {
@@ -1407,13 +1408,15 @@ function createGUIs() {
 
                 hideMolecule(currentStyle, currentRep);
                 showMolecule(currentStyle, currentRep, 'chain', chainSelected, currentColorValue);  
+                deleteBondDistances();
                 removeErrorMessages();
 
             } else if (value == 'all') {
 
                 moleculeGUIdiv.dataset.currentSelectionMethod = 'chain';
                 moleculeGUIdiv.dataset.currentSelectionValue = value;
-                showMolecule(currentStyle, currentRep, 'chain', value, currentColorValue);  
+                showMolecule(currentStyle, currentRep, 'chain', value, currentColorValue); 
+                deleteBondDistances(); 
                 removeErrorMessages();
 
             } else { // value does not exist in the chains list
@@ -1581,7 +1584,7 @@ function createGUIs() {
                     moleculeGUIdiv.dataset.currentSelectionValue = distance + " " + type + " " + value;
                     hideMolecule(currentStyle, currentRep);
                     showMolecule(currentStyle, currentRep, 'distance', [distance, type, residueSelected], currentColorValue);  
-
+                    deleteBondDistances();
                 } 
 
             } else if (type == 'molecule') { // do chain validation LOSERRRR
@@ -1598,7 +1601,7 @@ function createGUIs() {
 
                     hideMolecule(currentStyle, currentRep);
                     showMolecule(currentStyle, currentRep, 'distance', [distance, type, chainSelected], currentColorValue);  
-
+                    deleteBondDistances();
                 } 
             }
             //popdown();
@@ -2055,13 +2058,27 @@ function drawLine(object1, object2) {
     const sprite = new THREE.Sprite(textMaterial);
 
     // Set the size of the sprite (scale)
-    sprite.scale.set(250, 250, 1); // Adjust scale according to your needs
+    sprite.scale.set(250, 250, 1); 
 
     sprite.position.set(x_cor+50, y_cor, z_cor);
 
     line.add(sprite);
 
     renderer.render(scene, camera);
+}
+
+function deleteBondDistances() {
+    console.log('in deleteBondDistances');
+    /* console.log('root', root);
+    console.log("Type of root:", typeof root);
+    console.log("Is root an instance of THREE.Object3D?", root instanceof THREE.Object3D);
+    console.log("Does root have traverse?", typeof root.traverse === "function"); */
+
+    root.traverse( (obj) => {
+        if (obj.isSprite || obj.isLine) {
+            root.remove(obj);
+        }
+    })
 }
 
 // on click 
