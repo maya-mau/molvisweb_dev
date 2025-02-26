@@ -142,7 +142,7 @@ function init() {
         }
     });
     
-    //addAxes();
+    addAxes();
     
     
     if (cameraOption == 'orthographic') {
@@ -150,7 +150,6 @@ function init() {
         // TODO need to edit these to be dynamic based on the molecule maybe
         let w = containerWidth;
         let h = containerHeight;
-        console.log(w, h);
         let viewSize = h;
         let aspectRatio = w / h;
     
@@ -246,18 +245,13 @@ function init() {
     window.addEventListener('mousemove', mouseMove);
 
 
-    // add event listeners to buttons
+    // add event listener to add rep button
     const addRep = document.getElementById('add-rep');
     addRep.addEventListener('click', onAddRepClick);
 
+    // add event listener to delete rep button
     const deleteRep = document.getElementById('delete-rep');
-    console.log(deleteRep);
     deleteRep.addEventListener('click', onDeleteRepClick);
-
-    const hideQuestions = document.getElementById('hide-questions');
-    console.log('hideQuestions', hideQuestions);
-    hideQuestions.addEventListener('click', onHideQuestions);
-    //onHideQuestions();
 
 
     // add molecule selection GUI to div with class=molecule-gui
@@ -479,11 +473,11 @@ function loadMolecule(model, representation, rep) {
         let sphereGeometry, boxGeometry;
 
         // pre-build geometries for atoms and bonds for CPK and lines
-        let sphereGeometryCPK = new THREE.IcosahedronGeometry(1/3, detail );
+        let sphereGeometryCPK = new THREE.IcosahedronGeometry(1, detail );
         let sphereGeometryLines = new THREE.BoxGeometry(.5, .5, .5);
         let sphereGeometryVDWCache = {};
 
-        let boxGeometryCPK = new THREE.BoxGeometry( 1/75, 1/75, 0.6 );
+        let boxGeometryCPK = new THREE.BoxGeometry( 1, 1, 1 );
         let boxGeometryLines = new THREE.BoxGeometry( 3, 3, 1 );
 
 
@@ -541,7 +535,7 @@ function loadMolecule(model, representation, rep) {
                         
                         // if element doesn't yet exist in VDW cache
                         if (!(atomName in sphereGeometryVDWCache)) {
-                            let rad = getRadius(json_atoms.atoms[i][4]) * 0.7; 
+                            let rad = getRadius(json_atoms.atoms[i][4])*2
                         
                             if (Number.isNaN(rad)) {
                                 isNaN = true;
@@ -564,8 +558,8 @@ function loadMolecule(model, representation, rep) {
                     // create atom object that is a sphere with the position, color, and content we want 
                     const object = new THREE.Mesh( sphereGeometry, material );
                     object.position.copy( position );
-                    //object.position.multiplyScalar( 75 ); // TODOlater figure out why scaling
-                    //object.scale.multiplyScalar( 25 );
+                    object.position.multiplyScalar( 75 ); // TODOlater figure out why scaling
+                    object.scale.multiplyScalar( 25 );
                     //sphereGeometry.computeBoundingSphere();
         
                     object.molecularElement = "atom";
@@ -628,8 +622,8 @@ function loadMolecule(model, representation, rep) {
             end.y = positions.getY( i+1 );
             end.z = positions.getZ( i+1 );
     
-            //start.multiplyScalar( 75 );
-            //end.multiplyScalar( 75 );
+            start.multiplyScalar( 75 );
+            end.multiplyScalar( 75 );
 
             for (let n = 0; n < maxRepTabs; n++) {
                 //console.log('loaded bonds for tab', n);
@@ -694,7 +688,6 @@ function loadMolecule(model, representation, rep) {
         console.log('render');         
         render();
         onWindowResize();
-        keypressEqual();
 
         let endTime = new Date();
         calculateTime(startTime, endTime, 'time to loadMolecule');
@@ -1192,6 +1185,7 @@ function resetTab(repNum) {
 
     //console.log('reset', moleculeGUIdiv);
 
+
 }
 
 function resetMoleculeColor(repNum) { // might also have argument style? decide later
@@ -1208,6 +1202,7 @@ function onDeleteRepClick () {
     if (numRepTabs > 1) {
         
         numRepTabs--;
+
         
         // hide appropriate molecule
         let moleculeGUIdiv = document.getElementById(makeRepContentId(currentRep));
@@ -1247,35 +1242,6 @@ function onDeleteRepClick () {
     }
 }
 
-function onHideQuestions() {
-    console.log('in onHideQuestions');
-    
-    let rightCol = document.getElementsByClassName('column right')[0];
-    let middleCol = document.getElementsByClassName('column middle')[0];
-    let rightColWidth = window.getComputedStyle(rightCol).width;
-    let inlineWidth = rightCol.style.width; 
-
-    console.log("Computed rightCol width:", rightColWidth);
-    console.log("Inline rightCol width:", inlineWidth);
-
-    if (rightColWidth === '0px' || rightColWidth === '') {
-        // Show right panel
-        console.log('show right panel');
-        rightCol.style.width = '250px';
-        console.log("rightCol.style.width", rightCol.style.width);
-    } else {
-        // Hide right panel
-        console.log('hide right panel');
-        rightCol.style.width = '0px';
-        console.log("rightCol.style.width", rightCol.style.width);
-    }
-
-    
-    
-    //container.appendChild(renderer.domElement); 
-    
-    onWindowResize();
-}
 
 // helper functions for creating selection method tabs and contents
 
@@ -1805,9 +1771,8 @@ function createGUIs() {
 
     currentRep = 0;
 }
-
 function onWindowResize() {
-    console.log('in onWindowResize()');
+    //console.log('in onWindowResize()');
 
     let w = container.clientWidth;
     let h = container.clientHeight;
@@ -1840,8 +1805,6 @@ function onWindowResize() {
     
     render();
 }
-
-
 
 // window resize function specific to container that this scene is in (not just entire window)
 function onWindowResize1() {
@@ -1963,8 +1926,9 @@ function keypressR(event) {
 }
 
 // on keypress '='
-function keypressEqual() {
+function keypressEqual(event) {
 
+    if (event.key === '=') {
         console.log("in keypressEqual");
         console.log('before resetToInitialView');
         console.log(initialPosition, initialQuaternion, initialTarget);
@@ -1979,7 +1943,7 @@ function keypressEqual() {
         recenterCamera(camera, controls);
 
         onWindowResize();
-    
+    }
 }
 
 function mouseDown(event) {
@@ -2056,7 +2020,7 @@ function translateView(deltaX, deltaY) {
 }
 
 function tempReset () {
-    console.log("in TEMP keypressEqual");
+    console.log("in keypressEqual");
         console.log('before resetToInitialView');
         console.log(initialPosition, initialQuaternion, initialTarget);
         resetToInitialView();
@@ -2163,12 +2127,12 @@ function switchAtomState(atom) {
 };
 
 function calculateDistance(object1, object2) { // could combine with drawLine
-    let x1 = object1.position.x // 75;
-    let y1 = object1.position.y // 75;
-    let z1 = object1.position.z // 75;
-    let x2 = object2.position.x // 75;
-    let y2 = object2.position.y // 75;
-    let z2 = object2.position.z // 75;
+    let x1 = object1.position.x / 75;
+    let y1 = object1.position.y / 75;
+    let z1 = object1.position.z / 75;
+    let x2 = object2.position.x / 75;
+    let y2 = object2.position.y / 75;
+    let z2 = object2.position.z / 75;
 
     // console.log(x1, y1, z1, x2, y2, z2);
 
@@ -2177,12 +2141,12 @@ function calculateDistance(object1, object2) { // could combine with drawLine
 };
 
 function calculateDistanceXYZ(ls1, ls2) {
-    let x1 = ls1[0] // 75;
-    let y1 = ls1[1] // 75;
-    let z1 = ls1[2] // 75;
-    let x2 = ls2[0] // 75;
-    let y2 = ls2[1] // 75;
-    let z2 = ls2[2] // 75;
+    let x1 = ls1[0] / 75;
+    let y1 = ls1[1] / 75;
+    let z1 = ls1[2] / 75;
+    let x2 = ls2[0] / 75;
+    let y2 = ls2[1] / 75;
+    let z2 = ls2[2] / 75;
 
     //console.log(x1, y1, z1, x2, y2, z2);
 
