@@ -1,5 +1,6 @@
 {
   "dependencies": {
+    "camera-controls": "github:yomotsu/camera-controls",
     "three": "^0.170.0"
   }
 }

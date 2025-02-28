@@ -8,10 +8,13 @@ import { OBJLoader } from 'three/addons/loaders/OBJLoader.js';
 import { MTLLoader } from 'three/addons/loaders/MTLLoader.js';
 import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
 import { GUI } from 'three/addons/libs/lil-gui.module.min.js';
-import { TextGeometry } from 'three/addons/geometries/TextGeometry.js';
 //import { TW } from '/TWPackage.js';
 //import { TW } from 'tw';
 
+//import CameraControls from 'camera-controls'; //'./node_modules/camera-controls/dist/camera-controls.module.js';
+import CameraControls from 'https://cdn.jsdelivr.net/npm/camera-controls/dist/camera-controls.module.js';
+
+CameraControls.install( { THREE: THREE } );
 
 
 // GLOBAL CONSTANTS
@@ -35,7 +38,8 @@ var raycaster, mouse = {x: 0, y: 0 }
 
 const cameraOption = 'orthographic';
 
-let initialPosition, initialTarget, initialQuaternion;
+let initialPosition, initialQuaternion;
+let initialTarget = new THREE.Vector3(0,0,0);
 
 const PDBloader = new PDBLoader(); 
 const offset = new THREE.Vector3();
@@ -119,8 +123,7 @@ const MOLECULES = {
 // call everything! 
 init();
 
-animate();
-
+//animate();
 
 
 // init function - sets up scene, camera, renderer, controls, and GUIs 
@@ -131,7 +134,7 @@ function init() {
     scene.background = new THREE.Color( 0x000000 );
     globalThis.scene = scene;
     
-    container = document.getElementsByClassName('column middle')[0]; // could try fixing the squish TODO
+    container = document.getElementsByClassName('column middle')[0]; 
     const containerWidth = container.clientWidth;
     const containerHeight = container.clientHeight;
 
@@ -140,7 +143,7 @@ function init() {
             console.log('in preventDefault');
             event.preventDefault(); 
         }
-    });
+    }); 
     
     //addAxes();
     
@@ -162,7 +165,9 @@ function init() {
         let far = 10000; 
     
         camera = new THREE.OrthographicCamera(left, right, top, bottom, near, far);
-        camera.position.z = 1000;
+        //camera.position.z = 1000;
+        camera.position.set(0, 0, 10);
+
             
     } else {
         camera = new THREE.PerspectiveCamera( 70, window.innerWidth / window.innerHeight, 1, 5000 );
@@ -194,28 +199,69 @@ function init() {
 
     // place the scene in the column middle window 
     renderer.setSize(containerWidth, containerHeight);
+    renderer.domElement.id = 'canvas';
     container.appendChild(renderer.domElement);
 
     // allow user to move around the molecule 
     if (cameraOption == 'orthographic') {
-        controls = new OrbitControls( camera, renderer.domElement );
+        //controls = new OrbitControls( camera, renderer.domElement );
+        const clock = new THREE.Clock();
+        controls = new CameraControls( camera, renderer.domElement );
 
-        controls.listenToKeyEvents( window ); // optional
+        ( function anim () {
 
-		controls.addEventListener( 'change', render ); // call this only in static scenes (i.e., if there is no animation loop)
+            // snip
+            const delta = clock.getDelta();
+            const hasControlsUpdated = controls.update( delta );
+        
+            requestAnimationFrame( anim );
+            renderer.render( scene, camera );
+        
+        } )();
 
-		controls.screenSpacePanning = true;
-        controls.keyPanSpeed = 10;
+        //controls.listenToKeyEvents( window ); // optional
 
-        controls.keys = {
+		controls.addEventListener( 'update', render ); // call this only in static scenes (i.e., if there is no animation loop)
+        controls.setLookAt(0, 0, 100, 0, 0, 0); // Adjust based on molecule's position
+        camera.lookAt(controls.getTarget(new THREE.Vector3));
+
+        /* controls.mouseButtons.left = CameraControls.ACTION.TRUCK;
+        controls.mouseButtons.right = CameraControls.ACTION.TRUCK;  
+        controls.mouseButtons.middle = CameraControls.ACTION.TRUCK;   
+        controls.mouseButtons.wheel = CameraControls.ACTION.TRUCK;   */
+        
+        const moveSpeed = 0.4;
+
+        // Event listener for key presses
+        document.addEventListener("keydown", (event) => {
+            switch (event.code) {
+                case "ArrowLeft":  // Move left
+                controls.truck(moveSpeed, 0, true);
+                    break;
+                case "ArrowRight": // Move right
+                    controls.truck(-moveSpeed, 0, true);
+                    break;
+                case "ArrowUp":    // Move up
+                    controls.truck(0, moveSpeed, true);
+                    break;
+                case "ArrowDown":  // Move down
+                    controls.truck(0, -moveSpeed, true);
+                    break;
+            }
+        });
+
+		//controls.screenSpacePanning = true;
+        //controls.keyPanSpeed = 10;
+
+        /* controls.keys = {
             LEFT: 'ArrowRight', //left arrow
             UP: 'ArrowDown', // up arrow
             RIGHT: 'ArrowLeft', // right arrow
             BOTTOM: 'ArrowUp' // down arrow
-        }
+        } */
 
     
-        if (framesOn) {controls.autoRotate = true;}
+        //if (framesOn) {controls.autoRotate = true;}
 
         /* controls.minZoom = 0;
         controls.maxZoom = 3000; */
@@ -227,7 +273,11 @@ function init() {
 
     initialPosition = camera.position.clone();
     initialQuaternion = camera.quaternion.clone();
-    initialTarget = controls.target.clone();
+    //initialTarget = controls.target.clone();
+    //initialTarget = new THREE.Vector3(controls.target.x, controls.target.y, controls.target.z);
+    controls.getTarget(initialTarget);
+    console.log('initialTarget', initialTarget);
+    console.log('initialTarget.x', initialTarget.x);
 
     // the default/first molecule to show up 
     loadMolecule( defaultParams.mculeParams.molecule, CPK, currentRep );
@@ -316,7 +366,9 @@ function resetEverything () {
 function storeInitialView() {
     initialPosition.copy(camera.position);
     initialQuaternion.copy(camera.quaternion);
-    initialTarget.copy(controls.target);
+    
+    //initialTarget.copy(controls.getTarget);
+    controls.getTarget(initialTarget);
 }
 
 function resetScene() {
@@ -387,7 +439,7 @@ function recenterCamera(camera, controls) {
     
         controls.minDistance = maxDim * 0.5;
         controls.maxDistance = maxDim * 10;
-        controls.target.copy(center);
+        controls.getTarget(center);
 
     } else {
 
@@ -409,15 +461,14 @@ function recenterCamera(camera, controls) {
         camera.far = far;
 
         camera.position.set(center.x, center.y, maxDim * 2);
-        controls.target.copy(center);
-
-        
+        controls.setTarget(center.x, center.y, center.z);
+        console.log('controls target', controls.getTarget(new THREE.Vector3()));
         
     }
 
     
     camera.updateProjectionMatrix();
-    controls.update();
+    //controls.update();
 
     storeInitialView();
 }
@@ -686,15 +737,12 @@ function loadMolecule(model, representation, rep) {
         console.log("geometryAtoms bounding box:", geometryAtoms.boundingBox); */
     
         // render the scene after adding all the new atom & bond objects   
-        
-        recenterCamera(camera, controls);
-
         storeInitialView();
 
         console.log('render');         
         render();
-        onWindowResize();
-        keypressEqual();
+
+        resetViewCameraWindow();
 
         let endTime = new Date();
         calculateTime(startTime, endTime, 'time to loadMolecule');
@@ -803,8 +851,6 @@ function showMolecule(style, repNum, selectionMethod, selectionValue, colorValue
 
     }
 
-
-    //root.visible = true;
     root.traverse( (obj) => {
 
         if (obj.isMesh && obj.style == style && obj.repNum == repNum) {
@@ -1248,34 +1294,30 @@ function onDeleteRepClick () {
 }
 
 function onHideQuestions() {
-    console.log('in onHideQuestions');
+    //console.log('in onHideQuestions');
     
     let rightCol = document.getElementsByClassName('column right')[0];
-    let middleCol = document.getElementsByClassName('column middle')[0];
-    let rightColWidth = window.getComputedStyle(rightCol).width;
-    let inlineWidth = rightCol.style.width; 
+    let hideQuestionsButton = document.getElementById('hide-questions');
 
-    console.log("Computed rightCol width:", rightColWidth);
-    console.log("Inline rightCol width:", inlineWidth);
-
-    if (rightColWidth === '0px' || rightColWidth === '') {
-        // Show right panel
-        console.log('show right panel');
-        rightCol.style.width = '250px';
-        console.log("rightCol.style.width", rightCol.style.width);
+    if (rightCol.classList.contains('hidden')) {
+        // Show the right column
+        //console.log('show right panel');
+        rightCol.classList.remove('hidden');
+        hideQuestionsButton.innerHTML = 'hide questions';
+        /* hideQuestionsButton.classList.remove('hiding-questions');
+        hideQuestionsButton.classList.add('showing-questions'); */
     } else {
-        // Hide right panel
-        console.log('hide right panel');
-        rightCol.style.width = '0px';
-        console.log("rightCol.style.width", rightCol.style.width);
+        // Hide the right column
+        //console.log('hide right panel');
+        rightCol.classList.add('hidden');
+        hideQuestionsButton.innerHTML = 'show questions';
+        /* hideQuestionsButton.classList.remove('showing-questions');
+        hideQuestionsButton.classList.add('hiding-questions'); */
     }
 
-    
-    
-    //container.appendChild(renderer.domElement); 
-    
     onWindowResize();
 }
+
 
 // helper functions for creating selection method tabs and contents
 
@@ -1807,10 +1849,12 @@ function createGUIs() {
 }
 
 function onWindowResize() {
-    console.log('in onWindowResize()');
+    //console.log('in onWindowResize()');
 
     let w = container.clientWidth;
     let h = container.clientHeight;
+    //console.log('w', w, 'h', h);
+
     let aspectRatio = w / h;
     let center = getBoundingBoxCenter();
 
@@ -1832,8 +1876,8 @@ function onWindowResize() {
     }
 
     camera.updateProjectionMatrix();
-    controls.target.set(center.x, center.y, center.z);
-    controls.update();
+    controls.setTarget(center.x, center.y, center.z);
+    //controls.update();
 
     // Update renderer size
     renderer.setSize(w, h);
@@ -1884,7 +1928,7 @@ function animate() {
         
         }
 
-        controls.update();
+        //controls.update();
         camera.updateProjectionMatrix();
     }
 
@@ -1910,7 +1954,7 @@ function keypress2(event) {
                 resetAtomState(selectedObject); // reset selected atom state
             } else {
                 console.log("in keypress2 event, there was no a selectedObject");
-            };
+            }
             console.log("Distance measurement mode activated");
         } else {
             isDistanceMeasurementMode = false;
@@ -1927,9 +1971,20 @@ function keypressC(event) {
             resetMouseModes();
             isCenterMode = true;
             console.log("Center mode activated");
+            document.body.style.cursor = 'pointer';
+
+            /* //let center = getBoundingBoxCenter();
+            if (!selectedObject) {
+                console.log("in keypress2 event, there is a selectedObject");
+                resetAtomState(selectedObject); // reset selected atom state
+            } else {
+                console.log("in keypress2 event, there was no a selectedObject");
+            } */
+
         } else {
             isCenterMode = false;
             console.log("Center mode deactivated");
+            document.body.style.cursor = 'auto';
         }
     }
 }
@@ -1963,23 +2018,17 @@ function keypressR(event) {
 }
 
 // on keypress '='
-function keypressEqual() {
 
-        console.log("in keypressEqual");
-        console.log('before resetToInitialView');
-        console.log(initialPosition, initialQuaternion, initialTarget);
-        resetToInitialView();
-            /* console.log(initialPosition, initialQuaternion, initialTarget);
-            recenterCamera(camera, controls);
-            resetMoleculeOrientation(); */
+function resetViewCameraWindow() {
+    resetToInitialView();
+    recenterCamera(camera, controls);
+    onWindowResize();
+}
 
-        console.log('after resetToInitialView');
-        console.log(initialPosition, initialQuaternion, initialTarget);
-
-        recenterCamera(camera, controls);
-
-        onWindowResize();
-    
+function keypressEqual(event) {
+    if (event.key === '=') {
+        resetViewCameraWindow();
+    }
 }
 
 function mouseDown(event) {
@@ -2025,8 +2074,8 @@ function rotateAroundSelected(deltaX, deltaY) {
     camera.position.copy(pivot).add(offset);
     camera.lookAt(pivot);
 
-    controls.target.copy(pivot);
-    controls.update();
+    controls.setTarget(pivot);
+    //controls.update();
 }
 
 function translateView(deltaX, deltaY) {
@@ -2052,33 +2101,16 @@ function translateView(deltaX, deltaY) {
     camera.translateY(pos.y + deltaY);
     console.log(camera.position.x, camera.position.y);
     //controls.target.add(moveX).add(moveY);
-    controls.update();
-}
-
-function tempReset () {
-    console.log("in TEMP keypressEqual");
-        console.log('before resetToInitialView');
-        console.log(initialPosition, initialQuaternion, initialTarget);
-        resetToInitialView();
-            /* console.log(initialPosition, initialQuaternion, initialTarget);
-            recenterCamera(camera, controls);
-            resetMoleculeOrientation(); */
-
-        console.log('after resetToInitialView');
-        console.log(initialPosition, initialQuaternion, initialTarget);
-
-        recenterCamera(camera, controls);
+    //controls.update();
 }
 
 function resetToInitialView() {
-    console.log("Resetting to initial molecule view");
 
     camera.position.copy(initialPosition);
     camera.quaternion.copy(initialQuaternion);
     
-    controls.target.copy(initialTarget);
-    controls.update();
-    controls.reset();  // Apply changes to controls
+    controls.setTarget(initialTarget);
+    controls.reset(); 
 
     camera.updateProjectionMatrix();
 }
@@ -2090,7 +2122,7 @@ function resetMoleculeOrientation () {
 
     //recenterCamera(camera, controls);
     storeInitialView();
-    controls.update();
+    //controls.update();
     camera.updateProjectionMatrix();
     controls.reset();
     /* if (residueSelected == 'all') {
@@ -2101,7 +2133,7 @@ function resetMoleculeOrientation () {
 }
 
 const resetButton = document.getElementById("reset");
-resetButton.addEventListener("click", tempReset); 
+resetButton.addEventListener("click", resetToInitialView); 
 
 const clearButton = document.getElementById("clear");
 clearButton.addEventListener("click", function () {
@@ -2357,25 +2389,36 @@ function raycast(event)
             };
 
         } else if (isCenterMode) {
-            let objWorldPosition = new THREE.Vector3();
-            currentAtom.getWorldPosition(objWorldPosition);
+            console.log('in isCenterMode');
+            let camPos = camera.position.clone();
+            console.log("camera.position before", camPos);
+
+            let container = document.getElementsByClassName('column middle')[0];
+            let w = container.clientWidth;
+            let h = container.clientHeight;
+
 
             // center rotation around current atom
             if (camera.isOrthographicCamera) { // orthographic camera, uses orbit controls
-                controls.target.copy(objWorldPosition);
-                controls.update();
+                // Calculate the shift in target position
+                let objWorldPosition = new THREE.Vector3();
+                selectedObject.getWorldPosition(objWorldPosition);
+                
+
+                controls.setOrbitPoint(objWorldPosition.x, objWorldPosition.y, objWorldPosition.z);
+                
+                //camera.position.copy(camPos);
+                //camera.lookAt(prevTarget);
+                //camera.setViewOffset(w, h, objWorldPosition.x, objWorldPosition.y, w, h);
+                console.log("camera.position after", camera.position);
+
             } else {
                 // TODO perspective camera 
             }
 
             return;
 
-        } /* else if (isRotationMode) {
-            
-
-        } else if (isTranslateMode) {
-
-        } */ else {
+        } else {
             if (!(previousAtom == null)) { // if there was a previously-selected object
                 if (previousAtom == currentAtom) { // if previous selected object is the same as currently selected object
                     switchAtomState(currentAtom); // switch current atom's state
