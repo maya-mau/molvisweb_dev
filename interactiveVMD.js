@@ -21,9 +21,11 @@ CameraControls.install( { THREE: THREE } );
 const CPK = 'Ball-and-stick';
 const VDW = 'Space filling';
 const lines = 'Lines';
+const reps = [VDW, CPK, lines];
 
 // icosahedron 
 const detail = 3;
+const textSize = 5;
 
 console.log("start script")
 
@@ -293,22 +295,17 @@ function init() {
     window.addEventListener('keypress', keypressEqual);
     window.addEventListener('mousedown', mouseDown);
     window.addEventListener('mouseup', mouseUp);
-    window.addEventListener('mousemove', mouseMove);
-
+    //window.addEventListener('mousemove', mouseMove);
 
     // add event listeners to buttons
     const addRep = document.getElementById('add-rep');
     addRep.addEventListener('click', onAddRepClick);
 
     const deleteRep = document.getElementById('delete-rep');
-    console.log(deleteRep);
     deleteRep.addEventListener('click', onDeleteRepClick);
 
     const hideQuestions = document.getElementById('hide-questions');
-    console.log('hideQuestions', hideQuestions);
     hideQuestions.addEventListener('click', onHideQuestions);
-    //onHideQuestions();
-
 
     // add molecule selection GUI to div with class=molecule-gui
     const molGUIContainer = document.getElementById('mol-gui');
@@ -462,8 +459,9 @@ function recenterCamera(camera, controls) {
 
         camera.position.set(center.x, center.y, maxDim * 2);
         controls.setTarget(center.x, center.y, center.z);
-        console.log('controls target', controls.getTarget(new THREE.Vector3()));
-        
+        /* let target = new THREE.Vector3(0,0,0);
+        controls.getTarget(target);
+         */
     }
 
     
@@ -523,32 +521,22 @@ function loadMolecule(model, representation, rep) {
 
         residues = pdb.residues;
         chains = pdb.chains;
-        //console.log('chains', chains);
-
-        // TODO figure out how to get lines atoms to be half a bond and colored
          
         let sphereGeometry, boxGeometry;
 
-        // pre-build geometries for atoms and bonds for CPK and lines
+        // pre-build geometries for atoms and bonds
         let sphereGeometryCPK = new THREE.IcosahedronGeometry(1/3, detail );
-        let sphereGeometryLines = new THREE.BoxGeometry(.5, .5, .5);
-        let sphereGeometryVDWCache = {};
-
         let boxGeometryCPK = new THREE.BoxGeometry( 1/75, 1/75, 0.6 );
-        let boxGeometryLines = new THREE.BoxGeometry( 3, 3, 1 );
-
-
-
-        //let repDict = {'CPK': [boxGeometryCPK, sphereGeometryCPK], 'lines': [boxGeometryLines, sphereGeometryLines], 'VDW': [null, sphereGeometryVDW]}
-        let repDict = {"Ball-and-stick": [sphereGeometryCPK, boxGeometryCPK], 'Lines': [sphereGeometryLines, boxGeometryLines], 'Space filling': []};
+        let sphereGeometryVDWCache = {};
+        let boxGeometryLinesCache = {};
         
         let randTime = new Date();
+
         //starting setup to put atoms into scene 
         geometryAtoms.computeBoundingBox();
         geometryAtoms.boundingBox.getCenter( offset ).negate(); // the offset moves the center of the bounding box to the origin?
         geometryAtoms.translate( offset.x, offset.y, offset.z );
         geometryBonds.translate( offset.x, offset.y, offset.z );
-        //console.log("offset", offset.x, offset.y, offset.z );
 
         //grab atom content from pdb so their position and color go along 
         let positions = geometryAtoms.getAttribute( 'position' );
@@ -561,6 +549,7 @@ function loadMolecule(model, representation, rep) {
         calculateTime(randTime, randTimeEnd, 'stuff before atom loading');
 
         let atomStartTime = new Date();
+
         // LOAD IN ATOMS 
         for ( let i = 0; i < positions.count; i ++ ) {
 
@@ -576,7 +565,7 @@ function loadMolecule(model, representation, rep) {
                 //console.log('loaded atoms for tab', n);
                 
                 // create a set of atoms/bonds in each of the 3 styles for each tab
-                for (let key in repDict) {
+                for (let key of reps) {
                     //console.log('loaded atoms for style', key);
                     
                     let atomName = json_atoms.atoms[i][7];
@@ -586,18 +575,11 @@ function loadMolecule(model, representation, rep) {
                     let material = new THREE.MeshPhongMaterial();
                     material.color = color;
 
-                    let isNaN;
                     if (key == VDW) {
-                        // sphere visuals for VDW, radius depends on atom and is scaled up for viewing 
                         
-                        // if element doesn't yet exist in VDW cache
+                        // if element doesn't yet exist in VDW cache, create a new geometry and add it
                         if (!(atomName in sphereGeometryVDWCache)) {
                             let rad = getRadius(json_atoms.atoms[i][4]) * 0.7; 
-                        
-                            if (Number.isNaN(rad)) {
-                                isNaN = true;
-                                rad = 1;
-                            }
                         
                             sphereGeometry = new THREE.IcosahedronGeometry(rad, detail);
                             sphereGeometryVDWCache[atomName] = sphereGeometry;
@@ -607,9 +589,10 @@ function loadMolecule(model, representation, rep) {
                         }
 
                     } else if (key == CPK) {
-                        sphereGeometry = repDict[key][0];
-                    } else if (key == lines) {
-                        sphereGeometry = repDict[key][0];
+                        sphereGeometry = sphereGeometryCPK;
+
+                    } else if (key == lines) { // skip loading lines
+                        continue;
                     }
         
                     // create atom object that is a sphere with the position, color, and content we want 
@@ -660,81 +643,120 @@ function loadMolecule(model, representation, rep) {
             
             let atom1 = json_atoms.atoms[bond[0]-1];
             let atom2 = json_atoms.atoms[bond[1]-1];
-            //console.log(atom1, atom2)
+            let color1 = atom1[3];
+            let color2 = atom2[3];
+
+            // convert color arrays into HTML strings that can be fed into a new THREE.color
+            color1 = `rgb(${color1[0]}, ${color1[1]}, ${color1[2]})`;
+            color2 = `rgb(${color2[0]}, ${color2[1]}, ${color2[2]})`;
 
             // get bond start & end locations 
-            /* start.x = atom1[0];
-            start.y = atom1[1];
-            start.z = atom1[2]; */
-
             start.x = positions.getX( i );
             start.y = positions.getY( i );
             start.z = positions.getZ( i );
     
-            /* end.x = atom2[0];
-            end.y = atom2[1];
-            end.z = atom2[2]; */
-
             end.x = positions.getX( i+1 );
             end.y = positions.getY( i+1 );
             end.z = positions.getZ( i+1 );
-    
-            //start.multiplyScalar( 75 );
-            //end.multiplyScalar( 75 );
 
             for (let n = 0; n < maxRepTabs; n++) {
                 //console.log('loaded bonds for tab', n);
 
-                for (let key in repDict) {
-                    //console.log('loaded bonds for style', key);
+                for (let key of reps) {
 
-                    // skip bond loading if VWD
-                    if (key == VDW) {
-                        break;
-                    } else if (key == CPK) {
-                        boxGeometry = repDict[key][1];
-                    } else if (key == lines) {
-                        boxGeometry = repDict[key][1];;
-                    }
+                    if (key == CPK) {
+                        boxGeometry = boxGeometryCPK;
 
-                    //object.originalColor = new THREE.Color().setRGB(colors.getX( i ), colors.getY( i ), colors.getZ( i ))
-                    const bondMaterial = new THREE.MeshPhongMaterial( { color: 0xffffff } );
+                        const bondMaterial = new THREE.MeshPhongMaterial( { color: 0xffffff } );
         
-                    // make bond a rectangular prism & add it to scene 
-                    const object = new THREE.Mesh( boxGeometry, bondMaterial );
-                    object.position.copy( start );
-                    object.position.lerp( end, 0.5 );
-                    object.scale.set( 5, 5, start.distanceTo( end ) );
+                        // make bond a rectangular prism & add it to scene 
+                        const object = new THREE.Mesh( boxGeometry, bondMaterial );
+                        object.position.copy( start );
+                        object.position.lerp( end, 0.5 );
+                        object.scale.set( 5, 5, start.distanceTo( end ) );
 
+                        object.molecularElement = "bond";
+                        object.style = key;
+                        object.repNum = n;
+                        object.atom1 = atom1;
+                        object.atom2 = atom2;
+                        object.originalColor = 'rgb(255, 255, 255)';
 
-                    // figure out why bonds are still blue after switching back
+                        object.lookAt( end );
+                        root.add( object );
 
-                    object.molecularElement = "bond";
-                    object.style = key;
-                    object.repNum = n;
-                    object.atom1 = atom1;
-                    object.atom2 = atom2;
-                    object.originalColor = 'rgb(255, 255, 255)';
-                    // change everything to the string format for originalColor
+                        // only if key is equal to the rep we want and rep is correct, make visible, else hide
+                        if (key == representation && n == rep) {
+                            object.visible = true;
+                        } else {
+                            object.visible = false;
+                        }
 
-                    object.lookAt( end );
-                    root.add( object );
-    
-                    // only if key is equal to the rep we want and rep is correct, make visible, else hide
-                    if (key == representation && n == rep) {
-                        object.visible = true;
-                    } else {
-                        object.visible = false;
-                    }
+                    } else if (key == lines) {
+
+                        let bondThickness = 0.1;
+                        const bondLength = start.distanceTo(end);
+                        const halfBondLength = bondLength / 2;
+
+                        boxGeometry = new THREE.BoxGeometry(bondThickness, bondThickness, halfBondLength);  
+                        //console.log('colors', color1, color2);
+
+                        const material1 = new THREE.MeshBasicMaterial({ color: color1 });
+                        const material2 = new THREE.MeshBasicMaterial({ color: color2 });
+
+                        const bondHalf1 = new THREE.Mesh(boxGeometry, material1);
+                        const bondHalf2 = new THREE.Mesh(boxGeometry, material2);
+                        
+                        const midpoint = new THREE.Vector3().addVectors(start, end).multiplyScalar(0.5);
+                        const bondDirection = new THREE.Vector3().subVectors(start, end).normalize();
+
+                        const offset = bondDirection.clone().multiplyScalar(halfBondLength / 2);
+
+                        bondHalf1.position.copy(midpoint).add(offset);
+                        bondHalf2.position.copy(midpoint).sub(offset);
+
+                        bondHalf1.lookAt(end);
+                        
+                        bondHalf2.lookAt(start);
+
+                        bondHalf1.molecularElement = "bond";
+                        bondHalf1.style = key;
+                        bondHalf1.repNum = n;
+                        bondHalf1.atom1 = atom1;
+                        bondHalf1.atom2 = atom2;
+                        bondHalf1.originalColor = color1;
+
+                        bondHalf2.molecularElement = "bond";
+                        bondHalf2.style = key;
+                        bondHalf2.repNum = n;
+                        bondHalf2.atom1 = atom1;
+                        bondHalf2.atom2 = atom2;
+                        bondHalf2.originalColor = color2;
+
+                       /*  console.log('bondhalf1', bondHalf1);
+                        console.log('bondHalf2', bondHalf2); */
+
+                        root.add(bondHalf1);
+                        root.add(bondHalf2);
+
+                        // only if key is equal to the rep we want and rep is correct, make visible, else hide
+                        if (key == representation && n == rep) {
+                            bondHalf1.visible = true;
+                            bondHalf2.visible = true;
+                        } else {
+                            bondHalf1.visible = false;
+                            bondHalf2.visible = false;
+                        } 
+
+                    } else if (key == VDW) { // skip VDW, no bonds
+                        continue;
+                    }  
                 }
             }
         }
 
         let bondEndTime = new Date();
         calculateTime(bondStartTime, bondEndTime, 'time to load bonds');
-
-        /* geometryAtoms.computeBoundingBox();
-        console.log("geometryAtoms bounding box:", geometryAtoms.boundingBox); */
     
         // render the scene after adding all the new atom & bond objects   
         storeInitialView();
@@ -823,13 +845,9 @@ function showMolecule(style, repNum, selectionMethod, selectionValue, colorValue
             })
 
         } else if (type == 'molecule') {
-            //console.log('2 are we entering here?');
 
             root.traverse( (obj) => {
-                //console.log('3 are we entering here?');
-                //console.log('obj', obj);
                 if (obj.isMesh && obj.repNum == currentRep && obj.style == currentStyle && obj.chain == selected) {
-                    //console.log('found something!');
                     target.push([obj.position.x, obj.position.y, obj.position.z]);
                 }
             })
@@ -838,6 +856,7 @@ function showMolecule(style, repNum, selectionMethod, selectionValue, colorValue
         //console.log(target);
 
         // find all residues within the required distance to the target atoms
+
         root.traverse( (obj) => {
             for (let coord of target) {
 
@@ -848,13 +867,14 @@ function showMolecule(style, repNum, selectionMethod, selectionValue, colorValue
                 } 
             }
         })
-
     }
 
     root.traverse( (obj) => {
 
         if (obj.isMesh && obj.style == style && obj.repNum == repNum) {
-            //console.log('match', obj.style, style, obj.repNum, repNum)
+            //console.log('match', obj.style, style, obj.repNum, repNum);
+            //console.log('obj', obj);
+
             if (selectionValue == 'all') {
                 setColor(obj, colorValue);
                 obj.visible = true;
@@ -870,7 +890,7 @@ function showMolecule(style, repNum, selectionMethod, selectionValue, colorValue
                             setColor(obj, colorValue);
                             obj.visible = true;
                         } else {
-                            obj.visible = false;  // might try to do this in hide molecule? see if it works here
+                            obj.visible = false;
                         }
     
                     } else if (selectionMethod == 'chain') {  
@@ -916,7 +936,6 @@ function showMolecule(style, repNum, selectionMethod, selectionValue, colorValue
                             // check if residue is within distance and if obj isn't part of the original target
                             if (validResidues[obj.residue] && obj.residue != selected) {
                                 //console.log('residue', obj.residue);
-                                //console.log('atom', obj.position.x, obj.position.y, obj.position.z);
                                 setColor(obj, colorValue);
                                 //console.log('set color of', obj, colorValue);
                                 obj.visible = true;
@@ -995,7 +1014,6 @@ function showMolecule(style, repNum, selectionMethod, selectionValue, colorValue
                             }
                         }
                         
-
                         let atom1 = obj.atom1;
                         let atom2 = obj.atom2;
                         //console.log(obj);
@@ -1056,11 +1074,6 @@ function setColor(obj, colorValue) {
     } else if (colorValue == 'Red') {
         obj.material.color.set(new THREE.Color('rgb(255, 0, 0)')); 
     } else if (colorValue == 'Name') {
-        /* if (obj.molecularElement == 'bond') {
-            console.log("obj", obj);
-            console.log("obj.originalColor", obj.originalColor);
-        } */
-        
         obj.material.color.set(new THREE.Color(obj.originalColor));
     }
 }
@@ -2040,76 +2053,17 @@ function mouseUp(event) {
     mousePadDown = false;
 }
 
-function mouseMove(event) {
-    if (!mousePadDown) {return;} // if mouse pad isn't pressed down, exit
-
-    let deltaX = event.clientX - prevMouse.x;
-    let deltaY = event.clientY - prevMouse.y;
-    prevMouse.set(event.clientX, event.clientY);
-
-    if (isRotationMode) {
-        rotateAroundSelected(deltaX, deltaY);
-    } else if (isTranslateMode) {
-        translateView(deltaX, deltaY);
-    }
-}
-
-function rotateAroundSelected(deltaX, deltaY) {
-    if (!selectedObject) {return;}
-
-    let pivot = new THREE.Vector3();
-    selectedObject.getWorldPosition(pivot);
-
-    let theta = deltaX * 0.005; // 0.005 is Rotation speed
-    let phi = deltaY * 0.005;
-
-    let offset = new THREE.Vector3().subVectors(camera.position, pivot);
-    let spherical = new THREE.Spherical().setFromVector3(offset); // get spherical coordinates
-
-    spherical.theta -= theta;
-    spherical.phi -= phi;
-    spherical.makeSafe();
-
-    offset.setFromSpherical(spherical);
-    camera.position.copy(pivot).add(offset);
-    camera.lookAt(pivot);
-
-    controls.setTarget(pivot);
-    //controls.update();
-}
-
-function translateView(deltaX, deltaY) {
-    console.log('in translateview');
-    let moveSpeed = 0.01;
-
-    /* let right = new THREE.Vector3();
-    camera.getWorldDirection(right);
-    right.cross(camera.up).normalize(); // Right vector
-
-    let up = new THREE.Vector3();
-    up.copy(camera.up).normalize(); // Up vector */
-
-    let pos = new THREE.Vector3();
-    camera.getWorldDirection(pos);
-    console.log('pos', pos);
-
-    //let moveX = right.multiplyScalar(-deltaX * moveSpeed);
-    //let moveY = up.multiplyScalar(deltaY * moveSpeed);
-
-    //camera.position.add(moveX).add(moveY);
-    camera.translateX(pos.x - deltaX);
-    camera.translateY(pos.y + deltaY);
-    console.log(camera.position.x, camera.position.y);
-    //controls.target.add(moveX).add(moveY);
-    //controls.update();
-}
 
 function resetToInitialView() {
 
     camera.position.copy(initialPosition);
     camera.quaternion.copy(initialQuaternion);
     
-    controls.setTarget(initialTarget);
+    controls.setTarget(initialTarget.x, initialTarget.y, initialTarget.z);
+    /* console.log("controls in resetToInitialView", controls);
+    let rand = new THREE.Vector3(0,0,0);
+    controls.getTarget(rand);
+    console.log('rand', rand); */
     controls.reset(); 
 
     camera.updateProjectionMatrix();
@@ -2157,8 +2111,8 @@ function resetAtomState(atom) {
 
     let moleculeGUIdiv = document.getElementById(makeRepContentId(atom.repNum));
     let currentColorValue = moleculeGUIdiv.dataset.currentColorValue;
-    console.log('atom', atom);
-    console.log('currentColorValue', currentColorValue);
+    //console.log('atom', atom);
+    //console.log('currentColorValue', currentColorValue);
     
     if (currentColorValue == 'Name') {
         //obj.material.color.set(new THREE.Color(obj.originalColor));
@@ -2269,9 +2223,8 @@ function drawLine(object1, object2) {
     let y_cor = (y1 + y2) / 2; 
     let z_cor = (z1 + z2) / 2;
 
-    /* console.log("distance", distance.toString());
-    console.log("canvas.width/2: ", containerWidth/2);
-    console.log("canvas.height/2: ", containerHeight/2); */
+    //console.log("canvas.width/2: ", containerWidth/2);
+    //console.log("canvas.height/2: ", containerHeight/2); 
     context.fillText(distance, canvas.width / 2, canvas.height/2);
 
     // Create the texture from the canvas
@@ -2288,9 +2241,9 @@ function drawLine(object1, object2) {
     const sprite = new THREE.Sprite(textMaterial);
 
     // Set the size of the sprite (scale)
-    sprite.scale.set(250, 250, 1); 
+    sprite.scale.set(textSize, textSize, textSize); 
 
-    sprite.position.set(x_cor+50, y_cor, z_cor);
+    sprite.position.set(x_cor, y_cor+0.2, z_cor);
 
     line.add(sprite);
 
@@ -2327,36 +2280,50 @@ function raycast(event)
     mouse.x = ((event.clientX - rect.left) / containerRect.width) * 2 - 1; // Adjust for container's width
     mouse.y = -((event.clientY - rect.top) / containerRect.height) * 2 + 1; // Adjust for container's height
     raycaster.setFromCamera( mouse, camera );  
+    raycaster.precision = 0.1;
+    raycaster.far = 10000;
 
     // does the mouse intersect with an object in our scene?
     let intersects = raycaster.intersectObjects(scene.children);
-    //console.log("intersects", intersects);
+    console.log("intersects", intersects);
    
     if (intersects.length > 0) { // if there are objects intersecting with the mouse
 
         let numAtoms = 0
         let currentAtom;
+        let closestAtom = null;
+
+        let closestDistance = Infinity;
 
         for (const obj of intersects) {
-            if (obj.object.visible == true) {
-                let objType = obj.object.type;
+            if (obj.object.visible == true && obj.object.isMesh) {
+                if (obj.object.molecularElement == "atom") {
 
-                if (objType == "Mesh") {
-                    if (obj.object.molecularElement == "atom") {
-                        numAtoms = numAtoms + 1;
-                        console.log("this is a mesh atom object");
-                        currentAtom = obj.object;
-                        break;
+                    // calculate distance of obj to camera
+                    const objectPosition = obj.object.getWorldPosition(new THREE.Vector3());
+                    const cameraPosition = camera.position;
+                    const distance = cameraPosition.distanceTo(objectPosition);
+                    //console.log('current distance', distance, obj.object.atomName);
+
+                    if (distance < closestDistance) {
+                        closestDistance = distance;
+                        //console.log('found closer, closestDistance', closestDistance, obj.object.atomName);
+                        closestAtom = obj.object;
                     }
                 }
             }
+        }
+
+        if (closestAtom != null) {
+            currentAtom = closestAtom;
+            numAtoms = numAtoms + 1;
         }
     
         if (numAtoms == 0) {
             return;
         };
 
-        var previousAtom = selectedObject;
+        let previousAtom = selectedObject;
 
         selectedObject = currentAtom;
 
