@@ -827,7 +827,7 @@ function showMolecule(style, repNum, selectionMethod, selectionValue, colorValue
         console.log('distance', distance, "type", type, "selected", selected);
 
         if (isString(selected)) {
-            if (selected.toLowerCase() == 'drug') {
+            if (selected.toLowerCase() == 'ponatinib') {
                 selected = 'D';
             } else if (selected.toLowerCase() == 'abl kinase') {
                 selected = 'A';
@@ -921,7 +921,7 @@ function showMolecule(style, repNum, selectionMethod, selectionValue, colorValue
                         let selected = selectionValue[2];
 
                         if (isString(selected)) {
-                            if (selected.toLowerCase() == 'drug') {
+                            if (selected.toLowerCase() == 'ponatinib') {
                                 selected = 'D';
                             } else if (selected.toLowerCase() == 'abl kinase') {
                                 selected = 'A';
@@ -1007,7 +1007,7 @@ function showMolecule(style, repNum, selectionMethod, selectionValue, colorValue
                         let selected = selectionValue[2];
 
                         if (isString(selected)) {
-                            if (selected.toLowerCase() == 'drug') {
+                            if (selected.toLowerCase() == 'ponatinib') {
                                 selected = 'D';
                             } else if (selected.toLowerCase() == 'abl kinase') {
                                 selected = 'A';
@@ -1525,7 +1525,7 @@ function createGUIs() {
 
             if (value.toLowerCase() == 'abl kinase') {
                 value = 'A';
-            } else if (value.toLowerCase() == 'drug') {
+            } else if (value.toLowerCase() == 'ponatinib') {
                 value = 'D';
             }
 
@@ -1652,7 +1652,7 @@ function createGUIs() {
 
             if (chain.toLowerCase() == 'abl kinase') {
                 chain = 'A';
-            } else if (chain.toLowerCase() == 'drug') {
+            } else if (chain.toLowerCase() == 'ponatinib') {
                 chain = 'D';
             }
 
@@ -1691,9 +1691,9 @@ function createGUIs() {
             const type = params.withinDropdownParams.withinDropdown; 
             let value = params.withinResParams.withinRes;
 
-            if (value.toLowerCase() == 'drug') {
+            if (value.toLowerCase() == 'ponatinib') {
                 value = 'D';
-            } else if (value.toLowerCase() == 'abl kinase') {
+            } else if (value.toLowerCase() == 'ponatinib') {
                 value = 'A'
             }
 
@@ -2280,8 +2280,9 @@ function raycast(event)
     mouse.x = ((event.clientX - rect.left) / containerRect.width) * 2 - 1; // Adjust for container's width
     mouse.y = -((event.clientY - rect.top) / containerRect.height) * 2 + 1; // Adjust for container's height
     raycaster.setFromCamera( mouse, camera );  
-    raycaster.precision = 0.1;
-    raycaster.far = 10000;
+    raycaster.precision = 1;
+    raycaster.params.Points.threshold = 0.2;
+    //raycaster.far = 10000;
 
     // does the mouse intersect with an object in our scene?
     let intersects = raycaster.intersectObjects(scene.children);
