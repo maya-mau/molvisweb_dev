@@ -2247,7 +2247,8 @@ function drawLine(object1, object2) {
     root.add(line);
     distanceLines.push(line);
     line.atoms = [object1, object2];
-    console.log('line.atoms', line.atoms);
+    line.distance = distance;
+    console.log('line', line);
 
     // create text to display distance
     const canvas = document.createElement('canvas');
@@ -2402,13 +2403,25 @@ function raycast(event)
                         });
                     }
 
+                    // remove the line from the distanceLines array
+                    distanceLines = distanceLines.filter(line => line !== existingLine);
+
+                    console.log('existingLine.distance', existingLine.distance);
+
+                    // remove bond information from side panel
+                    let bondLengthHTMLElems = Array.from(document.getElementsByClassName("bond-length")); 
+
+                    for (let elem of bondLengthHTMLElems) {
+                        if (elem.textContent == ("bond length: " + existingLine.distance)) {
+                            elem.remove();
+                            console.log('elem removed', elem);
+                        }
+                    }
+
                     // delete line
                     root.remove(existingLine);
                     existingLine.geometry.dispose();
                     existingLine.material.dispose();
-
-                    // remove the line from the distanceLines array
-                    distanceLines = distanceLines.filter(line => line !== existingLine);
 
                     console.log("Removed existing bond and label");
 
