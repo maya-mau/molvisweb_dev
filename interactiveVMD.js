@@ -618,7 +618,7 @@ function loadMolecule(model, representation, rep) {
                     object.chain = chain;
                     object.atomName = atomName; // json_atoms.atoms[i][7]
                     object.resName = resName;
-                    object.printableString = resName + residue.toString() + ':' + atomName;
+                    object.printableString = resName + residue.toString() + ':' + atomName.toUpperCase();
                     object.atomInfoSprite = null;
 
                     console.log('residue', residue);
@@ -2134,15 +2134,9 @@ function resetMoleculeOrientation () {
 const resetButton = document.getElementById("reset");
 resetButton.addEventListener("click", resetToInitialView); 
 
-const clearButton = document.getElementById("clear");
-clearButton.addEventListener("click", function () {
-    console.log("in clearButton event listener");
-    resetScene();
-    
-    loadMolecule(defaultParams.mculeParams.molecule, CPK, 0);
+const clearButton = document.getElementById("clear-bonds");
 
-    resetEverything();
-})
+clearButton.addEventListener("click", deleteBondDistances)
 
 
 // functions to manipulate atom states
@@ -2290,7 +2284,7 @@ function drawAtomStr(atom) {
     //console.log('worldTextWidth', worldTextWidth);
     //sprite.position.set(x + worldTextWidth/1.1, y, z + worldTextWidth/1.1);
 
-    sprite.position.set(x + worldTextWidth / 2 + 1/3 + padding, y, z); // HERE LOSER
+    sprite.position.set(x + worldTextWidth / 2 + 1/3 + padding, y, z); 
 
     atom.atomInfoSprite = sprite;
 
@@ -2388,12 +2382,20 @@ function deleteBondDistances() {
     console.log("Type of root:", typeof root);
     console.log("Is root an instance of THREE.Object3D?", root instanceof THREE.Object3D);
     console.log("Does root have traverse?", typeof root.traverse === "function"); */
+    
+    let objectsToRemove = [];
 
     root.traverse( (obj) => {
+        
         if (obj.isSprite || obj.isLine) {
-            root.remove(obj);
+            console.log('found a sprite or line');
+            console.log("obj", obj);
+            
+            objectsToRemove.push(obj);
         }
     })
+
+    objectsToRemove.forEach(obj => root.remove(obj));
 }
 
 function resetMouseModes() {
