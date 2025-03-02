@@ -11,7 +11,6 @@ import { GUI } from 'three/addons/libs/lil-gui.module.min.js';
 //import { TW } from '/TWPackage.js';
 //import { TW } from 'tw';
 
-//import CameraControls from 'camera-controls'; //'./node_modules/camera-controls/dist/camera-controls.module.js';
 import CameraControls from 'https://cdn.jsdelivr.net/npm/camera-controls/dist/camera-controls.module.js';
 
 CameraControls.install( { THREE: THREE } );
@@ -60,9 +59,10 @@ const defaultParams = {
     withinResParams: { withinRes: "" }
 }
 
-var selectedObject = null;
+let selectedObject = null;
 
-var distanceMeasurementAtoms = [];
+let distanceMeasurementAtoms = [];
+let distanceLines = [];
 var mainColor = null; 
 const atomContent = document.getElementsByClassName('atom-content')[0];
 
@@ -303,6 +303,9 @@ function init() {
 
     const deleteRep = document.getElementById('delete-rep');
     deleteRep.addEventListener('click', onDeleteRepClick);
+
+    const hideRep = document.getElementById('hide-rep');
+    hideRep.addEventListener('click', onHideRepClick);
 
     const hideQuestions = document.getElementById('hide-questions');
     hideQuestions.addEventListener('click', onHideQuestions);
@@ -1291,7 +1294,6 @@ function onDeleteRepClick () {
 
         repStates[currentRep] = false;
 
-
         // show an existing rep
         for (let i = maxRepTabs - 1; i >= 0; i--) {
             if (repStates[i]) {
@@ -1304,6 +1306,33 @@ function onDeleteRepClick () {
     } else {
         console.log("Cannot delete rep, only one left");
     }
+}
+
+// when delete rep button is clicked, "delete" currently active rep
+function onHideRepClick () {
+    // hide appropriate molecule
+    let moleculeGUIdiv = document.getElementById(makeRepContentId(currentRep));
+    console.log("moleculeGUIdiv", moleculeGUIdiv);
+    let currentStyle = moleculeGUIdiv.dataset.currentStyle;
+
+    console.log('in onDeleteRepClick, hiding', currentStyle, currentRep); 
+
+    // reset atoms to default color
+    resetMoleculeColor(currentRep);
+
+    hideMolecule(currentStyle, currentRep);
+
+    // hide all reps
+    hideAllReps();
+
+    // hide rep 
+    tabs[currentRep].style.display = 'none';
+
+    // reset rep's GUIs
+    resetTab(currentRep);
+
+    repStates[currentRep] = false;
+
 }
 
 function onHideQuestions() {
@@ -2176,6 +2205,17 @@ function calculateDistanceXYZ(ls1, ls2) {
     return distance.toFixed(4);
 }
 
+// Given two atoms, check existing lines drawn to see if the atoms have a line between them
+// returns line object
+function findExistingLine(atom1, atom2) {
+    console.log('distanceLines', distanceLines);
+
+    return distanceLines.find(line => {
+        const [a1, a2] = line.atoms;
+        return (a1 === atom1 && a2 === atom2) || (a1 === atom2 && a2 === atom1);
+    });
+}
+
 function drawLine(object1, object2) {
     let distance = calculateDistance(object1, object2);
 
@@ -2185,6 +2225,8 @@ function drawLine(object1, object2) {
     let x2 = object2.position.x;
     let y2 = object2.position.y;
     let z2 = object2.position.z;
+
+    console.log('objects', object1, object2);
 
     const material = new THREE.LineDashedMaterial( {
         color: 0xffffff,
@@ -2203,6 +2245,9 @@ function drawLine(object1, object2) {
 
     const line = new THREE.Line(geometry, material);
     root.add(line);
+    distanceLines.push(line);
+    line.atoms = [object1, object2];
+    console.log('line.atoms', line.atoms);
 
     // create text to display distance
     const canvas = document.createElement('canvas');
@@ -2286,7 +2331,7 @@ function raycast(event)
 
     // does the mouse intersect with an object in our scene?
     let intersects = raycaster.intersectObjects(scene.children);
-    console.log("intersects", intersects);
+    //console.log("intersects", intersects);
    
     if (intersects.length > 0) { // if there are objects intersecting with the mouse
 
@@ -2341,14 +2386,43 @@ function raycast(event)
             } else if (distanceMeasurementAtoms.length == 1) {
                 //console.log("now two atoms");
                 distanceMeasurementAtoms.push(currentAtom); // now the array has 2 atoms in it
-                //console.log(distanceMeasurementAtoms[0], distanceMeasurementAtoms[1])
 
-                drawLine(distanceMeasurementAtoms[0], distanceMeasurementAtoms[1]);
-                var bond_para = document.createElement('p')
-                //console.log(distanceMeasurementAtoms[0], distanceMeasurementAtoms[1]);
-                bond_para.textContent = 'bond length: ' + calculateDistance(distanceMeasurementAtoms[0], distanceMeasurementAtoms[1]).toString();
-                bond_para.classList.add("bond-length");
-                atomContent.appendChild(bond_para); 
+                let existingLine = findExistingLine(distanceMeasurementAtoms[0], distanceMeasurementAtoms[1])
+                if (existingLine) { // if the two atoms in distanceMeasurementAtoms have a bond between them, delete the bond
+
+                    // delete sprite associated with line
+                    if (existingLine.children.length > 0) {
+                        existingLine.children.forEach(child => {
+                            
+                            existingLine.remove(child); // Remove sprite from line
+                            child.material.map.dispose(); // Free up GPU memory
+                            child.material.dispose();
+                            child.geometry.dispose();
+                            
+                        });
+                    }
+
+                    // delete line
+                    root.remove(existingLine);
+                    existingLine.geometry.dispose();
+                    existingLine.material.dispose();
+
+                    // remove the line from the distanceLines array
+                    distanceLines = distanceLines.filter(line => line !== existingLine);
+
+                    console.log("Removed existing bond and label");
+
+                } else {
+
+                    drawLine(distanceMeasurementAtoms[0], distanceMeasurementAtoms[1]);
+
+                    // add bond length information to left panel
+                    var bond_para = document.createElement('p')
+                    bond_para.textContent = 'bond length: ' + calculateDistance(distanceMeasurementAtoms[0], distanceMeasurementAtoms[1]).toString();
+                    bond_para.classList.add("bond-length");
+                    atomContent.appendChild(bond_para); 
+                }
+                
             } else {
                 //console.log("too many atoms, cleared");
                 distanceMeasurementAtoms = []; // clear array
