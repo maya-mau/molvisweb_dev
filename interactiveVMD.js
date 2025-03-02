@@ -178,6 +178,8 @@ function init() {
 
     globalThis.camera = camera;
     scene.add( camera );
+    camera.layers.enable(0);
+    camera.layers.enable(1);
 
     // object needs to be illuminated to be visible // TODO, could work on this, lighting is kind of strange
     var ambientLight = new THREE.AmbientLight ( 0xffffff, 1);
@@ -237,16 +239,16 @@ function init() {
         // Event listener for key presses
         document.addEventListener("keydown", (event) => {
             switch (event.code) {
-                case "ArrowLeft":  // Move left
+                case "ArrowRight": // Move right
                 controls.truck(moveSpeed, 0, true);
                     break;
-                case "ArrowRight": // Move right
+                case "ArrowLeft":  // Move left
                     controls.truck(-moveSpeed, 0, true);
                     break;
-                case "ArrowUp":    // Move up
+                case "ArrowDown":  // Move down
                     controls.truck(0, moveSpeed, true);
                     break;
-                case "ArrowDown":  // Move down
+                case "ArrowUp":    // Move up
                     controls.truck(0, -moveSpeed, true);
                     break;
             }
@@ -603,6 +605,7 @@ function loadMolecule(model, representation, rep) {
         
                     // create atom object that is a sphere with the position, color, and content we want 
                     const object = new THREE.Mesh( sphereGeometry, material );
+                    object.layers.set(0);
                     object.position.copy( position );
                     //object.position.multiplyScalar( 75 ); // TODOlater figure out why scaling
                     //object.scale.multiplyScalar( 25 );
@@ -616,6 +619,7 @@ function loadMolecule(model, representation, rep) {
                     object.atomName = atomName; // json_atoms.atoms[i][7]
                     object.resName = resName;
                     object.printableString = resName + residue.toString() + ':' + atomName;
+                    object.atomInfoSprite = null;
 
                     console.log('residue', residue);
                     console.log('atomName', atomName);
@@ -2246,9 +2250,9 @@ function drawAtomStr(atom) {
     canvas.width = containerWidth;
     canvas.height = containerHeight;
 
-    const padding = 10;
+    const padding = 0.1;
 
-    console.log('container w h', containerWidth, containerHeight);
+    //console.log('container w h', containerWidth, containerHeight);
 
     const context = canvas.getContext('2d');
 
@@ -2257,7 +2261,7 @@ function drawAtomStr(atom) {
     context.textAlign = 'center';   
     context.textBaseline = 'middle';  
 
-    console.log('atom.printableString', atom.printableString);
+    //console.log('atom.printableString', atom.printableString);
 
     context.fillText(atom.printableString, canvas.width/2, canvas.height/2);
 
@@ -2275,6 +2279,7 @@ function drawAtomStr(atom) {
 
     // Create a Sprite using the material
     const sprite = new THREE.Sprite(textMaterial);
+    sprite.layers.set(1);
 
     // Set the size of the sprite (scale)
     sprite.scale.set(textSize, textSize, textSize); 
@@ -2282,9 +2287,16 @@ function drawAtomStr(atom) {
     const spriteScale = 0.005;
     
     const worldTextWidth = textWidth * spriteScale;
-    console.log('worldTextWidth', worldTextWidth);
-    sprite.position.set(x + worldTextWidth/1.1, y, z + worldTextWidth/1.1);
+    //console.log('worldTextWidth', worldTextWidth);
+    //sprite.position.set(x + worldTextWidth/1.1, y, z + worldTextWidth/1.1);
 
+    sprite.position.set(x + worldTextWidth / 2 + 1/3 + padding, y, z); // HERE LOSER
+
+    atom.atomInfoSprite = sprite;
+
+    
+    console.log('atom.atomInfoSprite', atom.atomInfoSprite);
+    console.log('atom', atom);
     root.add(sprite);
 
     renderer.render(scene, camera);
@@ -2392,13 +2404,15 @@ function resetMouseModes() {
 }
 
 // on click 
-function raycast(event)
-{
+function raycast(event) {
+
     //get mouse location specific to given container size 
     var rect = renderer.domElement.getBoundingClientRect();
     var containerRect = container.getBoundingClientRect(); // Get container's bounding rectangle
     mouse.x = ((event.clientX - rect.left) / containerRect.width) * 2 - 1; // Adjust for container's width
     mouse.y = -((event.clientY - rect.top) / containerRect.height) * 2 + 1; // Adjust for container's height
+
+    raycaster.layers.set(0);
     raycaster.setFromCamera( mouse, camera );  
     raycaster.precision = 1;
     raycaster.params.Points.threshold = 0.2;
@@ -2406,7 +2420,7 @@ function raycast(event)
 
     // does the mouse intersect with an object in our scene?
     let intersects = raycaster.intersectObjects(scene.children);
-    //console.log("intersects", intersects);
+    console.log("intersects", intersects);
    
     if (intersects.length > 0) { // if there are objects intersecting with the mouse
 
@@ -2456,19 +2470,39 @@ function raycast(event)
 
             if (distanceMeasurementAtoms.length == 0) {
 
+                console.log('HERE currently has one atom');
                 distanceMeasurementAtoms.push(currentAtom); // distanceMeasurementAtoms array currently has 1 atom in it
                 // display atom printableStr
-                drawAtomStr(distanceMeasurementAtoms[0]);
-                console.log('drew atom str', currentAtom);
+
+                // if current atom has info printed, remove
+                if (currentAtom.atomInfoSprite != null) {
+                    let tempSprite = currentAtom.atomInfoSprite;
+                    
+                    tempSprite.material.map.dispose(); // Free up GPU memory
+                    tempSprite.material.dispose();
+                    tempSprite.geometry.dispose();
+
+                    currentAtom.atomInfoSprite = null;  
+                    root.remove(tempSprite);
+
+                } else {
+                    drawAtomStr(distanceMeasurementAtoms[0]);
+                    console.log('drew atom str', currentAtom);
+                }
+
+                //drawAtomStr(distanceMeasurementAtoms[0]);
+                
 
                 return;
 
             } else if (distanceMeasurementAtoms.length == 1) {
 
                 distanceMeasurementAtoms.push(currentAtom); // distanceMeasurementAtoms array currently has 2 atoms in it
+                console.log('HERE currently has two atoms');
 
                 let existingLine = findExistingLine(distanceMeasurementAtoms[0], distanceMeasurementAtoms[1])
-                if (existingLine) { // if the two atoms in distanceMeasurementAtoms have a bond between them, delete the bond
+
+                if (existingLine) { // if the two atoms in distanceMeasurementAtoms have a bond between them, delete the bond and the atom info
 
                     // delete sprite associated with line
                     if (existingLine.children.length > 0) {
@@ -2502,7 +2536,24 @@ function raycast(event)
                     existingLine.geometry.dispose();
                     existingLine.material.dispose();
 
-                    console.log("Removed existing bond and label");
+                    // delete atom info strings for each atom
+                    for (let atom of distanceMeasurementAtoms) {
+                        console.log('atom', atom);
+                        console.log('atom.children', atom.children);
+                        if (atom.atomInfoSprite != null) {
+                            let tempSprite = atom.atomInfoSprite;
+                            
+                            tempSprite.material.map.dispose(); // Free up GPU memory
+                            tempSprite.material.dispose();
+                            tempSprite.geometry.dispose();
+        
+                            atom.atomInfoSprite = null;  
+                            root.remove(tempSprite);
+        
+                        }
+                    }
+                    
+                    console.log("Removed existing bond and labels");
 
                 } else {
 
@@ -2518,10 +2569,30 @@ function raycast(event)
                 }
                 
             } else {
-                //console.log("too many atoms, cleared");
+                console.log("HERE too many atoms, cleared");
                 distanceMeasurementAtoms = []; // clear array
                 distanceMeasurementAtoms.push(currentAtom); // now the array has 1 atom in it
-                drawAtomStr(distanceMeasurementAtoms[0]);
+
+                console.log('currentAtom', currentAtom);
+                console.log('currentAtom children', currentAtom.children);
+                console.log('current atom children length', currentAtom.children.length);
+                
+                // if current atom has info printed, remove
+                if (currentAtom.atomInfoSprite != null) {
+                    let tempSprite = currentAtom.atomInfoSprite;
+                    
+                    tempSprite.material.map.dispose(); // Free up GPU memory
+                    tempSprite.material.dispose();
+                    tempSprite.geometry.dispose();
+
+                    currentAtom.atomInfoSprite = null;  
+                    root.remove(tempSprite);
+
+                } else {
+                    drawAtomStr(distanceMeasurementAtoms[0]);
+                    console.log('drew atom str', currentAtom);
+                }
+                
                 return;
             };
 
@@ -2536,7 +2607,7 @@ function raycast(event)
 
 
             // center rotation around current atom
-            if (camera.isOrthographicCamera) { // orthographic camera, uses orbit controls
+            if (camera.isOrthographicCamera) { // orthographic camera, uses imported controls
                 // Calculate the shift in target position
                 let objWorldPosition = new THREE.Vector3();
                 selectedObject.getWorldPosition(objWorldPosition);
