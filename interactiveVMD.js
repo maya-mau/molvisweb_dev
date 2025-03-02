@@ -572,6 +572,9 @@ function loadMolecule(model, representation, rep) {
                     //console.log('loaded atoms for style', key);
                     
                     let atomName = json_atoms.atoms[i][7];
+                    let residue = json_atoms.atoms[i][5];
+                    let resName = json_atoms.atoms[i][8];
+                    let chain = json_atoms.atoms[i][6];
 
                     let color = new THREE.Color().setRGB(colors.getX( i ), colors.getY( i ), colors.getZ( i ));
 
@@ -608,9 +611,18 @@ function loadMolecule(model, representation, rep) {
                     object.molecularElement = "atom";
                     object.style = key;
                     object.repNum = n;
-                    object.residue = json_atoms.atoms[i][5];
-                    object.chain = json_atoms.atoms[i][6];
-                    object.atomName = atomName;
+                    object.residue = residue;
+                    object.chain = chain;
+                    object.atomName = atomName; // json_atoms.atoms[i][7]
+                    object.resName = resName;
+                    object.printableString = resName + residue.toString() + ':' + atomName;
+
+                    console.log('residue', residue);
+                    console.log('atomName', atomName);
+                    console.log('resName', resName);
+
+                    console.log('object.printableString', object.printableString);
+
                     object.originalColor = new THREE.Color().setRGB(colors.getX( i ), colors.getY( i ), colors.getZ( i ));
 
                     object.material.color.set(color);
@@ -2216,6 +2228,68 @@ function findExistingLine(atom1, atom2) {
     });
 }
 
+// draw printableString next to atom
+function drawAtomStr(atom) {
+    
+    let x = atom.position.x;
+    let y = atom.position.y;
+    let z = atom.position.z;        
+
+    // create text to display atom printableString
+    const canvas = document.createElement('canvas');
+    const containerWidth = container.clientWidth;
+    const containerHeight = container.clientHeight;
+
+    /* canvas.width = 10;  
+    canvas.height = 10; 
+    const padding = 10; */
+    canvas.width = containerWidth;
+    canvas.height = containerHeight;
+
+    const padding = 10;
+
+    console.log('container w h', containerWidth, containerHeight);
+
+    const context = canvas.getContext('2d');
+
+    context.fillStyle = 'green';
+    context.font = '60px sans-serif';
+    context.textAlign = 'center';   
+    context.textBaseline = 'middle';  
+
+    console.log('atom.printableString', atom.printableString);
+
+    context.fillText(atom.printableString, canvas.width/2, canvas.height/2);
+
+    const textWidth = context.measureText(atom.printableString).width;
+
+    // Create the texture from the canvas
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.needsUpdate = true;
+
+    // Create a SpriteMaterial with the canvas texture
+    const textMaterial = new THREE.SpriteMaterial({
+        map: texture,
+        transparent: true
+    });
+
+    // Create a Sprite using the material
+    const sprite = new THREE.Sprite(textMaterial);
+
+    // Set the size of the sprite (scale)
+    sprite.scale.set(textSize, textSize, textSize); 
+
+    const spriteScale = 0.005;
+    
+    const worldTextWidth = textWidth * spriteScale;
+    console.log('worldTextWidth', worldTextWidth);
+    sprite.position.set(x + worldTextWidth/1.1, y, z + worldTextWidth/1.1);
+
+    root.add(sprite);
+
+    renderer.render(scene, camera);
+}
+
 function drawLine(object1, object2) {
     let distance = calculateDistance(object1, object2);
 
@@ -2271,7 +2345,7 @@ function drawLine(object1, object2) {
 
     //console.log("canvas.width/2: ", containerWidth/2);
     //console.log("canvas.height/2: ", containerHeight/2); 
-    context.fillText(distance, canvas.width / 2, canvas.height/2);
+    context.fillText(distance, canvas.width/2, canvas.height/2);
 
     // Create the texture from the canvas
     const texture = new THREE.CanvasTexture(canvas);
@@ -2381,12 +2455,17 @@ function raycast(event)
             //console.log("isDistanceMeasurementMode on");
 
             if (distanceMeasurementAtoms.length == 0) {
-                console.log("only one atom so far");
-                distanceMeasurementAtoms.push(currentAtom); // now the array has 1 atom in it
+
+                distanceMeasurementAtoms.push(currentAtom); // distanceMeasurementAtoms array currently has 1 atom in it
+                // display atom printableStr
+                drawAtomStr(distanceMeasurementAtoms[0]);
+                console.log('drew atom str', currentAtom);
+
                 return;
+
             } else if (distanceMeasurementAtoms.length == 1) {
-                //console.log("now two atoms");
-                distanceMeasurementAtoms.push(currentAtom); // now the array has 2 atoms in it
+
+                distanceMeasurementAtoms.push(currentAtom); // distanceMeasurementAtoms array currently has 2 atoms in it
 
                 let existingLine = findExistingLine(distanceMeasurementAtoms[0], distanceMeasurementAtoms[1])
                 if (existingLine) { // if the two atoms in distanceMeasurementAtoms have a bond between them, delete the bond
@@ -2429,6 +2508,8 @@ function raycast(event)
 
                     drawLine(distanceMeasurementAtoms[0], distanceMeasurementAtoms[1]);
 
+                    drawAtomStr(distanceMeasurementAtoms[1]);
+
                     // add bond length information to left panel
                     var bond_para = document.createElement('p')
                     bond_para.textContent = 'bond length: ' + calculateDistance(distanceMeasurementAtoms[0], distanceMeasurementAtoms[1]).toString();
@@ -2440,6 +2521,7 @@ function raycast(event)
                 //console.log("too many atoms, cleared");
                 distanceMeasurementAtoms = []; // clear array
                 distanceMeasurementAtoms.push(currentAtom); // now the array has 1 atom in it
+                drawAtomStr(distanceMeasurementAtoms[0]);
                 return;
             };
 

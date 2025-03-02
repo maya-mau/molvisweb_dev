@@ -478,8 +478,14 @@ class PDBLoader extends Loader { // PDBLoader class extends Loader class from th
 				const z = parseFloat( lines[ i ].slice( 46, 53 ) );
 				const index = parseInt( lines[ i ].slice( 6, 11 ) ) - 1;
 				const resid = parseInt( lines[ i ].slice( 23, 27) ); // TODO refine these numbers
-				const chain = trim( lines[ i ].slice( 21, 22) );
- 
+				const chain = trim( lines[ i ].slice( 21, 22 ) );
+				const resName = trim( lines[ i ].slice ( 17, 20 ));
+
+				// 0         1         2         3         4
+				// 0123456789012345678901234567890123456789012345678901234567890123456789
+				// ATOM   4552 OCT2 GLY A 284      -2.134   3.325 -15.436  1.00 -0.57
+				// ATOM   4553  N1  DRG D 285      16.230  -9.906   7.916  1.00 -0.60
+
 				let e = trim( lines[ i ].slice( 76, 78 ) ).toLowerCase();
 
 				if (e == '') { // sometimes the PDB file doesn't contain a final column for atom identity, in which case use third column
@@ -488,7 +494,10 @@ class PDBLoader extends Loader { // PDBLoader class extends Loader class from th
 
 				let elem = e[0] // grab the first letter of e only, e.g. "h" from "hd21" - this is the element
 
-				const atomData = [ x, y, z, CPK[ elem ], capitalize( elem ), resid, chain, e];
+				const atomData = [ x, y, z, CPK[ elem ], capitalize( elem ), resid, chain, e, resName];
+				// DRG285:F34
+				// resName + resid + ':' + e
+				// atomData[8] + atomData[5] + ':' + atomData[7]
 
 				if (!residues[resid]) { // creates an array of unique residue numbers present in PDB file
 					residues[resid] = true; // mark residue as seen

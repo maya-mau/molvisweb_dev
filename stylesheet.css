@@ -27,7 +27,9 @@
   } */
   
   .column.left {
-    width: 265px;
+    width: 280px;
+    min-width: 280px;
+    overflow: hidden;
   }
   
   .column.middle {
