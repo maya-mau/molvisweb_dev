@@ -77,7 +77,7 @@ var zero = `<h1>Abridged Activity</h1>
 <p>Thus far, you have learned that imatinib and ponatinib are two drugs that can treat chronic myeloid leukemia. They both bind to a kinase protein called the Bcr-Abl kinase. In addition, you have explored basic ways to use VMD to manipulate and analyze the structure of the drug molecule ponatinib. Next, you will explore the structure of the Abl kinase portion of this protein. Proteins are large complex molecules that are made up of many smaller units called amino acids. An amino acid in a protein is often called a “residue”. Proteins play a critical role in your body. They are required for regulation of the body’s tissues and organs, and they are required for structure and function.</p>
 
 <p class="section-title"><b>Loading the Protein: Abl Kinase into MolVisWeb</b></p>
-<p>1. In the control panel, click select the Abl kinase molecule from the top drop-down menu.</p>
+<p>1. In the control panel, click select the Abl kinase molecule from the top drop-down menu. It might take a few seconds to load.</p>
 <p>2. Now, the Abl kinase protein is shown in your display panel.</p>
 <p>3. Use the skills you have learned thus far to explore the molecule.</p>
 
