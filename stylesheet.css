@@ -59,8 +59,21 @@
   }
 
   .atom-content {
+    margin-left: 5px;
+    padding: 5px;
+    overflow-y: auto;
+  }
+
+  .error-content {
     margin-top: 20px;
-    padding: 10px;
+    margin-left: 5px;
+    padding: 5px;
+    overflow-y: auto;
+  }
+
+  .bond-length-content {
+    padding: 5px;
+    margin-left: 5px;
     overflow-y: auto;
   }
 
