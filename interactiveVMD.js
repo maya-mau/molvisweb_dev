@@ -950,14 +950,11 @@ function showMolecule(style, repNum, selectionMethod, selectionValue, colorValue
 
     //console.log('valid residues', validResidues);
 
-    console.log("LOOK HERE", style, repNum); // HERE LOSER
-
     root.traverse( (obj) => {
-        console.log('obj', obj);
 
         if (obj.isMesh && obj.style == style && obj.repNum == repNum) {
-            console.log('match', obj.style, style, obj.repNum, repNum);
-            console.log('obj', obj);
+            /* console.log('match', obj.style, style, obj.repNum, repNum);
+            console.log('obj', obj); */
 
             if (selectionValue == 'all') {
                 setColor(obj, colorValue);
