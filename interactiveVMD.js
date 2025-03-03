@@ -352,6 +352,7 @@ function resetEverything () {
     numRepTabs = 1;
     showCurrentRep(currentRep);
 
+    document.getElementsByClassName('atom-content')[0].innerHTML = '<p>selected atom: <br>none </p>';
     Array.from(document.getElementsByClassName('bond-length')).forEach( (elem) => elem.remove() );
     Array.from(document.getElementsByClassName('error-para')).forEach( (elem) => elem.remove() );
 
