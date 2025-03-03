@@ -9,6 +9,11 @@
     overflow-y: auto
   }
 
+  .section-title {
+    font-size: 20px;
+    font-weight: bold;
+  }
+
   button {
     font: inherit;
   }
