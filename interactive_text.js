@@ -22,22 +22,25 @@ var zero = `<h1>Abridged Activity</h1>
 <p class="section-title"><b>I. Loading the Drug Molecule into MolVisWeb</b></p>
 <p>1. Open the molecular visualization software (you're already here!)</p>
 <p>2. Three panels are currently visible: the control panel (left), the molecule display panel (middle), and the activities panel (right). Note that the default molecule displayed is Caffeine.</p>
-<p>3. Locate the control panel on the left side of the screen. For the drop-down menu titled “molecule”, switch Caffeine to Ponatinib.</p>
-<p>4. The drug molecule should now be loaded.</p>
-<p>5. Click your mouse anywhere on the molecule and hold. Drag your mouse to move the molecule around the screen. In a few words, describe what you see on your screen.</p>
+<p>3. If you would like to, you can hide the activities panel on the right using the button in the upper right corner of the screen, since all of those questions are in this document.</p>
+<p>4. Locate the control panel on the left side of the screen. For the drop-down menu titled “molecule”, switch Caffeine to Ponatinib.</p>
+<p>5. The drug molecule should now be loaded.</p>
+<p>6. Click your mouse anywhere on the molecule and hold. Drag your mouse to move the molecule around the screen. In a few words, describe what you see on your screen.</p>
 <p>Each atom in the molecule has its own unique color. The colors of the atoms are summarized here: Carbon (grey), Hydrogen (white), Oxygen (red), Nitrogen (blue), Fluorine (green).</p>
-<p>6. What one type of atom makes up most of the molecule?</p>
-<p>7. Do you think the atoms in the molecule are connected with covalent bonds, ionic bonds or intermolecular forces? Explain your answer.</p>
-<p>8. Identify one more structural feature of the molecule that interests you.</p>
+<p>7. What one type of atom makes up most of the molecule?</p>
+<p>8. Do you think the atoms in the molecule are connected with covalent bonds, ionic bonds or intermolecular forces? Explain your answer.</p>
+<p>9. Identify one more structural feature of the molecule that interests you.</p>
 
 <p class="section-title"><b>II. Viewing the Molecule</b></p>
-<p><i>Tip: You can reset the view of the molecule by pressing the “=” key.</i></p>
-<p>1. If you would like to, you can hide the activities panel (this panel!) using the button in the upper right corner of the screen.</p>
-<p>2a. Take a moment to study the drug molecule once again. How many ring-like structures can you find on the molecule?</p>
-<p>2b. Where do you notice that the white colored hydrogen atoms are located on the molecule?</p>
-<p>2c. How many red oxygen atoms do you see?</p>
-<p>2d. Determine the number of green colored fluorine atoms on the molecule.</p>
-<p>3. List two similarities and differences between a 2-D molecular structure of ponatinib and the 3D molecular structure that you can manipulate on your screen.</p>
+<p><i>Tip: You can center the display around the molecule by pressing the “=” key.</i></p>
+<p>1. First, let’s explore translating and rotating the molecule. As you discovered before, dragging the mouse around the screen rotates the molecule. What movement occurs when you use the up, left, right, and down arrow keys to move the molecule?</p>
+<p>2. Now we are going to explore centering and rotating around a specific atom. Press the “c” key to turn on centering mode. Your mouse icon should turn into a pointing finger.</p>
+<p>Pick one atom at one of the ends of the drug molecule and click on it with your mouse. Then press “c” again to exit centering mode and rotate the molecule by dragging with your mouse. Describe how your molecule moves.</p>
+<p>3a. Take a moment to study the drug molecule once again. How many ring-like structures can you find on the molecule?</p>
+<p>3b. Where do you notice that the white colored hydrogen atoms are located on the molecule?</p>
+<p>3c. How many red oxygen atoms do you see?</p>
+<p>3d. Determine the number of green colored fluorine atoms on the molecule.</p>
+<p>4. List two similarities and differences between a 2-D molecular structure of ponatinib and the 3D molecular structure that you can manipulate on your screen.</p>
 
 <p class="section-title"><b>II. Drawing Methods</b></p>
 <p>1. In the control panel, notice the parameters that you are currently working with:</p>

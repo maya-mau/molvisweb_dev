@@ -74,7 +74,7 @@ const errorContent = document.getElementsByClassName('error-content')[0];
 
 const hideShowButton = document.getElementById('hide-show-rep');
 
-var currentMolecule = 'caffeine';
+var currentMolecule = 'caffeine.pdb';
 var currentStyle = defaultParams.repParams.representation;
 var currentSelectionMethod = 'residue';
 var currentSelectionValue = defaultParams.residueParams.residue;
@@ -336,6 +336,22 @@ function init() {
     onWindowResize();
 }
 
+function resetEverythingAndMolecule() {
+
+    //popup();
+    console.log("trying to load", currentMolecule, defaultParams.repParams.representation);
+    residueSelected = 'all';
+
+    console.log('currentMolecule now: ', currentMolecule);
+
+    hideMolecule(currentStyle, currentRep);
+    resetScene();
+    resetEverything();
+    loadMolecule(currentMolecule, defaultParams.repParams.representation, currentRep);
+
+    //showMolecule(defaultParams.repParams.representation, currentRep, 'residue', 'all', 'Name'); 
+    //popdown();
+}
 
 function resetEverything () {
     resetGUIs();
@@ -494,6 +510,8 @@ function loadMolecule(model, representation, rep) {
 
     console.log('in new new version that creates a new copy and atoms/bonds for every tab')
     console.log("loading model", model, "representation", representation);
+
+    currentMolecule = model;
 
     // grab model file 
     const url = './models/molecules/' + model;
@@ -860,7 +878,6 @@ function showMolecule(style, repNum, selectionMethod, selectionValue, colorValue
     let startTime = new Date();
 
     if (repStates[repNum] == hidden) {
-        console.log('OOPS hidden, not showing');
         return;
     }
 
@@ -869,7 +886,7 @@ function showMolecule(style, repNum, selectionMethod, selectionValue, colorValue
     currentSelectionMethod = selectionMethod;
     //console.log('selectionValue:', selectionValue, typeof selectionValue);
 
-    if (typeof selectionValue == 'string') { selectionValue = selectionValue.split(' ') }
+    //if (typeof selectionValue == 'string') { selectionValue = selectionValue.split(' ') }
     currentSelectionValue = selectionValue;
     //currentColorValue = colorValue;
 
@@ -880,6 +897,8 @@ function showMolecule(style, repNum, selectionMethod, selectionValue, colorValue
     let validResidues = {};
 
     if (selectionMethod == 'distance') {
+
+        selectionValue = selectionValue.split(' ');
 
         const distance = Number(selectionValue[0]);
         const type = selectionValue[1];
@@ -931,11 +950,14 @@ function showMolecule(style, repNum, selectionMethod, selectionValue, colorValue
 
     //console.log('valid residues', validResidues);
 
+    console.log("LOOK HERE", style, repNum); // HERE LOSER
+
     root.traverse( (obj) => {
+        console.log('obj', obj);
 
         if (obj.isMesh && obj.style == style && obj.repNum == repNum) {
-            //console.log('match', obj.style, style, obj.repNum, repNum);
-            //console.log('obj', obj);
+            console.log('match', obj.style, style, obj.repNum, repNum);
+            console.log('obj', obj);
 
             if (selectionValue == 'all') {
                 setColor(obj, colorValue);
@@ -1319,7 +1341,7 @@ function resetTab(repNum) {
     moleculeGUIdiv.dataset.currentSelectionValue = 'all';
 
     /* let repTabDiv = document.getElementById(makeSMTabId(repNum, 'residue'));
-    repTabDiv.style.display = 'block'; // HERE LOSER
+    repTabDiv.style.display = 'block';
 
     let repTabDiv = document.getElementById(makeSMTabId(repNum, 'residue'));
     repTabDiv.style.display = 'block'; */
@@ -2250,8 +2272,8 @@ function resetMoleculeOrientation () {
     } */
 }
 
-const resetButton = document.getElementById("reset");
-resetButton.addEventListener("click", resetToInitialView); 
+const resetButton = document.getElementById('reset-everything');
+resetButton.addEventListener("click", resetEverythingAndMolecule); 
 
 const clearButton = document.getElementById("clear-bonds");
 
