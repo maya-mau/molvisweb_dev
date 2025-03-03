@@ -2653,7 +2653,7 @@ function raycast(event) {
                     let bondLengthHTMLElems = Array.from(document.getElementsByClassName("bond-length")); 
 
                     for (let elem of bondLengthHTMLElems) {
-                        if (elem.textContent == ("bond length: " + existingLine.distance)) {
+                        if (elem.textContent == ("bond length: " + existingLine.distance + " angstroms")) {
                             elem.remove();
                             //console.log('elem removed', elem);
                         }
@@ -2691,7 +2691,7 @@ function raycast(event) {
 
                     // add bond length information to left panel
                     var bond_para = document.createElement('p')
-                    bond_para.textContent = 'bond length: ' + calculateDistance(distanceMeasurementAtoms[0], distanceMeasurementAtoms[1]).toString();
+                    bond_para.textContent = 'bond length: ' + calculateDistance(distanceMeasurementAtoms[0], distanceMeasurementAtoms[1]).toString() + " angstroms";
                     bond_para.classList.add("bond-length");
                     bondLengthContent.appendChild(bond_para); 
                 }
