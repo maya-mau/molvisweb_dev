@@ -1,1 +1,4 @@
-This is a forked repository from my original thesis repository to create a simplified version of the website to pinpoint the cause of slow rotation for large molecules. 
+# maya-mau.github.io/molvisweb/
+## ^ go view the website!
+
+This is a forked repository from scoutdp.github.io! Thank you Scout for letting me continue this project. 
