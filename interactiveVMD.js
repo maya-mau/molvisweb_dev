@@ -38,9 +38,8 @@ let camera, scene, renderer, labelRenderer, container;
 let controls;
 let root = new THREE.Group();
 let geometryAtoms, geometryBonds, json_atoms, json_bonds, json_bonds_manual, json_bonds_conect, residues, chains;
+// let outlinePass, composer;
 var raycaster, mouse = {x: 0, y: 0 }
-
-globalThis.raycaster = raycaster;
 
 const cameraOption = 'orthographic';
 
@@ -88,7 +87,7 @@ var prevRep = null;
 globalThis.numRepTabs = numRepTabs;
 globalThis.currentRep = currentRep;
 
-const maxRepTabs = 3;
+const maxRepTabs = 2;
 
 let guis = [];
 let tabs = [];
@@ -119,6 +118,7 @@ raycaster.params.Line.threshold = 0.1;
 
 // mouse pad variables
 let prevMouse = new THREE.Vector2();
+let mousePadDown = false;
 
 // names to display + associated filename of pdb files 
 const MOLECULES = {
@@ -128,10 +128,13 @@ const MOLECULES = {
     'Ponatinib abl kinase': 'ponatinib_Ablkinase_Jun2022.pdb'
 };
 
+
+
 // call everything! 
 init();
 
 //animate();
+
 
 // init function - sets up scene, camera, renderer, controls, and GUIs 
 function init() {
@@ -153,6 +156,7 @@ function init() {
     }); 
     
     //addAxes();
+    
     
     if (cameraOption == 'orthographic') {
             
@@ -182,8 +186,6 @@ function init() {
 
     globalThis.camera = camera;
     scene.add( camera );
-    camera.layers.enable(0);
-    camera.layers.enable(1);
 
     // object needs to be illuminated to be visible // TODO, could work on this, lighting is kind of strange
     var ambientLight = new THREE.AmbientLight ( 0xffffff, 1);
@@ -202,7 +204,7 @@ function init() {
     root.visible = true;
 
     // renderer makes scene visible 
-    renderer = new THREE.WebGLRenderer( { antialias: true } );
+    renderer = new THREE.WebGLRenderer( { antialias: false } );
     renderer.setPixelRatio(window.devicePixelRatio);
 
     // place the scene in the column middle window 
@@ -232,22 +234,27 @@ function init() {
 		controls.addEventListener( 'update', render ); // call this only in static scenes (i.e., if there is no animation loop)
         controls.setLookAt(0, 0, 100, 0, 0, 0); // Adjust based on molecule's position
         camera.lookAt(controls.getTarget(new THREE.Vector3));
+
+        /* controls.mouseButtons.left = CameraControls.ACTION.TRUCK;
+        controls.mouseButtons.right = CameraControls.ACTION.TRUCK;  
+        controls.mouseButtons.middle = CameraControls.ACTION.TRUCK;   
+        controls.mouseButtons.wheel = CameraControls.ACTION.TRUCK;   */
         
         const moveSpeed = 0.4;
 
         // Event listener for key presses
         document.addEventListener("keydown", (event) => {
             switch (event.code) {
-                case "ArrowRight":  
+                case "ArrowRight": // Move right
                 controls.truck(moveSpeed, 0, true);
                     break;
-                case "ArrowLeft":   
+                case "ArrowLeft":  // Move left
                     controls.truck(-moveSpeed, 0, true);
                     break;
-                case "ArrowDown":   
+                case "ArrowDown":  // Move down
                     controls.truck(0, moveSpeed, true);
                     break;
-                case "ArrowUp":     
+                case "ArrowUp":    // Move up
                     controls.truck(0, -moveSpeed, true);
                     break;
             }
@@ -280,6 +287,9 @@ function init() {
     window.addEventListener('keypress', keypressT);
     window.addEventListener('keypress', keypressR);
     window.addEventListener('keypress', keypressEqual);
+    window.addEventListener('mousedown', mouseDown);
+    window.addEventListener('mouseup', mouseUp);
+    //window.addEventListener('mousemove', mouseMove);
 
     // add event listeners to buttons
     const addRep = document.getElementById('add-rep');
@@ -374,6 +384,7 @@ function storeInitialView() {
 }
 
 function resetScene() {
+    // reset the scene because something new is being loaded 
     while ( root.children.length > 0 ) {
         const object = root.children[ 0 ];
         object.parent.remove( object );
@@ -393,8 +404,8 @@ function getVisibleBoundingBox() {
         } 
     })
 
-    let helper = new THREE.Box3Helper(box, new THREE.Color(0xff0000));  
-    scene.add(helper);   
+    let helper = new THREE.Box3Helper(box, new THREE.Color(0xff0000)); // Red color
+    scene.add(helper);  // Add helper to scene for visualization
     helper.visible = false;
 
     return box;
@@ -477,6 +488,7 @@ function recenterCamera(camera, controls) {
 
 function calculateTime(startTime, endTime, message) {
     let totalTime = Math.abs(endTime - startTime);
+    //console.log('time in milliseconds:', totalTime);
     console.log(message, 'in seconds:', totalTime/1000);
 }
 
@@ -504,6 +516,7 @@ function loadMolecule(model, representation, rep) {
 
     // load by the pdb file 
     PDBloader.load( url, function ( pdb ) {
+        // properties of pdb loader that isolate the atoms & bonds
         let manual = true; // TO DO - use manual for now, implement options for manual OR conect later
 
         if (manual) { 
@@ -517,6 +530,7 @@ function loadMolecule(model, representation, rep) {
         geometryAtoms = pdb.geometryAtoms;
 
         json_atoms = pdb.json_atoms;
+        //console.log("json_atoms.atoms", json_atoms.atoms);
         json_bonds_manual = pdb.json_bonds_manual.bonds_manual;
         json_bonds_conect = pdb.json_bonds_conect.bonds_conect;
 
@@ -532,6 +546,8 @@ function loadMolecule(model, representation, rep) {
         let boxGeometryCPK = new THREE.BoxGeometry( 1/75, 1/75, 0.6 );
         let sphereGeometryVDWCache = {};
         
+        let randTime = new Date();
+
         //starting setup to put atoms into scene 
         geometryAtoms.computeBoundingBox();
         geometryAtoms.boundingBox.getCenter( offset ).negate(); // the offset moves the center of the bounding box to the origin?
@@ -545,7 +561,9 @@ function loadMolecule(model, representation, rep) {
         const position = new THREE.Vector3();
         
         root.visible = true;
-    
+        let randTimeEnd = new Date();
+        calculateTime(randTime, randTimeEnd, 'stuff before atom loading');
+
         let atomStartTime = new Date();
 
         // LOAD IN ATOMS 
@@ -555,6 +573,8 @@ function loadMolecule(model, representation, rep) {
             position.x = positions.getX( i );
             position.y = positions.getY( i );
             position.z = positions.getZ( i );
+
+            //console.log("json_atoms.atoms", json_atoms.atoms)            
             
             // create a set of atoms/bonds for each tab
             for (let n = 0; n < maxRepTabs; n++) {
@@ -596,7 +616,10 @@ function loadMolecule(model, representation, rep) {
         
                     // create atom object that is a sphere with the position, color, and content we want 
                     const object = new THREE.Mesh( sphereGeometry, material );
-                    object.layers.set(0);
+
+                    object.receiveShadow = false;
+                    object.castShadow = false;
+
                     object.position.copy( position );
         
                     object.molecularElement = "atom";
@@ -611,7 +634,9 @@ function loadMolecule(model, representation, rep) {
 
                     /* console.log('residue', residue);
                     console.log('atomName', atomName);
-                    console.log('resName', resName);*/
+                    console.log('resName', resName);
+
+                    console.log('object.printableString', object.printableString); */
 
                     object.originalColor = new THREE.Color().setRGB(colors.getX( i ), colors.getY( i ), colors.getZ( i ));
 
@@ -655,13 +680,9 @@ function loadMolecule(model, representation, rep) {
             color2 = `rgb(${color2[0]}, ${color2[1]}, ${color2[2]})`;
 
             // get bond start & end locations 
-            start.x = positions.getX( i );
-            start.y = positions.getY( i );
-            start.z = positions.getZ( i );
-    
-            end.x = positions.getX( i+1 );
-            end.y = positions.getY( i+1 );
-            end.z = positions.getZ( i+1 );
+            start.set(positions.getX(i), positions.getY(i), positions.getZ(i));
+            end.set(positions.getX(i + 1), positions.getY(i + 1), positions.getZ(i + 1));
+
 
             for (let n = 0; n < maxRepTabs; n++) {
                 //console.log('loaded bonds for tab', n);
@@ -673,6 +694,7 @@ function loadMolecule(model, representation, rep) {
 
                         const bondMaterial = new THREE.MeshPhongMaterial( { color: 0xffffff } );
         
+                        // make bond a rectangular prism & add it to scene 
                         const object = new THREE.Mesh( boxGeometry, bondMaterial );
                         object.position.copy( start );
                         object.position.lerp( end, 0.5 );
@@ -702,6 +724,7 @@ function loadMolecule(model, representation, rep) {
                         const halfBondLength = bondLength / 2;
 
                         boxGeometry = new THREE.BoxGeometry(bondThickness, bondThickness, halfBondLength);  
+                        //console.log('colors', color1, color2);
 
                         const material1 = new THREE.MeshBasicMaterial({ color: color1 });
                         const material2 = new THREE.MeshBasicMaterial({ color: color2 });
@@ -734,6 +757,9 @@ function loadMolecule(model, representation, rep) {
                         bondHalf2.atom1 = atom1;
                         bondHalf2.atom2 = atom2;
                         bondHalf2.originalColor = color2;
+
+                       /*  console.log('bondhalf1', bondHalf1);
+                        console.log('bondHalf2', bondHalf2); */
 
                         root.add(bondHalf1);
                         root.add(bondHalf2);
@@ -851,6 +877,7 @@ function showMolecule(style, repNum, selectionMethod, selectionValue, colorValue
     currentStyle = style;
     currentRep = repNum;
     currentSelectionMethod = selectionMethod;
+    //console.log('selectionValue:', selectionValue, typeof selectionValue);
 
     //if (typeof selectionValue == 'string') { selectionValue = selectionValue.split(' ') }
     currentSelectionValue = selectionValue;
@@ -863,11 +890,8 @@ function showMolecule(style, repNum, selectionMethod, selectionValue, colorValue
     let validResidues = {};
 
     if (selectionMethod == 'distance') {
-        console.log('selectionValue', selectionValue);
 
-        if (typeof selectionValue === "string") {
-            selectionValue = selectionValue.split(' ');
-        }
+        selectionValue = selectionValue.split(' ');
 
         const distance = Number(selectionValue[0]);
         const type = selectionValue[1];
@@ -895,6 +919,8 @@ function showMolecule(style, repNum, selectionMethod, selectionValue, colorValue
             })
         }
         
+        //console.log(target);
+
         // find all residues within the required distance to the target atoms
 
         root.traverse( (obj) => {
@@ -907,12 +933,15 @@ function showMolecule(style, repNum, selectionMethod, selectionValue, colorValue
         
                         if (dist <= distance) {
                             validResidues[obj.residue] = true;
+                            //console.log('found valid residue', obj.residue);
                         } 
                     }
                 }
             }
         })
     }
+
+    //console.log('valid residues', validResidues);
 
     root.traverse( (obj) => {
 
@@ -972,6 +1001,9 @@ function showMolecule(style, repNum, selectionMethod, selectionValue, colorValue
                                 selected = 'A';
                             }
                         }
+
+                        //console.log('in selectionMethod distancce of showMolecule', type);
+
 
                         if (type == 'residue') {
 
@@ -2188,6 +2220,15 @@ function keypressEqual(event) {
     }
 }
 
+function mouseDown(event) {
+    mousePadDown = true;
+    prevMouse.set(event.clientX, event.clientY);
+}
+
+function mouseUp(event) {
+    mousePadDown = false;
+}
+
 
 function resetToInitialView() {
 
@@ -2365,8 +2406,6 @@ function drawAtomStr(atom) {
     const sprite = new THREE.Sprite(textMaterial);
     sprite.repNum = currentRep; 
     
-    sprite.layers.set(1);
-
     // Set the size of the sprite (scale)
     sprite.scale.set(textSize, textSize, textSize); 
 
@@ -2506,104 +2545,8 @@ function resetMouseModes() {
     document.body.style.cursor = 'auto';
 }
 
-
-// helper functions to draw frustrum ray to debug mouse clicking
-
-function vectorToString(v) {
-    return "("+v.x.toFixed(2)+','+
-        v.y.toFixed(2)+','+
-        v.z.toFixed(2)+')';
-}
-
-function drawFrustumRay(mx,my) {
-    var clickPositionNear = new THREE.Vector3( mx, my, 0 );
-    var clickPositionFar  = new THREE.Vector3( mx, my, 1 );
-    console.log("mx: "+mx+" my: "+my);
-    clickPositionNear.unproject(camera);
-    clickPositionFar.unproject(camera);
-    console.log("click near: "+JSON.stringify(clickPositionNear));
-    scene.add(createLine(clickPositionNear,clickPositionFar));
-}
-
-function createLine(a, b) {
-    var geom = new THREE.BufferGeometry();
-
-    // Define vertex positions as a Float32Array
-    var vertices = new Float32Array([
-        a.x, a.y, a.z,
-        b.x, b.y, b.z
-    ]);
-
-    // Define colors for each vertex
-    var colors = new Float32Array([
-        1, 0, 0,  // Color for point 'a'
-        0, 1, 0  // Color for point 'b'
-    ]);
-
-    // Assign attributes to geometry
-    geom.setAttribute('position', new THREE.BufferAttribute(vertices, 3)); // 3 values per vertex (x, y, z)
-    geom.setAttribute('color', new THREE.BufferAttribute(colors, 3)); // RGB colors
-
-    // Define material with vertex colors
-    var mat = new THREE.LineBasicMaterial({ 
-        vertexColors: true, // Enable per-vertex colors
-        linewidth: 5 // Note: linewidth only works on Windows with WebGL1
-    });
-
-    return new THREE.Line(geom, mat);
-}
-
-
-function convertMousePositionToNDC(event) {
-    var mx = event.clientX;
-    var my = event.clientY;
-    // console.log("click at ("+mx+","+my+")");
-    var target = event.target;
-    // console.log("clicked on "+target);
-    var rect = target.getBoundingClientRect();
-    var cx = mx - rect.left;
-    var cy = my - rect.top;
-    var winXSize = rect.width || (rect.right - rect.left);
-    var winYSize = rect.height || (rect.bottom - rect.top);
-    var winHalfXSize = winXSize/2;
-    var winHalfYSize = winYSize/2;
-    // these are in NDC
-    var x = (cx - winHalfXSize) / winHalfXSize;
-    var y = (winHalfYSize - cy) / winHalfYSize;
-    // console.log("clicked on "+target+" at NDC ("+xNDC+","+xNDC+")");
-    var click = {mx: mx, my: my,
-                 cx: cx, cy: cy,
-                 winXSize: winXSize,
-                 winYSize: winYSize,
-                 x: x, y: y};
-    return click;
-}
-
-function handleMouseClick(mx,my,clickNear,clickFar) {
-    scene.add(createLine(clickNear,clickFar));
-}
-
 // on click 
 function raycast(event) {
-
-    if (event.shiftKey) {
-
-        event.preventDefault();
-        var click = convertMousePositionToNDC(event);
-        var clickPositionNear = new THREE.Vector3( click.x, click.y, 0 );
-        var clickPositionFar  = new THREE.Vector3( click.x, click.y, 1 );
-        var before1 = vectorToString(clickPositionNear);
-        var before2 = vectorToString(clickPositionFar);
-        clickPositionNear.unproject(camera);
-        clickPositionFar.unproject(camera);
-        var after1 = vectorToString(clickPositionNear);
-        var after2 = vectorToString(clickPositionFar);
-        var infoElt = document.getElementById('info');
-        /* infoElt.innerHTML = ("onMouseClick: button "+evt.button
-                            +" at "+before1+' and '+before2
-                            + " unprojects to "+after1+' and '+after2); */
-        handleMouseClick(click.x, click.y, clickPositionNear, clickPositionFar );
-    }
 
     //get mouse location specific to given container size 
     var rect = renderer.domElement.getBoundingClientRect();
@@ -2611,16 +2554,14 @@ function raycast(event) {
     mouse.x = ((event.clientX - rect.left) / containerRect.width) * 2 - 1; // Adjust for container's width
     mouse.y = -((event.clientY - rect.top) / containerRect.height) * 2 + 1; // Adjust for container's height
 
-    //raycaster.layers.set(0);
     raycaster.setFromCamera( mouse, camera );  
-    //raycaster.precision = 1;
-    //raycaster.params.Points.threshold = 0.2;
-
-    console.log(raycaster);
+    raycaster.precision = 1;
+    raycaster.params.Points.threshold = 0.2;
+    //raycaster.far = 10000;
 
     // does the mouse intersect with an object in our scene?
     let intersects = raycaster.intersectObjects(scene.children);
-    //console.log("intersects", intersects);
+    console.log("intersects", intersects);
    
     if (intersects.length > 0) { // if there are objects intersecting with the mouse
 
