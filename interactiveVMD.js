@@ -891,8 +891,8 @@ function showMolecule(style, repNum, selectionMethod, selectionValue, colorValue
 
     if (selectionMethod == 'distance') {
 
-        if (typeof selectionValue == 'string') { selectionValue = selectionValue.split(' ') }
-        
+        if (isString(selectionValue)) { selectionValue = selectionValue.split(' '); }
+
         const distance = Number(selectionValue[0]);
         const type = selectionValue[1];
         let selected = selectionValue[2];
