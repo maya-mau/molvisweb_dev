@@ -32,7 +32,7 @@ const red = 'Red';
 const green = 'Green';
 
 // icosahedron 
-const detail = 3;
+const detail = 2;
 const textSize = 5;
 
 // tab IDs
@@ -153,12 +153,6 @@ function init() {
     const containerWidth = container.clientWidth;
     const containerHeight = container.clientHeight;
 
-    document.addEventListener('keydown', function(event) {
-        if (["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(event.code)) {
-            console.log('in preventDefault');
-            event.preventDefault(); 
-        }
-    }); 
     
     //addAxes();
     
@@ -275,10 +269,16 @@ function init() {
     window.addEventListener( 'resize', onWindowResize );
 
     window.addEventListener('click', raycast);
-    window.addEventListener('keypress', keypress2);
+    window.addEventListener('keypress', keypressB);
     window.addEventListener('keypress', keypressC);
     window.addEventListener('keypress', keypressT);
     window.addEventListener('keypress', keypressEqual);
+
+    document.addEventListener('keydown', function(event) {
+        if (["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(event.code)) {
+            event.preventDefault(); 
+        }
+    }); 
 
     // add event listeners to buttons
     const addRep = document.getElementById('add-rep');
@@ -312,7 +312,7 @@ function init() {
 
         loadMolecule(molecule, defaultParams.repParams.representation, currentRep);
         
-        resetEverything();
+        resetInterface();
         //popdown();
     });
 
@@ -323,21 +323,21 @@ function init() {
     onWindowResize();
 }
 
-function resetEverythingAndMolecule() {
+function resetEverything() {
 
     //popup();
-    console.log('in resetEverythingAndMolecule');
+    console.log('in resetEverything');
 
     console.log('currentMolecule now: ', currentMolecule);
 
     resetScene();
-    resetEverything();
+    resetInterface();
     loadMolecule(currentMolecule, defaultParams.repParams.representation, currentRep);
 
     //popdown();
 }
 
-function resetEverything () {
+function resetInterface() {
 
     // remove tab buttons from dom
     Object.values(tabs).forEach((tab) => { 
@@ -1624,7 +1624,6 @@ function openRepTab(repID) {
     console.log('openRepTab', repID);
 
     hideAllReps();
-    prevRep = currentRep;
     currentRep = repID; 
     showCurrentRep(currentRep);
     
@@ -2414,17 +2413,17 @@ function render() {
 
 // keypress event functions
 
-// on keypress '2'
-function keypress2(event) {
-    if (event.key === '2') {
+// on keypress 'b'
+function keypressB(event) {
+    if (event.key === 'b') {
         if (!isDistanceMeasurementMode) {
             isDistanceMeasurementMode = true;
             document.body.style.cursor = 'cell';
             if (!selectedObject) {
-                console.log("in keypress2 event, there is a selectedObject");
+                console.log("in keypressB event, there is a selectedObject");
                 resetAtomState(selectedObject); // reset selected atom state
             } else {
-                console.log("in keypress2 event, there was no a selectedObject");
+                console.log("in keypressB event, there was no a selectedObject");
             }
             console.log("Distance measurement mode activated");
         } else {
@@ -2446,10 +2445,10 @@ function keypressC(event) {
 
             /* //let center = getBoundingBoxCenter();
             if (!selectedObject) {
-                console.log("in keypress2 event, there is a selectedObject");
+                console.log("in keypressB event, there is a selectedObject");
                 resetAtomState(selectedObject); // reset selected atom state
             } else {
-                console.log("in keypress2 event, there was no a selectedObject");
+                console.log("in keypressB event, there was no a selectedObject");
             } */
 
         } else {
@@ -2522,7 +2521,7 @@ function resetMoleculeOrientation () {
 }
 
 const resetButton = document.getElementById('reset-everything');
-resetButton.addEventListener("click", resetEverythingAndMolecule); 
+resetButton.addEventListener("click", resetEverything); 
 
 const clearButton = document.getElementById("clear-bonds");
 
@@ -2812,7 +2811,7 @@ function raycast(event) {
     //raycaster.far = 10000;
 
     let intersects = raycaster.intersectObjects(scene.children);
-    console.log("intersects", intersects);
+    //console.log("intersects", intersects);
    
     if (intersects.length > 0) { 
         let numAtoms = 0
