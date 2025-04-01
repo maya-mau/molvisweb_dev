@@ -1593,18 +1593,22 @@ function parseRepInfo() {
         let selectionMethod = rep.selectionMethod;
         let selectionValue = rep.selectionValue;
         let state = rep.state;
+        console.log('rep', rep);
 
         if (state != shown) {
             console.log(repID, 'is hidden');
             continue;
         }
 
-        console.log('rep', repID, rep);
+        console.log('rep', repID, 'drawing method', drawingMethod);
         /* console.log('drawing method', drawingMethod);
         console.log('selectionMethod', selectionMethod);
         console.log('selectionValue', selectionValue); */
 
         scene.traverse( (obj) => {
+            if (obj.isMesh && obj.drawingMethod == drawingMethod) {
+                console.log('this is a', drawingMethod, 'object!');
+            }
 
             if (obj.isMesh && obj.drawingMethod == drawingMethod && !obj.colorUpdated) { // if obj is atom or bond and color hasn't been updated yet
                 if (isSelected(obj, selectionMethod, selectionValue)) {
@@ -1613,11 +1617,9 @@ function parseRepInfo() {
                     obj.colorUpdated = true; 
                     setColor(obj, coloringMethod);
 
-                    console.log('obj.colorUpdated', obj.colorUpdated, 'setting color to', coloringMethod);
-                    console.log('isSelected was true', obj);
-                } /* else {
-                    obj.visible = false;
-                } */
+                    //console.log('obj.colorUpdated', obj.colorUpdated, 'setting color to', coloringMethod);
+                    //console.log('isSelected was true', obj);
+                } 
             }
         });
     } 
@@ -1627,7 +1629,7 @@ function parseRepInfo() {
         if (obj.isMesh) { // if obj is atom or bond
             obj.colorUpdated = false; 
         }
-    });   
+    });
 }
 
 // assume only called after loadMolecule is called on the desired molecule,
@@ -1906,7 +1908,6 @@ function colorChange(repNum, drawingMethod, colorValue) {
 
 function setColor(obj, colorValue) {
 
-    //console.log('setting color of', obj, colorValue);
     if (colorValue == blue) {                        
         obj.material.color.set(new THREE.Color('rgb(0, 0, 255)')); 
     } else if (colorValue == green) {
@@ -1914,7 +1915,6 @@ function setColor(obj, colorValue) {
     } else if (colorValue == red) {
         obj.material.color.set(new THREE.Color('rgb(255, 0, 0)')); 
     } else if (colorValue == name) {
-        console.log('setting color to Name');
         obj.material.color.set(new THREE.Color(obj.originalColor));
     }
 }
@@ -2720,10 +2720,13 @@ function createGUI() {
     withinResMenu.onFinishChange(withinAsResidue);
 
     //
-    styleMenu.onChange(function(value) {
-        console.log('styleMenu changing to', value, 'with currentRep', currentRep);
+    styleMenu.onChange(function(style) {
+        console.log('styleMenu changing to', style, 'with currentRep', currentRep);
+        let currentRepIndex = findRepIndex(currentRep);
+        repsData[currentRepIndex].drawingMethod = style;
+        parseRepInfo();
 
-        //const styleMenuElement = styleMenu.domElement;
+        /* //const styleMenuElement = styleMenu.domElement;
         let moleculeGUIdiv = document.getElementById(makeRepContentId(currentRep));
         //console.log('styleMenuElement', styleMenuElement);
 
@@ -2742,7 +2745,7 @@ function createGUI() {
         console.log('in styleMenu.onChange, hiding', previousStyle, currentRep);
         hideMolecule(previousStyle, currentRep); 
         console.log('in styleMenu.onChange, showing', currentStyle, currentRep);
-        showMolecule(currentStyle, currentRep, currentSelectionMethod, currentSelectionValue, currentColorValue); 
+        showMolecule(currentStyle, currentRep, currentSelectionMethod, currentSelectionValue, currentColorValue);  */
     }); 
 
     // create div to hold molecule and representation options
