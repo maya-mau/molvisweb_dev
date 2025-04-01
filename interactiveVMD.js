@@ -22,7 +22,6 @@ const reps = [VDW, CPK, lines];
 
 const selectionMethods = ['residue', 'molecule', 'distance'];
 
-const deleted = 'deleted';
 const hidden = 'hidden';
 const shown = 'shown';
 
@@ -1577,6 +1576,13 @@ function parseRepInfo() {
 
     console.log('in parseRepInfo');
 
+    // mark all objects as not visible
+    scene.traverse((obj) => {
+        if (obj.isMesh) {
+            obj.visible = false;
+        }
+    });
+
     // loop backwards through repsData array to get reps from newest to oldest
     for (let i = repsData.length - 1; i >= 0; i--) { 
 
@@ -1590,14 +1596,6 @@ function parseRepInfo() {
 
         if (state != shown) {
             console.log(repID, 'is hidden');
-
-            scene.traverse((obj) => {
-                if (obj.isMesh && obj.drawingMethod == drawingMethod && !obj.colorUpdate) {
-                    //obj.colorUpdate = true;
-                    obj.visible = false;
-                }
-            });
-            
             continue;
         }
 
@@ -1608,15 +1606,18 @@ function parseRepInfo() {
 
         scene.traverse( (obj) => {
 
-            if (obj.isMesh && obj.drawingMethod == drawingMethod && !obj.colorUpdate) { // if obj is atom or bond and color hasn't been updated yet
+            if (obj.isMesh && obj.drawingMethod == drawingMethod && !obj.colorUpdated) { // if obj is atom or bond and color hasn't been updated yet
                 if (isSelected(obj, selectionMethod, selectionValue)) {
-                    //console.log('isSelected was true', obj);
+                    
                     obj.visible = true; 
-                    setColor(obj, coloringMethod);
                     obj.colorUpdated = true; 
-                } else {
+                    setColor(obj, coloringMethod);
+
+                    console.log('obj.colorUpdated', obj.colorUpdated, 'setting color to', coloringMethod);
+                    console.log('isSelected was true', obj);
+                } /* else {
                     obj.visible = false;
-                }
+                } */
             }
         });
     } 
@@ -1913,6 +1914,7 @@ function setColor(obj, colorValue) {
     } else if (colorValue == red) {
         obj.material.color.set(new THREE.Color('rgb(255, 0, 0)')); 
     } else if (colorValue == name) {
+        console.log('setting color to Name');
         obj.material.color.set(new THREE.Color(obj.originalColor));
     }
 }
