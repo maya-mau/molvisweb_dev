@@ -206,11 +206,12 @@
 }
 
 .tab-rep {
-  display: flex;  
-  justify-content: flex-start;
+  width: 100%;  
+  overflow-x: auto; 
+  white-space: nowrap; 
+  display: flex;
   align-items: center;
-  flex-wrap: nowrap;
-  border: none;
+  scrollbar-width: none;  
   background-color: #7C7C7C;
 }
 

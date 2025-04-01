@@ -26,31 +26,9 @@ const deleted = 'deleted';
 const hidden = 'hidden';
 const shown = 'shown';
 
-const name = 'Name';
-const blue = 'Blue';
-const red = 'Red';
-const green = 'Green';
-
 // icosahedron 
 const detail = 3;
 const textSize = 5;
-
-// tab IDs
-const usedTabIDs = new Set();
-const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-
-const repsData = [];
-
-let repDataDefault = {
-    id: null,
-    drawingMethod: CPK,
-    selectionMethod: 'residue',
-    selectionValue: 'all',
-    coloringMethod: name,
-    state: shown
-}
-
-let numObjects = 0; 
 
 console.log("start script")
 
@@ -76,7 +54,7 @@ const offset = new THREE.Vector3();
 const defaultParams = {
     mculeParams: { molecule: 'caffeine.pdb' },
     repParams: { representation: CPK },
-    colorParams: { color: name },
+    colorParams: { color: 'Name' },
     residueParams: { residue: 'all' },
     chainParams: { chain: 'all' },
     atomParams: { atom: 'all' },
@@ -102,19 +80,19 @@ var currentSelectionMethod = 'residue';
 var currentSelectionValue = defaultParams.residueParams.residue;
 
 var numRepTabs = 1;
-var currentRep = null;
+var currentRep = 0;
 var currentGUI = null;
 var prevRep = null;
 
 globalThis.numRepTabs = numRepTabs;
 globalThis.currentRep = currentRep;
 
-const maxRepTabs = 10;
+const maxRepTabs = 2;
 
-let guis = {};
-let tabs = {};
+let guis = [];
+let tabs = [];
 let guiContainers = [];
-//let repStates = Array(maxRepTabs).fill(deleted);
+let repStates = Array(maxRepTabs).fill(deleted);
 
 let frames = 0, prevTime = performance.now();
 const framesOn = false;
@@ -209,7 +187,7 @@ function init() {
     globalThis.camera = camera;
     scene.add( camera );
 
-    // object needs to be illuminated to be visible 
+    // object needs to be illuminated to be visible // TODO, could work on this, lighting is kind of strange
     var ambientLight = new THREE.AmbientLight ( 0xffffff, 1);
     scene.add( ambientLight );
 
@@ -307,6 +285,7 @@ function init() {
     window.addEventListener('keypress', keypress2);
     window.addEventListener('keypress', keypressC);
     window.addEventListener('keypress', keypressT);
+    window.addEventListener('keypress', keypressR);
     window.addEventListener('keypress', keypressEqual);
     window.addEventListener('mousedown', mouseDown);
     window.addEventListener('mouseup', mouseUp);
@@ -348,7 +327,7 @@ function init() {
         //popdown();
     });
 
-    createGUI();    
+    createGUIs();    
 
     //TW.addSceneBoundingBoxHelper(scene);
 
@@ -368,29 +347,22 @@ function resetEverythingAndMolecule() {
     resetEverything();
     loadMolecule(currentMolecule, defaultParams.repParams.representation, currentRep);
 
-    //showMolecule(defaultParams.repParams.representation, currentRep, 'residue', 'all', name); 
+    //showMolecule(defaultParams.repParams.representation, currentRep, 'residue', 'all', 'Name'); 
     //popdown();
 }
 
 function resetEverything () {
+    resetGUIs();
+    hideAllReps();
+        
+    tabs.forEach( (tab) => { tab.style.display = 'none'; })
 
-    // remove tab buttons from dom
-    Object.values(tabs).forEach((tab) => { 
-        tab.remove(); 
-    });
+    for (let i = 0; i < maxRepTabs; i++) {
+        resetTab(i);
+        repStates[i] = deleted;
+    }
 
-    // remove gui dom elements
-    Object.keys(guis).forEach((key) => {
-        //console.log("trying to remove", key, 'from', guis);
-        let gui = guis[key];
-        //console.log('guis[key]', guis[key]);
-        gui.domElement.remove();
-        delete guis[key]; 
-    });
-
-    // create new initial tab and gui
-    repsData.length = 0;
-    createGUI();
+    currentRep = 0;
     numRepTabs = 1;
     showCurrentRep(currentRep);
 
@@ -412,6 +384,7 @@ function storeInitialView() {
 }
 
 function resetScene() {
+    // reset the scene because something new is being loaded 
     while ( root.children.length > 0 ) {
         const object = root.children[ 0 ];
         object.parent.remove( object );
@@ -527,288 +500,13 @@ function resetGUIs() {
     }
 }
 
-function loadMolecule(model) { 
-    let startTime = new Date();
-
-    numObjects = 0;
-
-    //console.log("loading model", model, "representation", representation);
-
-    currentMolecule = model;
-
-    // grab model file 
-    const url = './models/molecules/' + model;
-
-    // load by the pdb file 
-    PDBloader.load( url, function ( pdb ) {
-        // properties of pdb loader that isolate the atoms & bonds
-        let manual = true; // TO DO - use manual for now, implement options for manual OR conect later
-
-        if (manual) { 
-            geometryBonds = pdb.geometryBondsManual; 
-        } else { 
-            geometryBonds = pdb.geometryBondsConect;
-        }
-
-        //console.log("pdb.geometryBondsManual", pdb.geometryBondsManual.attributes.position.array);
-
-        geometryAtoms = pdb.geometryAtoms;
-
-        json_atoms = pdb.json_atoms;
-        //console.log("json_atoms.atoms", json_atoms.atoms);
-        json_bonds_manual = pdb.json_bonds_manual.bonds_manual;
-        json_bonds_conect = pdb.json_bonds_conect.bonds_conect;
-
-        json_bonds = json_bonds_manual;
-
-        residues = pdb.residues;
-        chains = pdb.chains;
-         
-        let sphereGeometry, boxGeometry;
-
-        // pre-build geometries for atoms and bonds
-        let sphereGeometryCPK = new THREE.IcosahedronGeometry(1/3, detail );
-        let boxGeometryCPK = new THREE.BoxGeometry( 1/75, 1/75, 0.6 );
-        let sphereGeometryVDWCache = {};
-        
-        let randTime = new Date();
-
-        //starting setup to put atoms into scene 
-        geometryAtoms.computeBoundingBox();
-        geometryAtoms.boundingBox.getCenter( offset ).negate(); // the offset moves the center of the bounding box to the origin?
-        geometryAtoms.translate( offset.x, offset.y, offset.z );
-        geometryBonds.translate( offset.x, offset.y, offset.z );
-
-        //grab atom content from pdb so their position and color go along 
-        let positions = geometryAtoms.getAttribute( 'position' );
-
-        const colors = geometryAtoms.getAttribute( 'color' );
-        const position = new THREE.Vector3();
-        
-        root.visible = true;
-        let randTimeEnd = new Date();
-        calculateTime(randTime, randTimeEnd, 'stuff before atom loading');
-
-        let atomStartTime = new Date();
-
-        // LOAD IN ATOMS 
-        for ( let i = 0; i < positions.count; i ++ ) {
-
-            // loop through the positions array to get every atom 
-            position.x = positions.getX( i );
-            position.y = positions.getY( i );
-            position.z = positions.getZ( i );
-
-            //console.log("json_atoms.atoms", json_atoms.atoms)            
-            
-            // create a set of atoms/bonds in each of the 3 styles for each tab
-            for (let key of reps) {
-                //console.log('loaded atoms for style', key);
-                
-                let atomName = json_atoms.atoms[i][7];
-                let residue = json_atoms.atoms[i][5];
-                let resName = json_atoms.atoms[i][8];
-                let chain = json_atoms.atoms[i][6];
-
-                let color = new THREE.Color().setRGB(colors.getX( i ), colors.getY( i ), colors.getZ( i ));
-
-                let material = new THREE.MeshPhongMaterial();
-                material.color = color;
-
-                if (key == VDW) {
-                    
-                    // if element doesn't yet exist in VDW cache, create a new geometry and add it
-                    if (!(atomName in sphereGeometryVDWCache)) {
-                        let rad = getRadius(json_atoms.atoms[i][4]) * 0.7; 
-                    
-                        sphereGeometry = new THREE.IcosahedronGeometry(rad, detail);
-                        sphereGeometryVDWCache[atomName] = sphereGeometry;
-                                                
-                    } else {
-                        sphereGeometry = sphereGeometryVDWCache[atomName];
-                    }
-
-                } else if (key == CPK) {
-                    sphereGeometry = sphereGeometryCPK;
-
-                } else if (key == lines) { // skip loading lines
-                    continue;
-                }
-    
-                // create atom object that is a sphere with the position, color, and content we want 
-                const object = new THREE.Mesh( sphereGeometry, material );
-                numObjects += 1;
-
-                object.receiveShadow = false;
-                object.castShadow = false;
-
-                object.position.copy( position );
-    
-                object.molecularElement = "atom";
-                object.drawingMethod = key;
-                //object.repNum = n;
-                object.residue = residue;
-                object.chain = chain;
-                object.atomName = atomName; // json_atoms.atoms[i][7]
-                object.resName = resName;
-                object.printableString = resName + residue.toString() + ':' + atomName.toUpperCase();
-                object.atomInfoSprite = null;
-                object.colorUpdated = false;
-
-                object.originalColor = new THREE.Color().setRGB(colors.getX( i ), colors.getY( i ), colors.getZ( i ));
-
-                object.material.color.set(color);
-                
-                // reference to original pdb within object for raycaster 
-                object.atomValue = i; 
-    
-                // add atom object to scene 
-                root.add( object );
-
-                if (key == CPK) {
-                    object.visible = true;
-                } else {
-                    object.visible = false;
-                }
-            } 
-        }
-
-        let atomEndTime = new Date();
-        calculateTime(atomStartTime, atomEndTime, 'time to load atoms');
-
-        // LOAD BONDS
-        let bondStartTime = new Date();
-        positions = geometryBonds.getAttribute( 'position' );
-        const start = new THREE.Vector3();
-        const end = new THREE.Vector3();
-
-        for ( let i = 0; i < positions.count; i += 2 ) {
-
-            let bond = json_bonds[i/2]; // loops through bonds 0 to however many bonds there are, divide by 2 because i increments by 2 
-            
-            let atom1 = json_atoms.atoms[bond[0]-1];
-            let atom2 = json_atoms.atoms[bond[1]-1];
-            let color1 = atom1[3];
-            let color2 = atom2[3];
-
-            // convert color arrays into HTML strings that can be fed into a new THREE.color
-            color1 = `rgb(${color1[0]}, ${color1[1]}, ${color1[2]})`;
-            color2 = `rgb(${color2[0]}, ${color2[1]}, ${color2[2]})`;
-
-            // get bond start & end locations 
-            start.set(positions.getX(i), positions.getY(i), positions.getZ(i));
-            end.set(positions.getX(i + 1), positions.getY(i + 1), positions.getZ(i + 1));
-
-
-            for (let key of reps) {
-
-                if (key == CPK) {
-                    boxGeometry = boxGeometryCPK;
-
-                    const bondMaterial = new THREE.MeshPhongMaterial( { color: 0xffffff } );
-    
-                    // make bond a rectangular prism & add it to scene 
-                    const object = new THREE.Mesh( boxGeometry, bondMaterial );
-                    object.position.copy( start );
-                    object.position.lerp( end, 0.5 );
-                    object.scale.set( 5, 5, start.distanceTo( end ) );
-
-                    object.molecularElement = "bond";
-                    object.drawingMethod = key;
-                    object.atom1 = atom1;
-                    object.atom2 = atom2;
-                    object.originalColor = 'rgb(255, 255, 255)';
-                    object.colorUpdated = false;
-
-                    object.lookAt( end );
-                    object.visible = true;
-                    root.add( object );
-
-                    numObjects += 1;
-                    
-                } else if (key == lines) {
-
-                    let bondThickness = 0.1;
-                    const bondLength = start.distanceTo(end);
-                    const halfBondLength = bondLength / 2;
-
-                    boxGeometry = new THREE.BoxGeometry(bondThickness, bondThickness, halfBondLength);  
-                    //console.log('colors', color1, color2);
-
-                    const material1 = new THREE.MeshBasicMaterial({ color: color1 });
-                    const material2 = new THREE.MeshBasicMaterial({ color: color2 });
-
-                    const bondHalf1 = new THREE.Mesh(boxGeometry, material1);
-                    const bondHalf2 = new THREE.Mesh(boxGeometry, material2);
-                    
-                    const midpoint = new THREE.Vector3().addVectors(start, end).multiplyScalar(0.5);
-                    const bondDirection = new THREE.Vector3().subVectors(start, end).normalize();
-
-                    const offset = bondDirection.clone().multiplyScalar(halfBondLength / 2);
-
-                    bondHalf1.position.copy(midpoint).add(offset);
-                    bondHalf2.position.copy(midpoint).sub(offset);
-
-                    bondHalf1.lookAt(end);
-                    
-                    bondHalf2.lookAt(start);
-
-                    bondHalf1.molecularElement = "bond";
-                    bondHalf1.drawingMethod = key;
-                    bondHalf1.atom1 = atom1;
-                    bondHalf1.atom2 = atom2;
-                    bondHalf1.originalColor = color1;
-                    bondHalf1.colorUpdated = false;
-
-                    bondHalf2.molecularElement = "bond";
-                    bondHalf2.drawingMethod = key;
-                    bondHalf2.atom1 = atom1;
-                    bondHalf2.atom2 = atom2;
-                    bondHalf2.originalColor = color2;
-                    bondHalf2.colorUpdated = false;
-
-                    /*  console.log('bondhalf1', bondHalf1);
-                    console.log('bondHalf2', bondHalf2); */
-                    bondHalf1.visible = false;
-                    bondHalf2.visible = false;
-
-                    root.add(bondHalf1);
-                    root.add(bondHalf2);
-
-                    numObjects += 1;
-                    numObjects += 1;
-
-                } else if (key == VDW) { // skip VDW, no bonds
-                    continue;
-                }  
-            }
-        }
-
-        let bondEndTime = new Date();
-        calculateTime(bondStartTime, bondEndTime, 'time to load bonds');
-    
-        // render the scene after adding all the new atom & bond objects   
-        storeInitialView();
-
-        console.log('render');         
-        render();
-
-        resetViewCameraWindow();
-
-        let endTime = new Date();
-        calculateTime(startTime, endTime, 'time to loadMolecule');
-
-        console.log('numObjects', numObjects);
-
-    } );
-}
-
 // creates a new copy of atoms and bonds for every tab
 // from the given pdb and given representation style, 
 // then loads default molecul (rep 0, CPK) into scene 
-function loadMolecule_old(model, representation, rep) { 
+function loadMolecule(model, representation, rep) { 
     let startTime = new Date();
 
+    console.log('in new new version that creates a new copy and atoms/bonds for every tab')
     console.log("loading model", model, "representation", representation);
 
     currentMolecule = model;
@@ -1141,13 +839,13 @@ function deleteText(repNum) {
     objectsToRemove.forEach(obj => root.remove(obj));
 }
 
-function hideMolecule(drawingMethod, repNum) {
+function hideMolecule(style, repNum) {
 
     let startTime = new Date();
 
     root.traverse( (obj) => {
 
-        if (obj.drawingMethod == drawingMethod && obj.repNum == repNum) {
+        if (obj.style == style && obj.repNum == repNum) {
             obj.visible = false;
 
             // reset color
@@ -1162,8 +860,11 @@ function hideMolecule(drawingMethod, repNum) {
 
 function isString(variable) {
     return typeof variable === "string";
-}
+  }
 
+// assume only called after loadMolecule is called on the desired molecule,
+// so assume the atoms/bonds for this specific molecule already exist in the scene.
+// all selection values should be valid by the time they reach this function
 function showMolecule(style, repNum, selectionMethod, selectionValue, colorValue) {
     console.log('in showMolecule');
 
@@ -1189,471 +890,6 @@ function showMolecule(style, repNum, selectionMethod, selectionValue, colorValue
     let validResidues = {};
 
     if (selectionMethod == 'distance') {
-
-        if (isString(selectionValue)) { selectionValue = selectionValue.split(' '); }
-
-        const distance = Number(selectionValue[0]);
-        const type = selectionValue[1];
-        let selected = selectionValue[2];
-
-        console.log('distance', distance, "type", type, "selected", selected);
-        
-        // find all target molecule atoms
-        if (type == 'residue') {
-
-            root.traverse( (obj) => { // select by obj.style == CPK because we just need one set of target atoms to compare distances with
-                if (obj.isMesh && obj.repNum == currentRep && obj.drawingMethod == CPK && obj.residue == selected) {
-                    target.push([obj.position.x, obj.position.y, obj.position.z]);
-                }
-            })
-
-        } else if (type == 'molecule') {
-            console.log(currentRep, currentStyle, selected);
-
-            root.traverse( (obj) => {
-                if (obj.isMesh && obj.repNum == currentRep && obj.drawingMethod == CPK && obj.chain == selected) {
-                    //console.log("found a target obj", obj);
-                    target.push([obj.position.x, obj.position.y, obj.position.z]);
-                }
-            })
-        }
-        
-        //console.log(target);
-
-        // find all residues within the required distance to the target atoms
-
-        root.traverse( (obj) => {
-            if (obj.isMesh) {
-                // check only the atoms that are the relevant rep and style
-                if (obj.molecularElement == 'atom' && obj.repNum == repNum && obj.drawingMethod == CPK) {
-                    for (let coord of target) {
-
-                        let dist = calculateDistanceXYZ(coord, [obj.position.x, obj.position.y, obj.position.z]);
-        
-                        if (dist <= distance) {
-                            validResidues[obj.residue] = true;
-                            //console.log('found valid residue', obj.residue);
-                        } 
-                    }
-                }
-            }
-        })
-    }
-
-    //console.log('valid residues', validResidues);
-
-    root.traverse( (obj) => {
-
-        if (obj.isMesh && obj.drawingMethod == style && obj.repNum == repNum) {
-            /* console.log('match', obj.style, style, obj.repNum, repNum);
-            console.log('obj', obj); */
-
-            if (selectionValue == 'all') {
-                setColor(obj, colorValue);
-                obj.visible = true;
-            } else {
-                if (obj.molecularElement == 'atom') {
-                    if (selectionMethod == 'atom') { // unimplemented, may remove
-    
-                    } else if (selectionMethod == 'residue') {
-    
-                        //console.log('showMolecule, selecting by residue in atom');
-
-                        if (obj.residue == selectionValue) {
-                            setColor(obj, colorValue);
-                            obj.visible = true;
-                        } else {
-                            obj.visible = false;
-                        }
-    
-                    } else if (selectionMethod == 'chain') {  
-                        //console.log('showMolecule, selecting by chain in atom');
-                        if (selectionValue == 'backbone') {
-                            //console.log("obj.atomName", obj.atomName);
-
-                            if (backboneAtoms.includes(obj.atomName)) { 
-                                //console.log("obj.atomName", obj.atomName);
-                                setColor(obj, colorValue);
-                                obj.visible = true;
-                            } else {
-                                obj.visible = false;
-                            }
-
-                        } else {
-                            if (obj.chain == selectionValue) {
-                                setColor(obj, colorValue);
-                                obj.visible = true;
-                            } else {
-                                obj.visible = false;
-                            }
-                        }
-                        
-                    } else if (selectionMethod == 'distance') { 
-                        
-                        const type = selectionValue[1];
-                        let selected = selectionValue[2];
-
-                        if (isString(selected)) {
-                            if (selected.toLowerCase() == 'ponatinib') {
-                                selected = 'D';
-                            } else if (selected.toLowerCase() == 'abl kinase') {
-                                selected = 'A';
-                            }
-                        }
-
-                        //console.log('in selectionMethod distancce of showMolecule', type);
-
-
-                        if (type == 'residue') {
-
-                            // check if residue is within distance and if obj isn't part of the original target
-                            if (validResidues[obj.residue] && obj.residue != selected) {
-                                //console.log('residue', obj.residue);
-                                setColor(obj, colorValue);
-                                //console.log('set color of', obj, colorValue);
-                                obj.visible = true;
-                            } else {
-                                obj.visible = false;
-                            }
-
-                        } else if (type == 'molecule') {
-
-                            if (validResidues[obj.residue] && obj.chain != selected) {
-                                //console.log('obj', obj);
-                                setColor(obj, colorValue);
-                                //console.log('set color of', obj, colorValue);
-                                obj.visible = true;
-                            } else {
-                                obj.visible = false;
-                            }
-                        }
-                    }
-
-                } else if (obj.molecularElement == 'bond') {
-                    //console.log('object is bond');
-                    //console.log(obj);
-                    if (selectionMethod == 'atom') { // unimplemented, may remove
-    
-                    } else if (selectionMethod == 'residue') {
-    
-                        //console.log('selecting by residue in bond');
-                        let atom1 = obj.atom1;
-                        let atom2 = obj.atom2;
-    
-                        /* console.log('atom1.residue', atom1.residue);
-                        console.log('atom2.residue', atom2.residue);
-                        console.log('selection', selection); */
-    
-                        if (atom1[5] == selectionValue && atom2[5] == selectionValue) {
-                            setColor(obj, colorValue);
-                            obj.visible = true;
-                        } else {
-                            obj.visible = false; 
-                        }
-    
-                    } else if (selectionMethod == 'chain') {
-
-                        let atom1 = obj.atom1;
-                        let atom2 = obj.atom2;
-
-                        if (selectionValue == 'backbone') {
-                            if (backboneAtoms.includes(atom1[7]) && backboneAtoms.includes(atom2[7])) { 
-                                setColor(obj, colorValue);
-                                obj.visible = true;
-                            } else {
-                                obj.visible = false;
-                            }
-                        } else {
-        
-                            if (atom1[6] == selectionValue && atom2[6] == selectionValue) {
-                                setColor(obj, colorValue);
-                                obj.visible = true;
-                            } else {
-                                obj.visible = false; 
-                            }
-                        }
-                        
-                        
-                    } else if (selectionMethod == 'distance') {
-            
-                        const type = selectionValue[1];
-                        let selected = selectionValue[2];
-
-                        if (isString(selected)) {
-                            if (selected.toLowerCase() == 'ponatinib') {
-                                selected = 'D';
-                            } else if (selected.toLowerCase() == 'abl kinase') {
-                                selected = 'A';
-                            }
-                        }
-                        
-                        let atom1 = obj.atom1;
-                        let atom2 = obj.atom2;
-                        //console.log(obj);
-                        //console.log(atom1);
-
-                        if (type == 'residue') {
-
-                            // check if residue is within distance and if obj isn't part of the original target
-                            if (validResidues[atom1[5]] && validResidues[atom2[5]] && atom1[5] != selected && atom2[5] != selected) {
-                                //console.log('residue', obj.residue);
-                                //console.log('atom', obj.position.x, obj.position.y, obj.position.z);
-                                setColor(obj, colorValue);
-                                obj.visible = true;
-                            } else {
-                                obj.visible = false;
-                            }
-
-                        } else if (type == 'molecule') {
-
-                            if (validResidues[atom1[5]] && validResidues[atom2[5]] && atom1[6] != selected && atom2[6] != selected) {
-                                //console.log('residue', obj.residue);
-                                //console.log('atom', obj.position.x, obj.position.y, obj.position.z);
-                                setColor(obj, colorValue);
-                                obj.visible = true;
-                            } else {
-                                obj.visible = false;
-                            }
-
-                        }
-                    }
-                }
-            }
-        }
-    })
-    let endTime = new Date();
-    calculateTime(startTime, endTime, 'time in showMolecule');
-}
-
-function isSelected(obj, selectionMethod, selectionValue) {
-
-    /* console.log('in isSelected');
-    console.log('obj', obj);
-    console.log('selectionMethod', selectionMethod);
-    console.log('selectionValue', selectionValue); */
-
-    if (selectionValue == 'all') {
-        //console.log('selectionValue all, return true');
-        return true;
-
-    } else {
-        if (obj.molecularElement == 'atom') {
-            if (selectionMethod == 'atom') { // unimplemented, may remove
-
-            } else if (selectionMethod == 'residue') {
-
-                //console.log('showMolecule, selecting by residue in atom');
-
-                if (obj.residue == selectionValue) {
-                    return true;
-                }
-
-            } else if (selectionMethod == 'chain') {  
-                //console.log('showMolecule, selecting by chain in atom');
-                if (selectionValue == 'backbone') {
-                    //console.log("obj.atomName", obj.atomName);
-
-                    if (backboneAtoms.includes(obj.atomName)) { 
-                        //console.log("obj.atomName", obj.atomName);
-                        return true;
-                    }
-
-                } else {
-                    if (obj.chain == selectionValue) {
-                        return true;
-                    } 
-                }
-                
-            } else if (selectionMethod == 'distance') { 
-                
-                const type = selectionValue[1];
-                let selected = selectionValue[2];
-
-                if (isString(selected)) {
-                    if (selected.toLowerCase() == 'ponatinib') {
-                        selected = 'D';
-                    } else if (selected.toLowerCase() == 'abl kinase') {
-                        selected = 'A';
-                    }
-                }
-
-                //console.log('in selectionMethod distancce of showMolecule', type);
-
-                if (type == 'residue') {
-
-                    // check if residue is within distance and if obj isn't part of the original target
-                    if (validResidues[obj.residue] && obj.residue != selected) {
-                        //console.log('residue', obj.residue);
-                        return true;
-                    }
-
-                } else if (type == 'molecule') {
-
-                    if (validResidues[obj.residue] && obj.chain != selected) {
-                        //console.log('obj', obj);
-                        //console.log('set color of', obj, colorValue);
-                        return true;
-                    }
-                }
-            }
-
-        } else if (obj.molecularElement == 'bond') {
-            //console.log('object is bond');
-            //console.log(obj);
-            if (selectionMethod == 'atom') { // unimplemented, may remove
-
-            } else if (selectionMethod == 'residue') {
-
-                //console.log('selecting by residue in bond');
-                let atom1 = obj.atom1;
-                let atom2 = obj.atom2;
-
-                /* console.log('atom1.residue', atom1.residue);
-                console.log('atom2.residue', atom2.residue);
-                console.log('selection', selection); */
-
-                if (atom1[5] == selectionValue && atom2[5] == selectionValue) {
-                    return true;
-                }
-
-            } else if (selectionMethod == 'chain') {
-
-                let atom1 = obj.atom1;
-                let atom2 = obj.atom2;
-
-                if (selectionValue == 'backbone') {
-                    if (backboneAtoms.includes(atom1[7]) && backboneAtoms.includes(atom2[7])) { 
-                        return true;
-                    } 
-                } else {
-
-                    if (atom1[6] == selectionValue && atom2[6] == selectionValue) {
-                        return true;
-                    } 
-                }
-                
-                
-            } else if (selectionMethod == 'distance') {
-    
-                const type = selectionValue[1];
-                let selected = selectionValue[2];
-
-                if (isString(selected)) {
-                    if (selected.toLowerCase() == 'ponatinib') {
-                        selected = 'D';
-                    } else if (selected.toLowerCase() == 'abl kinase') {
-                        selected = 'A';
-                    }
-                }
-                
-                let atom1 = obj.atom1;
-                let atom2 = obj.atom2;
-                //console.log(obj);
-                //console.log(atom1);
-
-                if (type == 'residue') {
-
-                    // check if residue is within distance and if obj isn't part of the original target
-                    if (validResidues[atom1[5]] && validResidues[atom2[5]] && atom1[5] != selected && atom2[5] != selected) {
-                        //console.log('residue', obj.residue);
-                        //console.log('atom', obj.position.x, obj.position.y, obj.position.z);
-                        return true;
-                    }
-
-                } else if (type == 'molecule') {
-
-                    if (validResidues[atom1[5]] && validResidues[atom2[5]] && atom1[6] != selected && atom2[6] != selected) {
-                        //console.log('residue', obj.residue);
-                        //console.log('atom', obj.position.x, obj.position.y, obj.position.z);
-                        return true;
-                    } 
-                }
-            }
-        }
-    }
-}
-
-function parseRepInfo() {
-
-    console.log('in parseRepInfo');
-
-    // loop backwards through repsData array to get reps from newest to oldest
-    for (let i = repsData.length - 1; i >= 0; i--) { 
-
-        let rep = repsData[i];
-        let repID = rep.id;
-        let drawingMethod = rep.drawingMethod;
-        let coloringMethod = rep.coloringMethod;
-        let selectionMethod = rep.selectionMethod;
-        let selectionValue = rep.selectionValue;
-        let state = rep.state;
-
-        if (state != shown) {
-            console.log(repID, 'is hidden');
-
-            scene.traverse((obj) => {
-                if (obj.isMesh && obj.drawingMethod == drawingMethod && !obj.colorUpdate) {
-                    //obj.colorUpdate = true;
-                    obj.visible = false;
-                }
-            });
-            
-            continue;
-        }
-
-        console.log('rep', repID, rep);
-        /* console.log('drawing method', drawingMethod);
-        console.log('selectionMethod', selectionMethod);
-        console.log('selectionValue', selectionValue); */
-
-        scene.traverse( (obj) => {
-
-            if (obj.isMesh && obj.drawingMethod == drawingMethod && !obj.colorUpdate) { // if obj is atom or bond and color hasn't been updated yet
-                if (isSelected(obj, selectionMethod, selectionValue)) {
-                    //console.log('isSelected was true', obj);
-                    obj.visible = true; 
-                    setColor(obj, coloringMethod);
-                    obj.colorUpdated = true; 
-                } else {
-                    obj.visible = false;
-                }
-            }
-        });
-    } 
-
-    // reset all colorUpdated to false
-    scene.traverse( (obj) => {
-        if (obj.isMesh) { // if obj is atom or bond
-            obj.colorUpdated = false; 
-        }
-    });   
-}
-
-// assume only called after loadMolecule is called on the desired molecule,
-// so assume the atoms/bonds for this specific molecule already exist in the scene.
-// all selection values should be valid by the time they reach this function
-function showMolecule2(style, repID, selectionMethod, selectionValue, colorValue) {
-    console.log('in showMolecule2');
-
-    let startTime = new Date();
-
-    currentStyle = style;
-    currentRep = repID;
-    currentSelectionMethod = selectionMethod;
-    //console.log('selectionValue:', selectionValue, typeof selectionValue);
-
-    if (typeof selectionValue == 'string') { selectionValue = selectionValue.split(' ') }
-    currentSelectionValue = selectionValue;
-    //currentColorValue = colorValue;
-
-    console.log(currentStyle, currentRep, currentSelectionMethod, currentSelectionValue, colorValue);
-
-    // target array for distance calculations
-    let target = [];
-    let validResidues = {};
-
-    // TODO selectionMethod distance
-    /* if (selectionMethod == 'distance') {
 
         if (isString(selectionValue)) { selectionValue = selectionValue.split(' '); }
 
@@ -1703,13 +939,13 @@ function showMolecule2(style, repID, selectionMethod, selectionValue, colorValue
                 }
             }
         })
-    } */
+    }
 
     //console.log('valid residues', validResidues);
 
     root.traverse( (obj) => {
 
-        if (obj.isMesh && obj.style == style) {
+        if (obj.isMesh && obj.style == style && obj.repNum == repNum) {
             /* console.log('match', obj.style, style, obj.repNum, repNum);
             console.log('obj', obj); */
 
@@ -1894,10 +1130,10 @@ function showMolecule2(style, repID, selectionMethod, selectionValue, colorValue
 }
 
 
-function colorChange(repNum, drawingMethod, colorValue) {
+function colorChange(repNum, style, colorValue) {
     root.traverse ( (obj) => {
 
-        if (obj.isMesh && obj.visible && obj.repNum == repNum && obj.drawingMethod == drawingMethod) {
+        if (obj.isMesh && obj.visible && obj.repNum == repNum && obj.style == style) {
             setColor(obj, colorValue);
         }
     })
@@ -1906,20 +1142,20 @@ function colorChange(repNum, drawingMethod, colorValue) {
 function setColor(obj, colorValue) {
 
     //console.log('setting color of', obj, colorValue);
-    if (colorValue == blue) {                        
+    if (colorValue == 'Blue') {                        
         obj.material.color.set(new THREE.Color('rgb(0, 0, 255)')); 
-    } else if (colorValue == green) {
+    } else if (colorValue == 'Green') {
         obj.material.color.set(new THREE.Color('rgb(0, 255, 0)')); 
-    } else if (colorValue == red) {
+    } else if (colorValue == 'Red') {
         obj.material.color.set(new THREE.Color('rgb(255, 0, 0)')); 
-    } else if (colorValue == name) {
+    } else if (colorValue == 'Name') {
         obj.material.color.set(new THREE.Color(obj.originalColor));
     }
 }
 
 
-// returns the rep number from a given id (e.g. getIDFromStr('rep-tab-2') returns 2)
-function getIDFromStr(id) {
+// returns the rep number from a given id (e.g. getNumFromId('rep-tab-2') returns 2)
+function getNumFromId(id) {
     let splitId = id.split('-');
     let len = splitId.length;
     return Number(splitId[len - 1]);
@@ -1945,22 +1181,11 @@ function hideAllReps() {
 }
 
 // opens a rep's tab contents and load molecule based on the tab clicked 
-/* function openRepTab(evt) { 
+function openRepTab(evt) { 
     hideAllReps();
     let repTabId = evt.currentTarget.id;
     prevRep = currentRep;
-    currentRep = getIDFromStr(repTabId); 
-    showCurrentRep(currentRep);
-    
-    console.log("in openRepTab, currentRep", currentRep);
-} */
-
-function openRepTab(repID) { 
-    console.log('openRepTab', repID);
-
-    hideAllReps();
-    prevRep = currentRep;
-    currentRep = repID; 
+    currentRep = getNumFromId(repTabId); 
     showCurrentRep(currentRep);
     
     console.log("in openRepTab, currentRep", currentRep);
@@ -1970,49 +1195,30 @@ function openRepTab(repID) {
 function createRepTabButton(repTabId, active) {
     const tabButton = document.createElement('button');
     tabButton.classList.add('tab-link-rep');
-    tabButton.id = makeRepTabId(repTabId);
-    tabButton.textContent = "rep " + repTabId;
+    tabButton.id = repTabId;
+    tabButton.textContent = 'Rep ' + getNumFromId(repTabId);
     if (active) { tabButton.classList.add('active'); }
-    tabButton.addEventListener('click', () => openRepTab(repTabId)); 
+    tabButton.addEventListener('click', (evt) => openRepTab(evt)); 
 
     return tabButton;
 }
 
-function findRepIndex(id) {
-    return repsData.findIndex(rep => rep.id === id);
-}
-
 // shows a given rep number's contents and assigns class='active' to the tab
-function showCurrentRep(repID) {
+function showCurrentRep(repNum) {
 
-    console.log('in showCurrentRep, this is repID', repID);
+    console.log('in showCurrentRep, this is repNum', repNum);
 
-    let repIndex = findRepIndex(repID);
-
-    let repTabId = makeRepTabId(repID);
-    let repContentId = makeRepContentId(repID);
-
-    console.log(repID, repIndex);
-    console.log("repsData[repIndex]", repsData[repIndex]);
+    let repTabId = makeRepTabId(repNum);
+    let repContentId = makeRepContentId(repNum);
     
-    if (repsData[repIndex].state != hidden) {
-        repsData[repIndex].state = shown;
+    if (repStates[repNum] != hidden) {
+        repStates[repNum] = shown;
         hideShowButton.textContent = 'hide rep';
-    } else if (repsData[repIndex].state == hidden) {
-        //repsData[repID].state = shown;
+    } else if (repStates[repNum] == hidden) {
         hideShowButton.textContent = 'show rep';
     }
         
-    /* if (repStates[repID] != hidden) {
-        repStates[repID] = shown;
-        hideShowButton.textContent = 'hide rep';
-    } else if (repStates[repID] == hidden) {
-        hideShowButton.textContent = 'show rep';
-    } */
-        
     // add class 'active' to tab HTML element
-    console.log('repTabId', repTabId);
-    console.log('object', document.getElementById(repTabId));
     document.getElementById(repTabId).classList.add('active');
     document.getElementById(repTabId).style.display = 'block';
         
@@ -2021,12 +1227,12 @@ function showCurrentRep(repID) {
 }
 
 // hides a given rep number's contents and removes class='active' from the tab
-function hideRep(repID) {
+function hideRep(repNum) {
 
-    console.log('in hideRep, this is repID', repID);
+    console.log('in hideRep, this is repNum', repNum);
 
-    let repTabId = makeRepTabId(repID);
-    let repContentId = makeRepContentId(repID);
+    let repTabId = makeRepTabId(repNum);
+    let repContentId = makeRepContentId(repNum);
     
     // remove class 'active'
     document.getElementById(repTabId).classList.remove('active');
@@ -2067,25 +1273,39 @@ function onAddRepClick () {
     if (numRepTabs < maxRepTabs) {
         numRepTabs++;
 
-        createGUI();
-        console.log('in onAddRepClick, currentRep', currentRep);
-        hideAllReps(); 
-        showCurrentRep(currentRep);
+        for (let i = 0; i < maxRepTabs; i++) {
 
-        // show appropriate molecule 
-        parseRepInfo();
+            // if current tab in array repStates is marked shown, skip (rep already in use)
+            if (repStates[i] == shown || repStates[i] == hidden) { 
+                continue;
+            }
+
+            // if current tab in array repStates is marked deleted, rep isn't in use
+
+            repStates[i] = shown; // mark current rep in use
+
+            hideAllReps();
+
+            currentRep = i;
+            moveTabToEnd(currentRep);
+            showCurrentRep(currentRep);
+
+            console.log("currentRep", currentRep);
+
+            // show appropriate molecule 
+            showMolecule(defaultParams.repParams.representation, currentRep, 'residue', 'all', 'Name'); // use default style CPK
+
+            break;
+        }
 
     } else {
         console.log("Maximum number of GUIs reached");
     }
 }
 
-function resetTab(repID) {  
+function resetTab(repNum) {  
 
-    console.log("guis", guis);
-    console.log('repID', repID);
-    let gui = guis[repID]; 
-    console.log('gui', gui);
+    let gui = guis[repNum];
 
     // loop through each controller to reset value to default value
     gui.controllers.forEach( controller => {
@@ -2102,10 +1322,10 @@ function resetTab(repID) {
         controller.updateDisplay();
     })
 
-    let moleculeGUIdiv = document.getElementById(makeRepContentId(repID));
+    let moleculeGUIdiv = document.getElementById(makeRepContentId(repNum));
 
     moleculeGUIdiv.dataset.currentColorValue = defaultParams.colorParams.color; 
-    //moleculeGUIdiv.dataset.previousStyle = defaultParams.repParams.representation;
+    moleculeGUIdiv.dataset.previousStyle = defaultParams.repParams.representation;
     moleculeGUIdiv.dataset.currentStyle = defaultParams.repParams.representation;
     moleculeGUIdiv.dataset.currentSelectionMethod = 'residue';
     moleculeGUIdiv.dataset.currentSelectionValue = 'all';
@@ -2121,8 +1341,8 @@ function resetTab(repID) {
 
     for (let selectionMethod of selectionMethods) {
 
-        let smTabId = makeSMTabId(repID, selectionMethod);
-        let smContentId = makeSMContentId(repID, selectionMethod);
+        let smTabId = makeSMTabId(repNum, selectionMethod);
+        let smContentId = makeSMContentId(repNum, selectionMethod);
 
         if (selectionMethod == 'residue') {
             document.getElementById(smTabId).classList.add('active');
@@ -2155,69 +1375,90 @@ function onDeleteRepClick () {
     if (numRepTabs > 1) {
         
         numRepTabs--;
-
-        let currentRepIndex = findRepIndex(currentRep);
         
-        // delete appropriate HTML elements
-        let repGUIdiv = document.getElementById(makeRepContentId(currentRep));
-        console.log("currentRep", currentRep);
-        console.log('makeRepContentId(currentRep)', makeRepContentId(currentRep));
-        console.log(repGUIdiv);
-        repGUIdiv.remove();
+        // hide appropriate molecule
+        let moleculeGUIdiv = document.getElementById(makeRepContentId(currentRep));
+        let currentStyle = moleculeGUIdiv.dataset.currentStyle;
 
-        let repTabButton = document.getElementById(makeRepTabId(currentRep));
-        console.log(repTabButton);
-        repTabButton.remove();
-
-        // delete rep from repsData array
-        repsData.splice(currentRepIndex, 1);
-
-        // Hide appropriate portions of the molecule
-        console.log('in onDeleteRepClick, deleting', currentRep); 
+        console.log('in onDeleteRepClick, hiding', currentStyle, currentRep); 
 
         // reset atoms to default color
-        //resetMoleculeColor(currentRep);
+        resetMoleculeColor(currentRep);
 
-        deleteText(currentRep);  
-        //hideMolecule(currentStyle, currentRep);
+        deleteText(currentRep);
+        hideMolecule(currentStyle, currentRep);
 
-        // show last added rep tab
-        currentRep = repsData[repsData.length - 1].id;
-        showCurrentRep(currentRep);
+        hideAllReps();
 
-        parseRepInfo();
+        // hide rep 
+        tabs[currentRep].style.display = 'none';
+
+        // reset rep's GUIs
+        resetTab(currentRep);
+
+        repStates[currentRep] = deleted;
+
+        // show an existing rep
+        for (let i = maxRepTabs - 1; i >= 0; i--) {
+            if (repStates[i] == shown || repStates[i] == hidden) {
+                currentRep = i;
+                showCurrentRep(currentRep);
+                break;
+            }
+        }
 
     } else {
         console.log("Cannot delete rep, only one left");
     }
 }
 
+// when delete rep button is clicked, "delete" currently active rep
+/* function onDeleteRepClick () {
+    // hide appropriate molecule
+    let moleculeGUIdiv = document.getElementById(makeRepContentId(currentRep));
+    console.log("moleculeGUIdiv", moleculeGUIdiv);
+    let currentStyle = moleculeGUIdiv.dataset.currentStyle;
+
+    console.log('in onDeleteRepClick, hiding', currentStyle, currentRep); 
+
+    // reset atoms to default color
+    resetMoleculeColor(currentRep);
+
+    hideMolecule(currentStyle, currentRep);
+
+    // hide all reps
+    hideAllReps();
+
+    // hide rep 
+    tabs[currentRep].style.display = 'none';
+
+    // reset rep's GUIs
+    resetTab(currentRep);
+
+    repStates[currentRep] = deleted;
+
+} */
+
 // when hide rep button is clicked, hide/show currently active rep
 function onHideShowRepClick () {
 
-    console.log('in onHideShowRep with rep', currentRep);
-    console.log('repsData', repsData);
-    let currentRepIndex = findRepIndex(currentRep);
-    let currentTab = document.getElementById(makeRepTabId(currentRep));
-    //tabs[currentRepIndex];
-    console.log('currentRep', repsData[currentRepIndex]);
-
-    let currentRepState = repsData[currentRepIndex].state;
+    let currentTab = tabs[currentRep];
 
     let moleculeGUIdiv = document.getElementById(makeRepContentId(currentRep));
-    //let currentStyle = moleculeGUIdiv.dataset.currentStyle;
+    let currentStyle = moleculeGUIdiv.dataset.currentStyle;
 
-    console.log('rep is currently', currentRepState);
+    console.log('rep is currently', repStates[currentRep]);
     
-    if (currentRepState == shown) { // if molecule is shown, hide
+    if (repStates[currentRep] == shown) { // if molecule is shown, hide
 
-        repsData[currentRepIndex].state = hidden;
+        repStates[currentRep] = hidden;
 
         // hide appropriate molecule
-        console.log('in onHideShowRepClick, hiding', currentRep, repsData[currentRepIndex]); 
+
+        console.log('in onHideShowRepClick, hiding', currentStyle, currentRep); 
 
         hideText(currentRep);
-        parseRepInfo();
+        hideMolecule(currentStyle, currentRep);
 
         // strike through text of current rep's tab
         let tabText = currentTab.textContent; 
@@ -2226,15 +1467,22 @@ function onHideShowRepClick () {
         // change hide-show-button text to 'show rep'
         hideShowButton.textContent = 'show rep';
 
-    } else if (currentRepState == hidden) { // if molecule is hidden, show
+    } else if (repStates[currentRep] == hidden) { // if molecule is hidden, show
 
-        repsData[currentRepIndex].state = shown;
+        repStates[currentRep] = shown;
+
+        let currentColorValue = moleculeGUIdiv.dataset.currentColorValue;
+        let currentSelectionMethod = moleculeGUIdiv.dataset.currentSelectionMethod;
+        let currentSelectionValue = moleculeGUIdiv.dataset.currentSelectionValue;
+
+        if (currentSelectionMethod == 'distance') {
+            currentSelectionValue = currentSelectionValue.split(' ');
+            console.log('currentSelectionValue', currentSelectionValue);
+        }
 
         // show appropriate molecule
-        console.log('in onHideShowRepClick, showing', currentRep, repsData[currentRepIndex]); 
-
         showText(currentRep);
-        parseRepInfo();
+        showMolecule(currentStyle, currentRep, currentSelectionMethod, currentSelectionValue, currentColorValue);
 
         // un-strike through text of current rep's tab        
         currentTab.innerHTML = 'Rep ' + currentRep;
@@ -2277,12 +1525,11 @@ function openSelectionMethodTab(event, SMtype) {
     //console.log('in openSelectionMethodTab');
     //console.log('event.currentTarget.id', event.currentTarget.id);
 
+    currentRep = getNumFromId(event.currentTarget.id);
     //console.log('currentRep', currentRep);
     const smContentId = makeSMContentId(currentRep, SMtype);
-    console.log('smContentId', smContentId);
+    //console.log('smContentId', smContentId);
     const repContainer = document.getElementById('rep-content-' + currentRep);
-    console.log('currentRep', currentRep);
-    console.log('repContainer', repContainer);
 
     // get all elements with class="tab-content-selection-method" and hide them, within currentRep's div
     const tabContents = Array.from(repContainer.querySelectorAll('.tab-content-selection-method'));
@@ -2293,7 +1540,7 @@ function openSelectionMethodTab(event, SMtype) {
     tabLinks.forEach(link => link.classList.remove('active'));
 
     // show the current tab and add an "active" class to the button that opened the tab
-    console.log("document.getElementById(smContentId)", document.getElementById(smContentId));
+    //console.log("document.getElementById(smContentId)", document.getElementById(smContentId));
     document.getElementById(smContentId).style.display = "block";
     //console.log("changed this smContentId to block", smContentId);
     event.currentTarget.classList.add('active');
@@ -2301,9 +1548,6 @@ function openSelectionMethodTab(event, SMtype) {
 
 // function to create tab buttons for selection methods
 function createSelectionMethodTabButton(buttonText, active) {
-
-    console.log('currentRep', currentRep);
-
     const tabButton = document.createElement('button');
     tabButton.classList.add('tab-link-selection-method');
     tabButton.textContent = buttonText;
@@ -2324,491 +1568,6 @@ function createSelectionMethodTabContent(SMtype, menus = [], display) {
     menus.forEach(menu => tabContent.appendChild(menu.domElement));
 
     return tabContent;
-}
-
-function generateTabID() {
-    let id;
-    
-    do {
-        id = '';
-        for (let i = 0; i < 6; i++) {  // Adjust length as needed (6 characters here)
-            id += chars.charAt(Math.floor(Math.random() * chars.length));
-        }
-    } while (usedTabIDs.has(id));
-
-    usedTabIDs.add(id);
-    return id;
-}
-
-function addRepToRepsData(tabID) {
-    repsData.push({ ...repDataDefault });  // Clone default tab settings and add to repsData array
-    repsData[repsData.length - 1].id = tabID; // Set new rep ID
-    console.log('added', tabID, 'to repsData now:', repsData);
-}
-
-function createGUI() {
-    console.log('in createGUI()');
-
-    // get container to hold all the GUIs 
-    const moleculeGUIContainer = document.getElementsByClassName('three-gui')[0];
-
-    let currentRepID = generateTabID();
-    currentRep = currentRepID;
-    addRepToRepsData(currentRepID);
-    let repIndex = repsData.length - 1;
-    console.log('repsData', repsData);
-
-    // get tab rep container
-    const tabRepContainer = document.getElementsByClassName("tab-rep")[0];
-    
-    // create tab button
-    const tab = createRepTabButton(currentRepID, false);
-
-    // append tab button to tab container
-    tabRepContainer.appendChild(tab);
-
-    // create new div for single GUI
-    const moleculeGUIdiv = document.createElement('div');
-    moleculeGUIdiv.classList.add('gui-div', 'tab-content-rep');
-    const repContentId = makeRepContentId(currentRepID);
-    console.log('repContentId', repContentId);
-    moleculeGUIdiv.id = repContentId;
-
-    // create new GUI
-    const moleculeGUI = new GUI({ autoPlace: false }); 
-
-    // creates a deep copy of defaultParams instead of referencing the original dictionary
-    let params = JSON.parse(JSON.stringify(defaultParams));
-
-    // store everything in their respective arrays HERE LOSER
-    tabs[currentRepID] = tab;
-    guis[currentRepID] = moleculeGUI; 
-    guiContainers[currentRepID] = moleculeGUIdiv;
-
-    // menus for the gui
-    const styleMenu = moleculeGUI.add(params.repParams, 'representation', [CPK, VDW, lines]);
-    const colorMenu = moleculeGUI.add(params.colorParams, 'color', [name, blue, green, red]);
-    //const atomMenu = moleculeGUI.add(params.atomParams, 'atom');
-    const residueMenu = moleculeGUI.add(params.residueParams, 'residue');
-    const chainMenu = moleculeGUI.add(params.chainParams, 'chain'); 
-    const withinMenu = moleculeGUI.add(params.withinParams, 'within');
-    const withinDropdown = moleculeGUI.add(params.withinDropdownParams, 'withinDropdown', ['residue', 'molecule']);
-    const withinResMenu = moleculeGUI.add(params.withinResParams, 'withinRes');
-    
-    withinMenu.name('show all residues within');
-    withinDropdown.name('of');
-    withinResMenu.name('');
-    styleMenu.name('drawing method');
-    colorMenu.name('coloring method');
-    chainMenu.name('molecule');
-
-
-    // might just do this (rep-content-0 div) to store data instead of each individual menu?
-    moleculeGUIdiv.dataset.previousStyle = defaultParams.repParams.representation;
-    moleculeGUIdiv.dataset.currentStyle = defaultParams.repParams.representation;
-    moleculeGUIdiv.dataset.currentSelectionMethod = 'residue';
-    moleculeGUIdiv.dataset.currentSelectionValue = defaultParams.residueParams.residue;
-    moleculeGUIdiv.dataset.currentColorValue = defaultParams.colorParams.color;
-
-    // on change functions for GUIs
-
-    residueMenu.onFinishChange((value) => { 
-        /* //console.log("residueMenu.parent", residueMenu.parent);
-        let siblings = residueMenu.parent.children;
-
-        // TODO change everything to use moleculeGUIdiv
-        let styleMenu = siblings.find(obj => obj.property == 'representation');
-        let styleMenuElement = styleMenu.domElement;
-        //console.log("styleMenuElement", styleMenuElement); */
-
-        let moleculeGUIdiv = document.getElementById(makeRepContentId(currentRep));
-        let currentStyle = moleculeGUIdiv.dataset.currentStyle;
-        //console.log('currentStyle does this work', currentStyle);
-
-        let currentColorValue = moleculeGUIdiv.dataset.currentColorValue;
-
-        if (!isNaN(value) && Number.isInteger(Number(value))) { // if value is not NaN and value is an integer
-            //console.log("Number entered:", Number(value));
-
-            if (residues[Number(value)]) { // value does exist in the residues list, this returns true
-
-                residueSelected = Number(value); // set residueSelected to the residue we want to select
-                
-                repsData[repIndex].selectionMethod = 'residue';
-                repsData[repIndex].selectionValue = residueSelected;
-                parseRepInfo();
-
-                deleteText(currentRep);
-                deleteBondDistances();
-                removeErrorMessages();
-
-            } else { // value does not exist in the residues list
-
-                displayErrorMessage("Please select a valid residue.");
-                console.log("please select a valid residue");
-
-            }
-        } else if (value.toLowerCase() === "all") { // display entire molecule
-
-            console.log("Option 'all' selected");
-            residueSelected = 'all';
-            
-            //resetScene();
-            repsData[repIndex].selectionMethod = 'residue';
-            repsData[repIndex].selectionValue = residueSelected;
-            parseRepInfo();
-
-            deleteText(currentRep);
-            deleteBondDistances();
-            removeErrorMessages();
-
-        } else {
-            // pop up text, flashing?
-            displayErrorMessage("Invalid input. Please enter a number or 'all'.");
-            console.log("Invalid input. Please enter a number or 'all'.");
-        }
-    })
-
-    chainMenu.onFinishChange((value) => {
-
-        if (value.toLowerCase() == 'abl kinase') {
-            value = 'A';
-        } else if (value.toLowerCase() == 'ponatinib') {
-            value = 'D';
-        } else if (value.toLowerCase() == 'water') {
-            value = 'W';
-        }
-
-        /* let styleMenu = siblings.find(obj => obj.property == 'representation');
-        let styleMenuElement = styleMenu.domElement; */
-        //console.log("styleMenuElement", styleMenuElement);
-
-        /* let currentStyle = moleculeGUIdiv.dataset.currentStyle;
-        let currentColorValue = moleculeGUIdiv.dataset.currentColorValue; */
-
-        if (chains.includes(value) || value.toLowerCase() == 'backbone') { // value does exist in the chains list or value is 'backbone'
-
-            chainSelected = value; // set chainSelected to the chain we want to select
-            console.log('chainSelected', chainSelected);
-
-            repsData[repIndex].selectionMethod = 'chain';
-            repsData[repIndex].selectionValue = chainSelected;
-            parseRepInfo();
-
-            deleteText(currentRep);
-            deleteBondDistances();
-            removeErrorMessages();
-
-        } else if (value == 'all') {
-
-            repsData[repIndex].selectionMethod = 'chain';
-            repsData[repIndex].selectionValue = value;
-            parseRepInfo();
-
-            deleteBondDistances(); 
-            removeErrorMessages();
-
-        } else { // value does not exist in the chains list
-
-            displayErrorMessage("Please select a valid molecule.");
-            console.log("please select a valid chain:", chains);
-
-        }
-    })
-
-    colorMenu.onChange((value) => {
-        //console.log("colorMenu value changed: ", value);
-
-        /* let siblings = colorMenu.parent.children;
-
-        console.log('value', value);
-
-        let styleMenu = siblings.find(obj => obj.property == 'representation');
-        let styleMenuElement = styleMenu.domElement;
-        console.log("styleMenuElement", styleMenuElement);
-
-        currentStyle = styleMenuElement.dataset.currentStyle;
-        console.log('currentStyle does this work', currentStyle); */
-        
-        let moleculeGUIdiv = document.getElementById(makeRepContentId(currentRep));
-        //console.log('moleculeGUIdiv', moleculeGUIdiv);
-        /* moleculeGUIdiv.dataset.currentColorValue = value;
-        //console.log("MOLECULEGUIDIV CHANGED TO ", moleculeGUIdiv.dataset.currentColorValue);
-
-        let style = moleculeGUIdiv.dataset.currentStyle; 
-        let repNum = currentRep;
-        let selectionMethod = moleculeGUIdiv.dataset.currentSelectionMethod;
-        let selectionValue = moleculeGUIdiv.dataset.currentSelectionValue;
-        let colorValue = value;
-
-        colorChange(repNum, style, colorValue); */
-
-        console.log(repsData);
-        let repIndex = findRepIndex(currentRep);
-        console.log("repIndex", repIndex);
-        repsData[repIndex].coloringMethod = value;
-        parseRepInfo();
-        
-        //showMolecule(style, repNum, selectionMethod, selectionValue, colorValue);
-
-    })
-
-    function displayErrorMessage (message) {
-        let atomContent = document.getElementsByClassName('atom-content')[0];
-        let error_para = document.createElement('p');
-        error_para.textContent = message;
-        error_para.classList.add("error-para");
-        errorContent.appendChild(error_para); 
-        //console.log(atomContent);
-    }
-
-    function removeErrorMessages() {
-        Array.from(document.getElementsByClassName('error-para')).forEach( (elem) => elem.remove() );
-    }
-
-    // helper function to validate residue number
-    function validateResidue(resNum) {
-        //console.log('in validateResidue');
-
-        if (!isNaN(resNum) && Number.isInteger(Number(resNum))) { // if value is not NaN and value is an integer
-            //console.log("Number entered:", resNum);
-
-            if (residues[resNum]) { // if value does exist in the residues list, this returns true
-                Array.from(document.getElementsByClassName('error-para')).forEach( (elem) => elem.remove() );
-                return resNum;
-
-            } else { // value does not exist in the residues list
-
-                let atomContent = document.getElementsByClassName('atom-content')[0];
-                let error_para = document.createElement('p');
-                error_para.textContent = "Please select a valid residue.";
-                error_para.classList.add("error-para");
-                errorContent.appendChild(error_para); 
-                //console.log(atomContent);
-
-                console.log("please select a valid residue");
-                return false;
-            }
-        } else {
-            // pop up text, flashing?
-
-            let atomContent = document.getElementsByClassName('atom-content')[0];
-            let error_para = document.createElement('p');
-            error_para.textContent = "Invalid input. Please enter a number or 'all'.";
-            error_para.classList.add("error-para");
-            errorContent.appendChild(error_para); 
-
-
-            console.log("Invalid input. Please enter a number or 'all'.");
-            return false;
-        }
-    }
-
-    // helper function to validate chain 
-    function validateChain(chain) { // finish validate chain
-
-        if (chain.toLowerCase() == 'abl kinase') {
-            chain = 'A';
-        } else if (chain.toLowerCase() == 'ponatinib') {
-            chain = 'D';
-        } else if (chain.toLowerCase() == 'water') {
-            chain = 'W';
-        }
-
-        if (chains.includes(chain) || chain == 'backbone') { // value does exist in the chains list or value is 'backbone'
-
-            chainSelected = chain; // set chainSelected to the chain we want to select
-            //console.log('chainSelected', chainSelected);
-
-            /* repContent.dataset.currentSelectionMethod = 'chain';
-            repContent.dataset.currentSelectionValue = chainSelected; */
-
-            Array.from(document.getElementsByClassName('error-para')).forEach( (elem) => elem.remove() );
-
-            return chain; 
-
-        } else { // value does not exist in the chains list
-
-            let atomContent = document.getElementsByClassName('atom-content')[0];
-            let error_para = document.createElement('p');
-            error_para.textContent = "Please select a valid molecule.";
-            error_para.classList.add("error-para");
-            errorContent.appendChild(error_para); 
-
-            console.log("please select a valid chain:", chains);
-            return false;
-        }
-    }
-
-    // helper function to highlight certain parts of the molecule based on the within ___ of residue ___ menu
-    function withinAsResidue () {
-
-        let startTime = new Date();
-        //popup();
-
-        const distance = params.withinParams.within;
-        const type = params.withinDropdownParams.withinDropdown; 
-        let value = params.withinResParams.withinRes;
-
-        if (value.toLowerCase() == 'ponatinib') {
-            value = 'D';
-        } else if (value.toLowerCase() == 'abl kinase') {
-            value = 'A'
-        } else if (value.toLowerCase() == 'water') {
-            value = 'W';
-        }
-
-        //console.log("distance", distance, 'type', type, "value", value);
-
-
-        // get current style 
-        let moleculeGUIdiv = document.getElementById(makeRepContentId(currentRep));
-        /* let siblings = residueMenu.parent.children;
-
-        let styleMenu = siblings.find(obj => obj.property == 'representation');
-        let styleMenuElement = styleMenu.domElement; */
-
-        let currentStyle = moleculeGUIdiv.dataset.currentStyle;
-        console.log('currentStyle does this work', currentStyle);
-
-        let currentColorValue = moleculeGUIdiv.dataset.currentColorValue;
-
-        if (type == 'residue') {
-
-            let resNum = validateResidue(value);
-            if (resNum != false) { // if residue is valid
-
-                residueSelected = Number(resNum); // set residueSelected to the residue we want to select
-                moleculeGUIdiv.dataset.currentSelectionMethod = 'distance';
-                moleculeGUIdiv.dataset.currentSelectionValue = distance + " " + type + " " + value;
-                deleteText(currentRep);
-                hideMolecule(currentStyle, currentRep);
-                showMolecule(currentStyle, currentRep, 'distance', [distance, type, residueSelected], currentColorValue);  
-                deleteBondDistances();
-            } 
-
-        } else if (type == 'molecule') {
-            
-            let moleculeVal = validateChain(value);
-
-            if (moleculeVal != false) {
-
-                // maybe don't use global var chainSelected? might interfere with Selection method chain?
-                chainSelected = moleculeVal; // set chainSelected to the chain we want to select
-                //console.log('chainSelected', chainSelected);
-
-                moleculeGUIdiv.dataset.currentSelectionMethod = 'distance';
-                moleculeGUIdiv.dataset.currentSelectionValue = distance + " " + type + " " + value; // TODO edit here probably
-
-                deleteText(currentRep);
-                hideMolecule(currentStyle, currentRep);
-                showMolecule(currentStyle, currentRep, 'distance', [distance, type, chainSelected], currentColorValue);  
-                deleteBondDistances();
-            } 
-        }
-        //popdown();
-
-        let endTime = new Date();
-        calculateTime(startTime, endTime, 'time to select by distance');
-
-    }
-
-    withinMenu.onFinishChange(withinAsResidue);
-    withinDropdown.onFinishChange(withinAsResidue);
-    withinResMenu.onFinishChange(withinAsResidue);
-
-    //
-    styleMenu.onChange(function(value) {
-        console.log('styleMenu changing to', value, 'with currentRep', currentRep);
-
-        //const styleMenuElement = styleMenu.domElement;
-        let moleculeGUIdiv = document.getElementById(makeRepContentId(currentRep));
-        //console.log('styleMenuElement', styleMenuElement);
-
-        moleculeGUIdiv.dataset.previousStyle = moleculeGUIdiv.dataset.currentStyle;
-        moleculeGUIdiv.dataset.currentStyle = value;
-
-        let previousStyle = moleculeGUIdiv.dataset.previousStyle; // || defaultParams.repParams.representation;  // Default to initial value (CPK) if previousStyle is uninitialized
-        let currentStyle = moleculeGUIdiv.dataset.currentStyle;
-
-        let currentColorValue = moleculeGUIdiv.dataset.currentColorValue;
-        
-        let currentSelectionMethod = moleculeGUIdiv.dataset.currentSelectionMethod; 
-        let currentSelectionValue = moleculeGUIdiv.dataset.currentSelectionValue;
-        console.log("currentSelectionMethod", currentSelectionMethod, "currentSelectionValue", currentSelectionValue);
-
-        console.log('in styleMenu.onChange, hiding', previousStyle, currentRep);
-        hideMolecule(previousStyle, currentRep); 
-        console.log('in styleMenu.onChange, showing', currentStyle, currentRep);
-        showMolecule(currentStyle, currentRep, currentSelectionMethod, currentSelectionValue, currentColorValue); 
-    }); 
-
-    // create div to hold molecule and representation options
-    const molRepOptionContainer = document.createElement('div');
-    molRepOptionContainer.classList.add('mol-rep-option');
-
-    // create div to hold selection options, including [atom, residue, chain, distance]
-    const selectionOptionContainer = document.createElement('div');
-    selectionOptionContainer.classList.add('selection-option');
-    const selectionTabContainer = document.createElement('div');
-    selectionTabContainer.classList.add('tab-selection-method');
-
-    // create tab buttons
-    //const tabButtonAtom = createSelectionMethodTabButton('Atom', false);
-    const tabButtonResidue = createSelectionMethodTabButton('Residue', true);
-    const tabButtonChain = createSelectionMethodTabButton('Molecule', false);
-    const tabButtonDistance = createSelectionMethodTabButton('Distance', false);
-
-    // create tab content
-    //const tabContentAtom = createSelectionMethodTabContent('atom', [atomMenu], false);
-    const tabContentResidue = createSelectionMethodTabContent('residue', [residueMenu], true);
-    const tabContentChain = createSelectionMethodTabContent('molecule', [chainMenu], false);
-    const tabContentDistance = createSelectionMethodTabContent('distance', [withinMenu, withinDropdown, withinResMenu], false);
-
-    // append tab buttons to tab container
-    //selectionTabContainer.appendChild(tabButtonAtom);
-    selectionTabContainer.appendChild(tabButtonResidue);
-    selectionTabContainer.appendChild(tabButtonChain);
-    selectionTabContainer.appendChild(tabButtonDistance);
-
-    // append content to content container
-    selectionOptionContainer.appendChild(selectionTabContainer);
-
-    //selectionOptionContainer.appendChild(tabContentAtom);
-    selectionOptionContainer.appendChild(tabContentResidue);
-    selectionOptionContainer.appendChild(tabContentChain);
-    selectionOptionContainer.appendChild(tabContentDistance);
-
-    const selectionMethodPara = document.createElement('p');
-    selectionMethodPara.classList.add("text");
-    const text = document.createTextNode("SELECTION METHOD:");
-    selectionMethodPara.appendChild(text);
-
-    // molRepOptionContainer.appendChild(molMenu.domElement);
-    molRepOptionContainer.appendChild(styleMenu.domElement);
-    molRepOptionContainer.appendChild(colorMenu.domElement);
-
-    // append everything to GUI div
-    moleculeGUI.domElement.appendChild(molRepOptionContainer);
-    moleculeGUI.domElement.appendChild(selectionMethodPara);
-    moleculeGUI.domElement.appendChild(selectionOptionContainer);
-
-    // add GUI to its container  
-    moleculeGUIdiv.appendChild(moleculeGUI.domElement);
-    moleculeGUIContainer.appendChild(moleculeGUIdiv);
-        
-    // default initialized setting: show rep 0 and hide all others
-    tab.classList.add('active');
-    tab.style.display = 'block';
-    moleculeGUIdiv.style.display = 'block';
-    currentGUI = moleculeGUI;
-
-    currentStyle = defaultParams.repParams.representation;
-
-    currentRep = currentRepID;
-    console.log('currentRep', currentRep);
-
-    return currentRepID;
 }
 
 // function to create a GUI for each of the maxRepTabs reps
@@ -2849,7 +1608,7 @@ function createGUIs() {
 
         // menus for the gui
         const styleMenu = moleculeGUI.add(params.repParams, 'representation', [CPK, VDW, lines]);
-        const colorMenu = moleculeGUI.add(params.colorParams, 'color', [name, blue, green, red]);
+        const colorMenu = moleculeGUI.add(params.colorParams, 'color', ['Name', 'Blue', 'Green', 'Red']);
         //const atomMenu = moleculeGUI.add(params.atomParams, 'atom');
         const residueMenu = moleculeGUI.add(params.residueParams, 'residue');
         const chainMenu = moleculeGUI.add(params.chainParams, 'chain'); 
@@ -2878,6 +1637,7 @@ function createGUIs() {
             /* //console.log("residueMenu.parent", residueMenu.parent);
             let siblings = residueMenu.parent.children;
 
+            // TODO change everything to use moleculeGUIdiv
             let styleMenu = siblings.find(obj => obj.property == 'representation');
             let styleMenuElement = styleMenu.domElement;
             //console.log("styleMenuElement", styleMenuElement); */
@@ -3159,7 +1919,7 @@ function createGUIs() {
                     //console.log('chainSelected', chainSelected);
 
                     moleculeGUIdiv.dataset.currentSelectionMethod = 'distance';
-                    moleculeGUIdiv.dataset.currentSelectionValue = distance + " " + type + " " + value;  
+                    moleculeGUIdiv.dataset.currentSelectionValue = distance + " " + type + " " + value; // TODO edit here probably
 
                     deleteText(currentRep);
                     hideMolecule(currentStyle, currentRep);
@@ -3274,7 +2034,7 @@ function createGUIs() {
         currentStyle = defaultParams.repParams.representation;
     }
 
-    //currentRep = 0;
+    currentRep = 0;
 }
 
 function onWindowResize() {
@@ -3432,6 +2192,20 @@ function keypressT(event) {
     }
 }
 
+// on keypress 'r', TODO consider removing
+function keypressR(event) {
+    if (event.key === 'r') {
+        if (!isRotationMode) {
+            resetMouseModes();
+            isRotationMode = true;
+            console.log("Rotate mode activated");
+        } else {
+            isRotationMode = false;
+            console.log("Rotate mode deactivated");
+        }
+    }
+}
+
 // on keypress '='
 
 function resetViewCameraWindow() {
@@ -3510,7 +2284,7 @@ function resetAtomState(atom) {
     //console.log('atom', atom);
     //console.log('currentColorValue', currentColorValue);
     
-    if (currentColorValue == name) {
+    if (currentColorValue == 'Name') {
         //obj.material.color.set(new THREE.Color(obj.originalColor));
         atom.material.color.set(new THREE.Color(atom.originalColor));
     } else if (currentColorValue == 'Blue') {
