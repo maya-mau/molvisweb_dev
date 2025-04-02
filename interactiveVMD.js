@@ -1087,10 +1087,71 @@ function showMolecule(style, repNum, selectionMethod, selectionValue, colorValue
     calculateTime(startTime, endTime, 'time in showMolecule');
 }
 
-function isSelected(obj, selectionMethod, selectionValue) {
+function findDistanceTarget(selectionValue) {
 
-    /* console.log('in isSelected');
-    console.log('obj', obj);
+    console.log('in findDistanceTarget');
+
+    // target array for distance calculations
+    let target = [];
+    let validResidues = {};
+
+    if (isString(selectionValue)) { selectionValue = selectionValue.split(' '); }
+
+    const distance = Number(selectionValue[0]);
+    let type = selectionValue[1];
+    let selected = selectionValue[2];
+
+    console.log('distance', distance, "type", type, "selected", selected);
+    
+    // find all target molecule atoms
+    if (type == 'residue') {
+
+        root.traverse( (obj) => { // select by obj.drawingMethod == CPK because we just need one set of target atoms to compare distances with
+            if (obj.isMesh && obj.drawingMethod == CPK && obj.residue == selected) {
+                console.log('found a target');
+                target.push([obj.position.x, obj.position.y, obj.position.z]);
+            }
+        })
+
+    } else if (type == 'molecule') {
+        //console.log(currentRep, currentStyle, selected);
+
+        root.traverse( (obj) => {
+            if (obj.isMesh && obj.drawingMethod == CPK && obj.chain == selected) {
+                //console.log("found a target obj", obj);
+                target.push([obj.position.x, obj.position.y, obj.position.z]);
+            }
+        })
+    }
+    
+    console.log('target in findDistanceTarget', target);
+
+    // find all residues within the required distance to the target atoms
+
+    root.traverse( (obj) => {
+        if (obj.isMesh) {
+            // check only the atoms that are the relevant rep and style
+            if (obj.molecularElement == 'atom' && obj.drawingMethod == CPK) { // just use CPK as target
+                for (let coord of target) {
+
+                    let dist = calculateDistanceXYZ(coord, [obj.position.x, obj.position.y, obj.position.z]);
+    
+                    if (dist <= distance) {
+                        validResidues[obj.residue] = true;
+                        //console.log('found valid residue', obj.residue);
+                    } 
+                }
+            }
+        }
+    });
+    
+    return validResidues;
+}
+
+function isSelected(obj, selectionMethod, selectionValue, validResidues) {
+    
+    //console.log('in isSelected');
+    /* console.log('obj', obj);
     console.log('selectionMethod', selectionMethod);
     console.log('selectionValue', selectionValue); */
 
@@ -1099,6 +1160,7 @@ function isSelected(obj, selectionMethod, selectionValue) {
         return true;
 
     } else {
+
         if (obj.molecularElement == 'atom') {
             if (selectionMethod == 'atom') { // unimplemented, may remove
 
@@ -1128,8 +1190,12 @@ function isSelected(obj, selectionMethod, selectionValue) {
                 
             } else if (selectionMethod == 'distance') { 
                 
-                const type = selectionValue[1];
+                if (isString(selectionValue)) { selectionValue = selectionValue.split(' '); }
+
+                let type = selectionValue[1];
                 let selected = selectionValue[2];
+
+                //console.log('type', type, 'selected', selected);
 
                 if (isString(selected)) {
                     if (selected.toLowerCase() == 'ponatinib') {
@@ -1145,7 +1211,7 @@ function isSelected(obj, selectionMethod, selectionValue) {
 
                     // check if residue is within distance and if obj isn't part of the original target
                     if (validResidues[obj.residue] && obj.residue != selected) {
-                        //console.log('residue', obj.residue);
+                        console.log('residue', obj.residue);
                         return true;
                     }
 
@@ -1192,10 +1258,11 @@ function isSelected(obj, selectionMethod, selectionValue) {
                     if (atom1[6] == selectionValue && atom2[6] == selectionValue) {
                         return true;
                     } 
-                }
-                
+                }  
                 
             } else if (selectionMethod == 'distance') {
+
+                if (isString(selectionValue)) { selectionValue = selectionValue.split(' '); }
     
                 let type = selectionValue[1];
                 let selected = selectionValue[2];
@@ -1257,6 +1324,13 @@ function parseRepInfo() {
         let state = rep.state;
         console.log('rep', rep);
 
+        let validResidues;
+
+        if (selectionMethod == 'distance') {
+            validResidues = findDistanceTarget(selectionValue);
+            console.log('validResidues', validResidues);
+        }
+
         if (state != shown) {
             console.log(repID, 'is hidden');
             continue;
@@ -1273,7 +1347,7 @@ function parseRepInfo() {
             } */
 
             if (obj.isMesh && obj.drawingMethod == drawingMethod && !obj.colorUpdated) { // if obj is atom or bond and color hasn't been updated yet
-                if (isSelected(obj, selectionMethod, selectionValue)) {
+                if (isSelected(obj, selectionMethod, selectionValue, validResidues)) {
                     
                     obj.visible = true; 
                     obj.colorUpdated = true; 
@@ -1293,270 +1367,6 @@ function parseRepInfo() {
             obj.colorUpdated = false; 
         }
     });
-}
-
-// assume only called after loadMolecule is called on the desired molecule,
-// so assume the atoms/bonds for this specific molecule already exist in the scene.
-// all selection values should be valid by the time they reach this function
-function showMolecule2(style, repID, selectionMethod, selectionValue, colorValue) {
-    console.log('in showMolecule2');
-
-    let startTime = new Date();
-
-    currentStyle = style;
-    currentRep = repID;
-    currentSelectionMethod = selectionMethod;
-    //console.log('selectionValue:', selectionValue, typeof selectionValue);
-
-    if (typeof selectionValue == 'string') { selectionValue = selectionValue.split(' ') }
-    currentSelectionValue = selectionValue;
-    //currentColorValue = colorValue;
-
-    console.log(currentStyle, currentRep, currentSelectionMethod, currentSelectionValue, colorValue);
-
-    // target array for distance calculations
-    let target = [];
-    let validResidues = {};
-
-    // TODO selectionMethod distance
-    /* if (selectionMethod == 'distance') {
-
-        if (isString(selectionValue)) { selectionValue = selectionValue.split(' '); }
-
-        const distance = Number(selectionValue[0]);
-        const type = selectionValue[1];
-        let selected = selectionValue[2];
-
-        console.log('distance', distance, "type", type, "selected", selected);
-        
-        // find all target molecule atoms
-        if (type == 'residue') {
-
-            root.traverse( (obj) => { // select by obj.style == CPK because we just need one set of target atoms to compare distances with
-                if (obj.isMesh && obj.repNum == currentRep && obj.style == CPK && obj.residue == selected) {
-                    target.push([obj.position.x, obj.position.y, obj.position.z]);
-                }
-            })
-
-        } else if (type == 'molecule') {
-            console.log(currentRep, currentStyle, selected);
-
-            root.traverse( (obj) => {
-                if (obj.isMesh && obj.repNum == currentRep && obj.style == CPK && obj.chain == selected) {
-                    //console.log("found a target obj", obj);
-                    target.push([obj.position.x, obj.position.y, obj.position.z]);
-                }
-            })
-        }
-        
-        //console.log(target);
-
-        // find all residues within the required distance to the target atoms
-
-        root.traverse( (obj) => {
-            if (obj.isMesh) {
-                // check only the atoms that are the relevant rep and style
-                if (obj.molecularElement == 'atom' && obj.repNum == repNum && obj.style == CPK) {
-                    for (let coord of target) {
-
-                        let dist = calculateDistanceXYZ(coord, [obj.position.x, obj.position.y, obj.position.z]);
-        
-                        if (dist <= distance) {
-                            validResidues[obj.residue] = true;
-                            //console.log('found valid residue', obj.residue);
-                        } 
-                    }
-                }
-            }
-        })
-    } */
-
-    //console.log('valid residues', validResidues);
-
-    root.traverse( (obj) => {
-
-        if (obj.isMesh && obj.style == style) {
-            /* console.log('match', obj.style, style, obj.repNum, repNum);
-            console.log('obj', obj); */
-
-            if (selectionValue == 'all') {
-                setColor(obj, colorValue);
-                obj.visible = true;
-            } else {
-                if (obj.molecularElement == 'atom') {
-                    if (selectionMethod == 'atom') { // unimplemented, may remove
-    
-                    } else if (selectionMethod == 'residue') {
-    
-                        //console.log('showMolecule, selecting by residue in atom');
-
-                        if (obj.residue == selectionValue) {
-                            setColor(obj, colorValue);
-                            obj.visible = true;
-                        } else {
-                            obj.visible = false;
-                        }
-    
-                    } else if (selectionMethod == 'chain') {  
-                        //console.log('showMolecule, selecting by chain in atom');
-                        if (selectionValue == 'backbone') {
-                            //console.log("obj.atomName", obj.atomName);
-
-                            if (backboneAtoms.includes(obj.atomName)) { 
-                                //console.log("obj.atomName", obj.atomName);
-                                setColor(obj, colorValue);
-                                obj.visible = true;
-                            } else {
-                                obj.visible = false;
-                            }
-
-                        } else {
-                            if (obj.chain == selectionValue) {
-                                setColor(obj, colorValue);
-                                obj.visible = true;
-                            } else {
-                                obj.visible = false;
-                            }
-                        }
-                        
-                    } else if (selectionMethod == 'distance') { 
-                        
-                        const type = selectionValue[1];
-                        let selected = selectionValue[2];
-
-                        if (isString(selected)) {
-                            if (selected.toLowerCase() == 'ponatinib') {
-                                selected = 'D';
-                            } else if (selected.toLowerCase() == 'abl kinase') {
-                                selected = 'A';
-                            }
-                        }
-
-                        //console.log('in selectionMethod distancce of showMolecule', type);
-
-
-                        if (type == 'residue') {
-
-                            // check if residue is within distance and if obj isn't part of the original target
-                            if (validResidues[obj.residue] && obj.residue != selected) {
-                                //console.log('residue', obj.residue);
-                                setColor(obj, colorValue);
-                                //console.log('set color of', obj, colorValue);
-                                obj.visible = true;
-                            } else {
-                                obj.visible = false;
-                            }
-
-                        } else if (type == 'molecule') {
-
-                            if (validResidues[obj.residue] && obj.chain != selected) {
-                                //console.log('obj', obj);
-                                setColor(obj, colorValue);
-                                //console.log('set color of', obj, colorValue);
-                                obj.visible = true;
-                            } else {
-                                obj.visible = false;
-                            }
-                        }
-                    }
-
-                } else if (obj.molecularElement == 'bond') {
-                    //console.log('object is bond');
-                    //console.log(obj);
-                    if (selectionMethod == 'atom') { // unimplemented, may remove
-    
-                    } else if (selectionMethod == 'residue') {
-    
-                        //console.log('selecting by residue in bond');
-                        let atom1 = obj.atom1;
-                        let atom2 = obj.atom2;
-    
-                        /* console.log('atom1.residue', atom1.residue);
-                        console.log('atom2.residue', atom2.residue);
-                        console.log('selection', selection); */
-    
-                        if (atom1[5] == selectionValue && atom2[5] == selectionValue) {
-                            setColor(obj, colorValue);
-                            obj.visible = true;
-                        } else {
-                            obj.visible = false; 
-                        }
-    
-                    } else if (selectionMethod == 'chain') {
-
-                        let atom1 = obj.atom1;
-                        let atom2 = obj.atom2;
-
-                        if (selectionValue == 'backbone') {
-                            if (backboneAtoms.includes(atom1[7]) && backboneAtoms.includes(atom2[7])) { 
-                                setColor(obj, colorValue);
-                                obj.visible = true;
-                            } else {
-                                obj.visible = false;
-                            }
-                        } else {
-        
-                            if (atom1[6] == selectionValue && atom2[6] == selectionValue) {
-                                setColor(obj, colorValue);
-                                obj.visible = true;
-                            } else {
-                                obj.visible = false; 
-                            }
-                        }
-                        
-                        
-                    } else if (selectionMethod == 'distance') {
-            
-                        const type = selectionValue[1];
-                        let selected = selectionValue[2];
-
-                        if (isString(selected)) {
-                            if (selected.toLowerCase() == 'ponatinib') {
-                                selected = 'D';
-                            } else if (selected.toLowerCase() == 'abl kinase') {
-                                selected = 'A';
-                            }
-                        }
-                        
-                        let atom1 = obj.atom1;
-                        let atom2 = obj.atom2;
-                        //console.log(obj);
-                        //console.log(atom1);
-
-                        if (type == 'residue') {
-
-                            // check if residue is within distance and if obj isn't part of the original target
-                            if (validResidues[atom1[5]] && validResidues[atom2[5]] && atom1[5] != selected && atom2[5] != selected) {
-                                //console.log('residue', obj.residue);
-                                //console.log('atom', obj.position.x, obj.position.y, obj.position.z);
-                                setColor(obj, colorValue);
-                                obj.visible = true;
-                            } else {
-                                obj.visible = false;
-                            }
-
-                        } else if (type == 'molecule') {
-
-                            if (validResidues[atom1[5]] && validResidues[atom2[5]] && atom1[6] != selected && atom2[6] != selected) {
-                                //console.log('residue', obj.residue);
-                                //console.log('atom', obj.position.x, obj.position.y, obj.position.z);
-                                setColor(obj, colorValue);
-                                obj.visible = true;
-                            } else {
-                                obj.visible = false;
-                            }
-
-                        }
-                    }
-                }
-            }
-        }
-    
-    
-    
-    })
-    let endTime = new Date();
-    calculateTime(startTime, endTime, 'time in showMolecule');
 }
 
 
@@ -1879,10 +1689,7 @@ function openSelectionMethodTab(event, SMtype) {
 
     //console.log('currentRep', currentRep);
     const smContentId = makeSMContentId(currentRep, SMtype);
-    console.log('smContentId', smContentId);
     const repContainer = document.getElementById('rep-content-' + currentRep);
-    console.log('currentRep', currentRep);
-    console.log('repContainer', repContainer);
 
     // get all elements with class="tab-content-selection-method" and hide them, within currentRep's div
     const tabContents = Array.from(repContainer.querySelectorAll('.tab-content-selection-method'));
@@ -1893,7 +1700,7 @@ function openSelectionMethodTab(event, SMtype) {
     tabLinks.forEach(link => link.classList.remove('active'));
 
     // show the current tab and add an "active" class to the button that opened the tab
-    console.log("document.getElementById(smContentId)", document.getElementById(smContentId));
+    //console.log("document.getElementById(smContentId)", document.getElementById(smContentId));
     document.getElementById(smContentId).style.display = "block";
     //console.log("changed this smContentId to block", smContentId);
     event.currentTarget.classList.add('active');
