@@ -14,7 +14,7 @@ const div = document.getElementById('start');
 //backButton.addEventListener('click', backDiv); 
 
 var zero = `<h1>Abridged Activity</h1> 
-<p>Adapted from Parthena E. Kotsalidis et. al.(1)</p>
+<span>Adapted from </span><a href="https://pubs.acs.org/doi/full/10.1021/acs.jchemed.4c00036">Parthena E. Kotsalidis et. al.</a><span> (1)</span>
 <p class="section-title"><b>Exploring the Drug Ponatinib</b></p>
 <p>Chronic Myeloid Leukemia (CML) is a cancer of the myeloid cells, which are cells that make red blood cells, platelets and most types of white blood cells.(2) Patients with cancer produce more white blood cells than they need due to the overactive BCR-ABL gene. However, highly effective drugs have been developed to inhibit the function of this overactive kinase in patients with CML. One such drug is Imatinib, which binds to the Abl kinase and inhibits its function. Imatinib works by fitting into the binding pocket of the Abl kinase, the same binding pocket ATP would bind in. When imatinib binds, the Abl kinase can no longer bind the ATP molecule it needs to function. As a result, the overactive kinase gets turned off.</p>
 <p>There are many drugs that can be used to treat CML and that can bind to this same protein. The specific way that drug molecules bind to the protein depends on the intermolecular forces (noncovalent interactions) between the molecules.  Today, you are going to explore the structure of another drug used to treat CML, called ponatinib. The structure of the drug molecule determines how it will interact with the protein target.</p>

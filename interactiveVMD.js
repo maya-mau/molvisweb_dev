@@ -42,6 +42,21 @@ const textSize = 5;
 const usedTabIDs = new Set();
 const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
 
+const shapes = [ "★", "☆", "♥", "●", "◆", "▲", "■", "□", "△", "○", "✿", "▰", 
+    "▱", "▮", "▯"
+    /* "Red", "Orange", "Yellow", "Green", "Blue", "Indigo", "Violet",
+    "Pink", "Teal", "Cyan", "Magenta", "Lime", "Olive", "Maroon", 
+    "Navy", "Aqua", "Coral", "Gold", "Turquoise", "Plum",
+    "Beige", "Mint", "Lavender", "Peach", "Crimson" */
+];
+
+const colorNames = [ 
+    "Red", "Orange", "Yellow", "Green", "Blue", "Indigo", "Violet",
+    "Pink", "Teal", "Cyan", "Magenta", "Lime", "Olive", "Maroon", 
+    "Navy", "Aqua", "Coral", "Gold", "Turquoise", "Plum",
+    "Beige", "Mint", "Lavender", "Peach", "Crimson"
+];
+
 const repsData = [];
 
 let repDataDefault = {
@@ -469,6 +484,7 @@ function calculateTime(startTime, endTime, message) {
 
 
 function loadMolecule(model) { 
+    popup();
     let startTime = new Date();
 
     numComplexObjs = 0;
@@ -738,7 +754,11 @@ function loadMolecule(model) {
         console.log('numComplexObjs', numComplexObjs);
         console.log('numSimpleObjs', numSimpleObjs);
 
+        popdown();
+
     } );
+
+    
 }
 
 function hideText(repNum) {
@@ -1004,6 +1024,7 @@ function isSelected(obj, selectionMethod, selectionValue, validResidues) {
 function parseRepInfo() {
 
     console.log('in parseRepInfo');
+    popup();
 
     // mark all objects as not visible
     scene.traverse((obj) => {
@@ -1067,6 +1088,8 @@ function parseRepInfo() {
             obj.colorUpdated = false; 
         }
     });
+
+    popdown();
 }
 
 
@@ -1113,12 +1136,22 @@ function openRepTab(repID) {
     console.log("in openRepTab, currentRep", currentRep);
 }
 
+function getRandomColor() {
+    const randomIndex = Math.floor(Math.random() * colorNames.length);
+    return colorNames[randomIndex];
+}
+
+function getRandomShape() {
+    const randomIndex = Math.floor(Math.random() * shapes.length);
+    return shapes[randomIndex];
+}
+
 // creates tab buttons for reps
 function createRepTabButton(repTabId, active) {
     const tabButton = document.createElement('button');
     tabButton.classList.add('tab-link-rep');
     tabButton.id = makeRepTabId(repTabId);
-    tabButton.textContent = "rep " + repTabId;
+    tabButton.textContent = "rep " + getRandomShape(); 
     if (active) { tabButton.classList.add('active'); }
     tabButton.addEventListener('click', () => openRepTab(repTabId)); 
 
@@ -1276,7 +1309,7 @@ function onHideShowRepClick () {
         parseRepInfo();
 
         // un-strike through text of current rep's tab        
-        currentTab.innerHTML = 'Rep ' + currentRep;
+        currentTab.innerHTML = currentTab.textContent;
 
         // change hide-show-button text to 'hide rep'
         hideShowButton.textContent = 'hide rep';
@@ -1377,7 +1410,6 @@ function addRepToRepsData(tabID) {
 }
 
 function createGUI() {
-    console.log('in createGUI()');
 
     // get container to hold all the GUIs 
     const moleculeGUIContainer = document.getElementsByClassName('three-gui')[0];
@@ -1386,7 +1418,6 @@ function createGUI() {
     currentRep = currentRepID;
     addRepToRepsData(currentRepID);
     let repIndex = repsData.length - 1;
-    console.log('repsData', repsData);
 
     // get tab rep container
     const tabRepContainer = document.getElementsByClassName("tab-rep")[0];
@@ -2387,19 +2418,15 @@ function raycast(event) {
     }
 } 
 
-/* function popup() {
-    console.log('inside popup');
+function popup() {
     let popup = document.getElementById("loading-popup");
     popup.style.display = 'block';
-    console.log(popup);
 }
 
 function popdown() {
-    console.log('inside popdown');
     let popup = document.getElementById("loading-popup");
     popup.style.display = "none";
-    console.log(popup);
-} */
+} 
 
 
 // get radius size of a given atom name 
