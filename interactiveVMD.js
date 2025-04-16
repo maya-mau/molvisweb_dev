@@ -276,7 +276,7 @@ function init() {
     // dynamic screen size 
     window.addEventListener( 'resize', onWindowResize );
     window.addEventListener('click', raycast);
-    window.addEventListener('keypress', keypressB);
+    window.addEventListener('keypress', keypressD);
     window.addEventListener('keypress', keypressC);
     window.addEventListener('keypress', keypressT);
     window.addEventListener('keypress', keypressEqual);
@@ -1842,17 +1842,17 @@ function render() {
 
 // keypress event functions
 
-// on keypress 'b'
-function keypressB(event) {
-    if (event.key === 'b') {
+// on keypress 'd'
+function keypressD(event) {
+    if (event.key === 'd') {
         if (!isDistanceMeasurementMode) {
             isDistanceMeasurementMode = true;
             document.body.style.cursor = 'cell';
             if (!selectedObject) {
-                console.log("in keypressB event, there is a selectedObject");
+                console.log("in keypressD event, there is a selectedObject");
                 resetAtomState(selectedObject); // reset selected atom state
             } else {
-                console.log("in keypressB event, there was no a selectedObject");
+                console.log("in keypressD event, there was no a selectedObject");
             }
             console.log("Distance measurement mode activated");
         } else {
