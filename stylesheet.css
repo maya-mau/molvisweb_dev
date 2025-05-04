@@ -24,12 +24,6 @@
     text-align: center;
     font-size: 10px;
   }
-
-/*   .column {
-    /* float: left; 
-    padding: 0px;
-    height: 90vh;
-  } */
   
   .column.left {
     width: 280px;
@@ -38,15 +32,12 @@
   }
   
   .column.middle {
-    /* width: calc(60% - 120px); */
     flex-grow: 1;
-    /* width: calc(100% - 265px - 250px); */
     transition: flex-grow 0.3s ease;
     min-width: 0;
   }
 
   #canvas {
-    /* width: flex; */
     flex-grow: 2;
   }
 
@@ -119,9 +110,9 @@
   }
 
   .button-container {
+    display: flex;
     position: absolute;
     padding: 5px;
-    
   }
 
   .button-container.top {
@@ -130,8 +121,6 @@
 
   #hide-questions {
     position: absolute;
-    
-    /* top: 80px; */
     background-color: #ffffff;
     border: 1px solid #999;
     padding: 5px;
@@ -139,14 +128,6 @@
     border-radius: 5px;
     transition: all 0.3s ease;
   }
-
-  /* .showing-questions {
-    right: 135px;
-  }
-
-  .hiding-questions {
-    right: 10px;
-  } */
 
   .bottom {
     bottom: 0;
@@ -194,8 +175,41 @@
     align-items: center;   
 }
 
+#help-button {
+  margin-right: 0px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: none;
+  background-color: #50555a;  
+  color: white;               
+  font-size: 20px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
 
-/* Style the tab */
+#help-button:hover {
+  background-color: #1c1d1e;  
+}
+
+.help-menu {
+  display: none;
+  position: relative;
+  left: 10px; 
+  bottom: 20px;
+  background: white;
+  border: 1px solid #ccc;
+  padding: 15px;
+  width: 260px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+  border-radius: 8px;
+  z-index: 1000;
+  max-height: 200px;        
+  overflow-y: auto;
+}
+
 .tab-selection-method {
   display: flex;  
   justify-content: flex-start;
@@ -215,7 +229,6 @@
   background-color: #7C7C7C;
 }
 
-/* Style the buttons that are used to open the tab content */
 .tab-selection-method button {
   background-color: #7C7C7C;
   border: none;
@@ -238,7 +251,6 @@
   margin: 0;
 }
 
-/* Create an active/current tab-link-selection-method class */
 .tab-selection-method button.active {
   background-color: #5D5D5D;
 }
@@ -261,12 +273,10 @@
   gap: 20px; 
 }
 
-/* Style the tab content */
 .tab-content-selection-method {
   padding: 1px 2px;
   border: none;
   margin: 5px;
-  
 }
 
 .tab-content-rep {
@@ -276,7 +286,6 @@
 .selection-option {
   background-color: #5D5D5D;
   margin: 10px;
-  
 }
 
 .controller.option {
@@ -296,11 +305,11 @@
 }
 
 .title {
-  display: none; /* Hide folder titles */
+  display: none;  
 }
 
 .children {
-  display: none; /* Hide folder titles */
+  display: none; 
 }
 
 #loading-popup {
@@ -314,9 +323,6 @@
   color: white;
   display: none;
 }
-
-
-
 
   /* Responsive layout - makes the three columns stack on top of each other instead of next to each other */
   /* @media (max-width: 600px) {

@@ -44,17 +44,6 @@ const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
 
 const shapes = [ "★", "☆", "♥", "●", "◆", "▲", "■", "□", "△", "○", "✿", "▰", 
     "▱", "▮", "▯"
-    /* "Red", "Orange", "Yellow", "Green", "Blue", "Indigo", "Violet",
-    "Pink", "Teal", "Cyan", "Magenta", "Lime", "Olive", "Maroon", 
-    "Navy", "Aqua", "Coral", "Gold", "Turquoise", "Plum",
-    "Beige", "Mint", "Lavender", "Peach", "Crimson" */
-];
-
-const colorNames = [ 
-    "Red", "Orange", "Yellow", "Green", "Blue", "Indigo", "Violet",
-    "Pink", "Teal", "Cyan", "Magenta", "Lime", "Olive", "Maroon", 
-    "Navy", "Aqua", "Coral", "Gold", "Turquoise", "Plum",
-    "Beige", "Mint", "Lavender", "Peach", "Crimson"
 ];
 
 const repsData = [];
@@ -337,7 +326,7 @@ function resetEverything() {
 
     resetScene();
     resetInterface();
-    loadMolecule(currentMolecule, defaultParams.repParams.representation, currentRep);
+    loadMolecule(currentMolecule);
 
     //popdown();
 }
@@ -538,6 +527,7 @@ function loadMolecule(model) {
         let positions = geometryAtoms.getAttribute( 'position' );
 
         const colors = geometryAtoms.getAttribute( 'color' );
+        console.log('colors', colors);
         const position = new THREE.Vector3();
         
         root.visible = true;
@@ -1927,6 +1917,19 @@ resetButton.addEventListener("click", resetEverything);
 const clearButton = document.getElementById("clear-bonds");
 
 clearButton.addEventListener("click", deleteBondDistances)
+
+// help menu
+
+const helpButton = document.getElementById('help-button');
+const helpMenu = document.getElementById('help-menu');
+
+helpButton.addEventListener('click', () => {
+  if (helpMenu.style.display === 'none' || helpMenu.style.display === '') {
+    helpMenu.style.display = 'block';
+  } else {
+    helpMenu.style.display = 'none';
+  }
+});
 
 
 // functions to manipulate atom states
