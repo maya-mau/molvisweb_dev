@@ -455,7 +455,7 @@ class PDBLoader extends Loader { // PDBLoader class extends Loader class from th
 					c: [ 0, 255, 255 ], 
 					n: [ 0, 0, 255 ], 
 					o: [ 255, 0, 0 ], 
-					f: [ 0, 255, 0 ], 
+					f: [ 209, 139, 141 ], 
 					ne: [ 179, 227, 245 ], 
 					na: [ 171, 92, 242 ], 
 					mg: [ 138, 255, 0 ], 
