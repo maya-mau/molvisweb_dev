@@ -603,7 +603,7 @@ class PDBLoader extends Loader { // PDBLoader class extends Loader class from th
 				let e = trim( lines[ i ].slice( 76, 78 ) ).toLowerCase();
 
 				if (e == '') { // sometimes the PDB file doesn't contain a final column for atom identity, in which case use third column
-					e = trim( lines[ i ].slice( 12, 14 ) ).toLowerCase(); 
+					e = trim( lines[ i ].slice( 12, 16 ) ).toLowerCase(); 
 				}
 				
 				let elem = e[0] // grab the first letter of e only, e.g. "h" from "hd21" - this is the element
