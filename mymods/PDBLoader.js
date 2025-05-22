@@ -311,7 +311,7 @@ class PDBLoader extends Loader { // PDBLoader class extends Loader class from th
 				residues: residues,
 				chains: chains
 			};
-			console.log('atoms', atoms);
+			//console.log('atoms', atoms);
 
 
 			const geometryAtoms = build.geometryAtoms;
@@ -329,7 +329,7 @@ class PDBLoader extends Loader { // PDBLoader class extends Loader class from th
 
 
 			// atoms
-			console.log('atoms', atoms);
+			//console.log('atoms', atoms);
 
 			const c = new Color();
 
@@ -612,6 +612,7 @@ class PDBLoader extends Loader { // PDBLoader class extends Loader class from th
 				// DRG285:F34
 				// resName + resid + ':' + e
 				// atomData[8] + atomData[5] + ':' + atomData[7]
+				// console.log(atomData);
 
 				if (!residues[resid]) { // creates an array of unique residue numbers present in PDB file
 					residues[resid] = true; // mark residue as seen
