@@ -561,6 +561,9 @@ function loadMolecule(model) {
                     //console.log("instanced ID", atomInstancedMeshCPK.instanceId);
                     atomIndexVDW++;
 
+                    const transformedPosition = new THREE.Vector3();
+                    dummy.matrix.decompose(transformedPosition, new THREE.Quaternion(), new THREE.Vector3());
+
                     // add metadata to array
                     atomMetadataVDW.push({
                         molecularElement: "atom",
@@ -576,7 +579,8 @@ function loadMolecule(model) {
                         colorUpdated: false,
                         originalColor: new THREE.Color().setRGB(colors.getX( i ), colors.getY( i ), colors.getZ( i )),
                         instanceID: i,
-                        wireframe: null
+                        wireframe: null,
+                        position: transformedPosition.clone()
                     });
                     
                 } else if (key == CPK) {
@@ -591,6 +595,10 @@ function loadMolecule(model) {
                     atomInstancedMeshCPK.setColorAt(atomIndexCPK, color);
                     //console.log("instanced ID", atomInstancedMeshCPK.instanceId);
                     atomIndexCPK++;
+
+                    const transformedPosition = new THREE.Vector3();
+                    dummy.matrix.decompose(transformedPosition, new THREE.Quaternion(), new THREE.Vector3());
+
 
                     // add metadata to array 
                     atomMetadataCPK.push({
@@ -607,7 +615,8 @@ function loadMolecule(model) {
                         colorUpdated: false,
                         originalColor: new THREE.Color().setRGB(colors.getX( i ), colors.getY( i ), colors.getZ( i )),
                         instanceID: i,
-                        wireframe: null
+                        wireframe: null,
+                        position: transformedPosition.clone()
                     });
 
                 } else if (key == lines) { // skip atoms for lines drawing method
@@ -2015,11 +2024,10 @@ function removeWireFrame(atom) {
         atom.wireframe = null;
         atomContent.innerHTML = '<p> selected atom: <br>none </p>'; 
     }
-    
 }
 
-function switchAtomState(atom) { // HERE LOSER
-    // switches atom state from previous state
+// If atom has wireframe, remove wireframe. If atom doesn't have wireframe, add wireframe.
+function switchAtomState(atom) { 
     if (atom.wireframe) {
 
         removeWireFrame(atom);
@@ -2041,8 +2049,6 @@ function switchAtomState(atom) { // HERE LOSER
             console.log('Error, atom not VDW or CPK'); 
         }
 
-        console.log('RADIUS', radius); // TODO radius is somehow wrong
-
         let color = atom.originalColor;
 
         const wireframeGeometry = new THREE.IcosahedronGeometry(sphereScale, detail); 
@@ -2055,22 +2061,14 @@ function switchAtomState(atom) { // HERE LOSER
 
         const wireframeSphere = new THREE.Mesh(wireframeGeometry, wireframeMaterial);
 
-        const tempMatrix = new THREE.Matrix4();
-        const atomPosition = new THREE.Vector3();
-        instancedMesh.getMatrixAt(atom.instanceID, tempMatrix);
-        tempMatrix.decompose(atomPosition, new THREE.Quaternion(), new THREE.Vector3());
-        wireframeSphere.position.copy(atomPosition);
-
-        const tempScale = new THREE.Vector3();
-        tempMatrix.decompose(new THREE.Vector3(), new THREE.Quaternion(), tempScale);
-        wireframeSphere.scale.copy(tempScale);  // apply the same scale
+        wireframeSphere.position.copy(atom.position.clone());
+        wireframeSphere.scale.set(radius, radius, radius);
 
         atom.wireframe = wireframeSphere;
         root.add(wireframeSphere);
         atomContent.innerHTML = '<p> selected atom: <br>' + atom.printableString + '<\p>';   
-
-    };
-};
+    }
+}
 
 function calculateDistance(object1, object2) { // could combine with drawLine
     let x1 = object1.position.x;
@@ -2082,7 +2080,7 @@ function calculateDistance(object1, object2) { // could combine with drawLine
 
     let distance = ((x2 - x1)**2 + (y2 - y1)**2 + (z2 - z1)**2)**(1/2);
     return distance.toFixed(4);
-};
+}
 
 function calculateDistanceXYZ(ls1, ls2) {
     let x1 = ls1[0];
@@ -2109,19 +2107,31 @@ function findExistingLine(atom1, atom2) {
 
 // draw printableString next to atom
 function drawAtomStr(atom) {
+
+    // if info str already drawn, skip (for cases where distance is measured between an atom and itself)
+    if (atom.atomInfoSprite) { return; }
     
     let x = atom.position.x;
     let y = atom.position.y;
-    let z = atom.position.z;        
+    let z = atom.position.z;  
+        
+    let instancedMesh;
+
+    if (atom.drawingMethod == CPK) { 
+        instancedMesh = atomInstancedMeshCPK;
+    } else if (atom.drawingMethod == VDW) { 
+        instancedMesh = atomInstancedMeshVDW;
+    } else if (atom.drawingMethod == lines) { // TODO deal with lines
+        instancedMesh = bondInstancedMeshLines;
+    } else { 
+        console.log('Error, atom not VDW or CPK'); 
+    }
 
     // create text to display atom printableString
     const canvas = document.createElement('canvas');
     const containerWidth = container.clientWidth;
     const containerHeight = container.clientHeight;
 
-    /* canvas.width = 10;  
-    canvas.height = 10; 
-    const padding = 10; */
     canvas.width = containerWidth;
     canvas.height = containerHeight;
 
@@ -2169,8 +2179,6 @@ function drawAtomStr(atom) {
 
     atom.atomInfoSprite = sprite;
 
-    //console.log('atom.atomInfoSprite', atom.atomInfoSprite);
-    //console.log('atom', atom);
     root.add(sprite);
 
     renderer.render(scene, camera);
@@ -2310,8 +2318,6 @@ function raycast(event) {
         let currentAtom;
         let closestAtom = null;
 
-        //let closestDistance = Infinity;
-
         for (const obj of intersects) {
             if (obj.object.visible == true && obj.object.isInstancedMesh) {
                 let instanceID = obj.instanceId;
@@ -2319,26 +2325,12 @@ function raycast(event) {
 
                 if (obj.object.molecularElement == "atom") {
 
-                    /* // calculate distance of obj to camera
-                    const objectPosition = obj.object.getWorldPosition(new THREE.Vector3());
-                    const cameraPosition = camera.position;
-                    const distance = cameraPosition.distanceTo(objectPosition);
-                    //console.log('current distance', distance, obj.object.atomName);
-
-                    if (distance < closestDistance) {
-                        closestDistance = distance;
-                        //console.log('found closer, closestDistance', closestDistance, obj.object.atomName);
-                        let atomInfo = instancedAtomData[instanceID];
-                        closestAtom = atomInfo;
-                    } */
-
                     if (obj.object.drawingMethod == CPK) {
                         closestAtom = atomMetadataCPK[instanceID];
                     } else if (obj.object.drawingMethod == VDW) {
                         closestAtom = atomMetadataVDW[instanceID];
                     }
                     
-                    console.log('FOUND closestAtom', closestAtom);
                     break;
                 }
             }
@@ -2358,14 +2350,15 @@ function raycast(event) {
         console.log("previously selected atom is", previousAtom);
         console.log("currently selected atom is", currentAtom);
 
+        // NEXT STEPS: WORK ON DISTANCE AND CENTERING
         if (isDistanceMeasurementMode) { // if selectionMode is on to measure distance between atoms
-            //console.log("isDistanceMeasurementMode on");
 
             if (distanceMeasurementAtoms.length == 0) {
 
                 console.log('HERE currently has one atom');
                 distanceMeasurementAtoms.push(currentAtom); // distanceMeasurementAtoms array currently has 1 atom in it
-                // display atom printableStr
+
+                switchAtomState(currentAtom);
 
                 // if current atom has info printed, remove
                 if (currentAtom.atomInfoSprite != null) {
@@ -2389,10 +2382,11 @@ function raycast(event) {
 
                 distanceMeasurementAtoms.push(currentAtom); // distanceMeasurementAtoms array currently has 2 atoms in it
                 console.log('HERE currently has two atoms');
+                switchAtomState(currentAtom);
 
                 let existingLine = findExistingLine(distanceMeasurementAtoms[0], distanceMeasurementAtoms[1])
 
-                if (existingLine) { // if the two atoms in distanceMeasurementAtoms have a bond between them, delete the bond and the atom info
+                if (existingLine) { // if the two atoms in distanceMeasurementAtoms have a line between them, delete the line and the atom info
 
                     // delete sprite associated with line
                     if (existingLine.children.length > 0) {
@@ -2402,7 +2396,6 @@ function raycast(event) {
                             child.material.map.dispose(); // Free up GPU memory
                             child.material.dispose();
                             child.geometry.dispose();
-                            
                         });
                     }
 
@@ -2417,7 +2410,6 @@ function raycast(event) {
                     for (let elem of bondLengthHTMLElems) {
                         if (elem.textContent == ("bond length: " + existingLine.distance + " angstroms")) {
                             elem.remove();
-                            //console.log('elem removed', elem);
                         }
                     }
 
@@ -2429,23 +2421,22 @@ function raycast(event) {
                     // delete atom info strings for each atom
                     for (let atom of distanceMeasurementAtoms) {
                         console.log('atom', atom);
-                        console.log('atom.children', atom.children);
+
                         if (atom.atomInfoSprite != null) {
                             let tempSprite = atom.atomInfoSprite;
                             
-                            tempSprite.material.map.dispose(); // Free up GPU memory
-                            tempSprite.material.dispose();
-                            //tempSprite.geometry.dispose();
-        
+                            tempSprite.material.map.dispose();
+                            tempSprite.material.dispose();        
                             atom.atomInfoSprite = null;  
                             root.remove(tempSprite);
-        
                         }
                     }
                     
                     console.log("Removed existing bond and labels");
 
                 } else {
+
+                    console.log("distanceMeasurementAtoms", distanceMeasurementAtoms);
 
                     drawLine(distanceMeasurementAtoms[0], distanceMeasurementAtoms[1]);
 
@@ -2463,10 +2454,8 @@ function raycast(event) {
                 distanceMeasurementAtoms = []; // clear array
                 distanceMeasurementAtoms.push(currentAtom); // now the array has 1 atom in it
 
-                console.log('currentAtom', currentAtom);
-                console.log('currentAtom children', currentAtom.children);
-                console.log('current atom children length', currentAtom.children.length);
-                
+                switchAtomState(currentAtom);
+
                 // if current atom has info printed, remove
                 if (currentAtom.atomInfoSprite != null) {
                     let tempSprite = currentAtom.atomInfoSprite;
