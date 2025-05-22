@@ -2026,6 +2026,26 @@ function removeWireFrame(atom) {
     }
 }
 
+function getCorrectInstancedMesh(object) {
+
+    let instancedMesh, sphereScale;
+
+    if (object.drawingMethod == CPK) { 
+        sphereScale = sphereScaleCPK;
+        instancedMesh = atomInstancedMeshCPK;
+    } else if (object.drawingMethod == VDW) { 
+        sphereScale = sphereScaleVDW;
+        instancedMesh = atomInstancedMeshVDW;
+    } else if (object.drawingMethod == lines) { // TODO deal with lines
+        instancedMesh = bondInstancedMeshLines;
+    } else { 
+        console.log('Error, atom not VDW or CPK'); 
+    }
+
+    //console.log(instancedMesh, sphereScale);
+    return {instancedMesh: instancedMesh, sphereScale: sphereScale};
+}
+
 // If atom has wireframe, remove wireframe. If atom doesn't have wireframe, add wireframe.
 function switchAtomState(atom) { 
     if (atom.wireframe) {
@@ -2034,20 +2054,9 @@ function switchAtomState(atom) {
 
     } else {  
         
-        let instancedMesh, sphereScale; 
         const radius = getRadius(atom.atomElement); 
-
-        if (atom.drawingMethod == CPK) { 
-            sphereScale = sphereScaleCPK;
-            instancedMesh = atomInstancedMeshCPK;
-        } else if (atom.drawingMethod == VDW) { 
-            sphereScale = sphereScaleVDW;
-            instancedMesh = atomInstancedMeshVDW;
-        } else if (atom.drawingMethod == lines) { // TODO deal with lines
-            instancedMesh = bondInstancedMeshLines;
-        } else { 
-            console.log('Error, atom not VDW or CPK'); 
-        }
+        let obj = getCorrectInstancedMesh(atom);
+        let sphereScale = obj.sphereScale;
 
         let color = atom.originalColor;
 
@@ -2350,12 +2359,11 @@ function raycast(event) {
         console.log("previously selected atom is", previousAtom);
         console.log("currently selected atom is", currentAtom);
 
-        // NEXT STEPS: WORK ON DISTANCE AND CENTERING
         if (isDistanceMeasurementMode) { // if selectionMode is on to measure distance between atoms
 
             if (distanceMeasurementAtoms.length == 0) {
 
-                console.log('HERE currently has one atom');
+                console.log('currently has one atom');
                 distanceMeasurementAtoms.push(currentAtom); // distanceMeasurementAtoms array currently has 1 atom in it
 
                 switchAtomState(currentAtom);
@@ -2381,7 +2389,7 @@ function raycast(event) {
             } else if (distanceMeasurementAtoms.length == 1) {
 
                 distanceMeasurementAtoms.push(currentAtom); // distanceMeasurementAtoms array currently has 2 atoms in it
-                console.log('HERE currently has two atoms');
+                console.log('currently has two atoms');
                 switchAtomState(currentAtom);
 
                 let existingLine = findExistingLine(distanceMeasurementAtoms[0], distanceMeasurementAtoms[1])
@@ -2401,8 +2409,6 @@ function raycast(event) {
 
                     // remove the line from the distanceLines array
                     distanceLines = distanceLines.filter(line => line !== existingLine);
-
-                    console.log('existingLine.distance', existingLine.distance);
 
                     // remove bond information from side panel
                     let bondLengthHTMLElems = Array.from(document.getElementsByClassName("bond-length")); 
@@ -2431,15 +2437,12 @@ function raycast(event) {
                             root.remove(tempSprite);
                         }
                     }
-                    
                     console.log("Removed existing bond and labels");
 
                 } else {
-
                     console.log("distanceMeasurementAtoms", distanceMeasurementAtoms);
 
                     drawLine(distanceMeasurementAtoms[0], distanceMeasurementAtoms[1]);
-
                     drawAtomStr(distanceMeasurementAtoms[1]);
 
                     // add bond length information to left panel
@@ -2479,15 +2482,23 @@ function raycast(event) {
             console.log('in isCenterMode');
             let camPos = camera.position.clone();
             console.log("camera.position before", camPos);
+
+            let obj = getCorrectInstancedMesh(selectedObject);
+            let instancedMesh = obj.instancedMesh;
             
             // center rotation around current atom
             if (camera.isOrthographicCamera) { // orthographic camera, uses imported controls
                 // Calculate the shift in target position
-                let objWorldPosition = new THREE.Vector3();
-                selectedObject.getWorldPosition(objWorldPosition);
                 
+                const instanceMatrix = new THREE.Matrix4();
+                const worldMatrix = new THREE.Matrix4();
+                const worldPosition = new THREE.Vector3();
 
-                controls.setOrbitPoint(objWorldPosition.x, objWorldPosition.y, objWorldPosition.z);
+                instancedMesh.getMatrixAt(selectedObject.instanceID, instanceMatrix);
+                worldMatrix.multiplyMatrices(instancedMesh.matrixWorld, instanceMatrix);
+                worldMatrix.decompose(worldPosition, new THREE.Quaternion(), new THREE.Vector3());
+
+                controls.setOrbitPoint(worldPosition.x, worldPosition.y, worldPosition.z);
                 
                 //camera.position.copy(camPos);
                 //camera.lookAt(prevTarget);
@@ -2500,7 +2511,7 @@ function raycast(event) {
 
             return;
 
-        } else {
+        } else { // not distance measurement or centering mode
             if (!(previousAtom == null)) { // if there was a previously-selected object
                 if (previousAtom == currentAtom) { // if previous selected object is the same as currently selected object
                     switchAtomState(currentAtom); // switch current atom's state
