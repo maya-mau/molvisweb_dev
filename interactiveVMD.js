@@ -562,7 +562,7 @@ function loadMolecule(model) {
                     atomIndexVDW++;
 
                     // add metadata to array
-                    atomMetadataCPK.push({
+                    atomMetadataVDW.push({
                         molecularElement: "atom",
                         drawingMethod: key,
                         repID: currentRep,
@@ -593,7 +593,7 @@ function loadMolecule(model) {
                     atomIndexCPK++;
 
                     // add metadata to array 
-                    atomMetadataVDW.push({
+                    atomMetadataCPK.push({
                         molecularElement: "atom",
                         drawingMethod: key,
                         repID: currentRep,
@@ -1978,7 +1978,7 @@ helpButton.addEventListener('click', () => {
 
 // functions to manipulate atom states
 
-function resetAtomState(atom) {
+function resetAtomState(atom) { // TODO FIGURE OUT HOW TO CHANGE ATOM COLOR
 
     // resets atom state to default non-wire frame and color
     if (atom == null) {
@@ -2003,28 +2003,37 @@ function resetAtomState(atom) {
     return;
 };
 
-function switchAtomState(atom) { // HERE LOSER
-    // switches atom state from previous state
-    if (atom.wireframe != null) {
+function removeWireFrame(atom) {
 
+    if (atom.wireframe) {
         let wireframeSphere = atom.wireframe;
         console.log('wireframeSphere, to delete', wireframeSphere);
         wireframeSphere.geometry.dispose();
         wireframeSphere.material.dispose();
-        scene.remove(wireframeSphere);
+        root.remove(wireframeSphere);
 
         atom.wireframe = null;
         atomContent.innerHTML = '<p> selected atom: <br>none </p>'; 
+    }
+    
+}
+
+function switchAtomState(atom) { // HERE LOSER
+    // switches atom state from previous state
+    if (atom.wireframe) {
+
+        removeWireFrame(atom);
 
     } else {  
         
-        let radius, instancedMesh; 
+        let instancedMesh, sphereScale; 
+        const radius = getRadius(atom.atomElement); 
 
         if (atom.drawingMethod == CPK) { 
-            radius = getRadius(atom.atomElement) * sphereScaleCPK; 
+            sphereScale = sphereScaleCPK;
             instancedMesh = atomInstancedMeshCPK;
         } else if (atom.drawingMethod == VDW) { 
-            radius = getRadius(atom.atomElement) * sphereScaleVDW; 
+            sphereScale = sphereScaleVDW;
             instancedMesh = atomInstancedMeshVDW;
         } else if (atom.drawingMethod == lines) { // TODO deal with lines
             instancedMesh = bondInstancedMeshLines;
@@ -2036,11 +2045,10 @@ function switchAtomState(atom) { // HERE LOSER
 
         let color = atom.originalColor;
 
-        const wireframeGeometry = new THREE.SphereGeometry(radius, 12, 12); // adjust radius if needed
+        const wireframeGeometry = new THREE.IcosahedronGeometry(sphereScale, detail); 
         const wireframeMaterial = new THREE.MeshBasicMaterial({
-            color: color,     // or any highlight color
+            color: color,     
             wireframe: true,
-            depthTest: false,    // optional: ensures it renders on top
             transparent: true,
             opacity: 0.8,
         });
@@ -2050,7 +2058,6 @@ function switchAtomState(atom) { // HERE LOSER
         const tempMatrix = new THREE.Matrix4();
         const atomPosition = new THREE.Vector3();
         instancedMesh.getMatrixAt(atom.instanceID, tempMatrix);
-        tempMatrix.multiply(instancedMesh.matrixWorld);
         tempMatrix.decompose(atomPosition, new THREE.Quaternion(), new THREE.Vector3());
         wireframeSphere.position.copy(atomPosition);
 
@@ -2309,11 +2316,8 @@ function raycast(event) {
             if (obj.object.visible == true && obj.object.isInstancedMesh) {
                 let instanceID = obj.instanceId;
                 console.log('instancedID', instanceID);
-                console.log(obj.object);
 
                 if (obj.object.molecularElement == "atom") {
-
-                    console.log('found an atom!!');
 
                     /* // calculate distance of obj to camera
                     const objectPosition = obj.object.getWorldPosition(new THREE.Vector3());
@@ -2334,7 +2338,8 @@ function raycast(event) {
                         closestAtom = atomMetadataVDW[instanceID];
                     }
                     
-                    console.log('closestAtom', closestAtom);
+                    console.log('FOUND closestAtom', closestAtom);
+                    break;
                 }
             }
         }
@@ -2512,7 +2517,7 @@ function raycast(event) {
                     switchAtomState(currentAtom); // switch current atom's state
                     return;
                 } else { // if clicking on a different atom
-                    resetAtomState(previousAtom); // reset previously-clicked atom
+                    removeWireFrame(previousAtom); // reset previously-clicked atom
                     switchAtomState(currentAtom); // switch current atom's state
                     return;
                 };
