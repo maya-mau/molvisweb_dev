@@ -14,10 +14,10 @@ const VDW = 'Space filling';
 const lines = 'Lines';
 const reps = [CPK, VDW, lines];
 
-const atomMetadataCPK = []; 
-const atomMetadataVDW = []; 
-const atomMetadataLines = []; 
-const bondMetadata = [];
+let atomMetadataCPK = []; 
+let atomMetadataVDW = []; 
+let atomMetadataLines = []; 
+let bondMetadata = [];
 
 const MOLECULES = {
     'Ponatinib': 'ponatinib_Sep2022.pdb',
@@ -65,7 +65,6 @@ let repDataDefault = {
     state: shown
 }
 
-
 // initialize the baseline objects  
 let camera, scene, renderer, container;
 let controls;
@@ -109,7 +108,7 @@ const hideShowButton = document.getElementById('hide-show-rep');
 
 var currentMolecule = 'caffeine.pdb';
 var currentStyle = defaultParams.repParams.representation;
-var currentSelectionMethod = residue;
+var currentSelectionMethod = 'residue';
 var currentSelectionValue = defaultParams.residueParams.residue;
 
 var numRepTabs = 1;
@@ -305,7 +304,6 @@ function init() {
     molGUIContainer.appendChild(molMenu.domElement); 
 
     molMenu.onChange(function(molecule) {
-        //popup();
         console.log("trying to load", molecule, defaultParams.repParams.representation);
         residueSelected = 'all';
 
@@ -318,12 +316,9 @@ function init() {
         loadMolecule(molecule, defaultParams.repParams.representation, currentRep);
         
         resetInterface();
-        //popdown();
     });
 
     createGUI();    
-
-    //resetViewCameraWindow();
 }
 
 function resetEverything() {
@@ -367,10 +362,10 @@ function resetInterface() {
 }
 
 function storeInitialView() {
+
     initialPosition.copy(camera.position);
     initialQuaternion.copy(camera.quaternion);
     
-    //initialTarget.copy(controls.getTarget);
     controls.getTarget(initialTarget);
 }
 
@@ -407,6 +402,7 @@ function getVisibleBoundingBox() {
     return box;
 }
 
+// helper function to add x, y, and z axes to the rendering window
 function addAxes() {
     const axesHelper = new THREE.AxesHelper( 100 );
     scene.add( axesHelper );
@@ -418,13 +414,11 @@ function recenterCamera(camera, controls) {
     storeInitialView();
 }
 
-
 function calculateTime(startTime, endTime, message) {
     let totalTime = Math.abs(endTime - startTime);
     //console.log('time in milliseconds:', totalTime);
     console.log(message, 'in seconds:', totalTime/1000);
 }
-
 
 function loadMolecule(model) { 
     popup();
@@ -435,6 +429,12 @@ function loadMolecule(model) {
     currentMolecule = model;
 
     const url = './models/molecules/' + model;
+
+    // empty metadata arrays
+    atomMetadataCPK = [];
+    atomMetadataVDW = [];
+    atomMetadataLines = [];
+    bondMetadata = [];
 
     PDBloader.load( url, function ( pdb ) {
         // properties of pdb loader that isolate the atoms & bonds
@@ -536,6 +536,8 @@ function loadMolecule(model) {
             
             // create a set of atoms/bonds in each of the 3 styles for each tab
             for (let key of reps) {
+
+                console.log("key in reps loop", key);
                 
                 let atomName = json_atoms.atoms[i][7];
                 let atomElement = json_atoms.atoms[i][4];
@@ -582,7 +584,9 @@ function loadMolecule(model) {
                         wireframe: null,
                         position: transformedPosition.clone()
                     });
-                    
+                    console.log(i);
+                    console.log('newly pushed atom into VDW', atomMetadataVDW[atomMetadataVDW.length-1]);
+            
                 } else if (key == CPK) {
                     const radius = getRadius(atomElement);
                     sphereGeometry = sphereGeometryCPK;
@@ -593,12 +597,10 @@ function loadMolecule(model) {
                     dummy.updateMatrix();
                     atomInstancedMeshCPK.setMatrixAt(atomIndexCPK, dummy.matrix);
                     atomInstancedMeshCPK.setColorAt(atomIndexCPK, color);
-                    //console.log("instanced ID", atomInstancedMeshCPK.instanceId);
                     atomIndexCPK++;
 
                     const transformedPosition = new THREE.Vector3();
                     dummy.matrix.decompose(transformedPosition, new THREE.Quaternion(), new THREE.Vector3());
-
 
                     // add metadata to array 
                     atomMetadataCPK.push({
@@ -619,11 +621,15 @@ function loadMolecule(model) {
                         position: transformedPosition.clone()
                     });
 
-                } else if (key == lines) { // skip atoms for lines drawing method
-                    continue;
-                }                
+                    console.log(i);
+                    console.log('newly pushed atom into CPK', atomMetadataCPK[atomMetadataCPK.length-1]);
+            
+                }  
+                // skip atoms for lines drawing method
 
-                //console.log('newly pushed atom', atomMetadata[atomMetadata.length-1]);
+                console.log("atomMetadataCPK length:", atomMetadataCPK.length);
+                console.log("atomMetadataVDW length:", atomMetadataVDW.length);
+
             } 
         }
 
@@ -632,12 +638,14 @@ function loadMolecule(model) {
         atomInstancedMeshCPK.instanceColor.needsUpdate = true;
         root.add(atomInstancedMeshCPK);
         console.log("atomInstancedMeshCPK", atomInstancedMeshCPK);
+        console.log('metadataCPK', atomMetadataCPK);
 
         atomInstancedMeshVDW.count = atomIndexVDW;
         atomInstancedMeshVDW.instanceMatrix.needsUpdate = true;
         atomInstancedMeshVDW.instanceColor.needsUpdate = true;
         root.add(atomInstancedMeshVDW);
         console.log("atomInstancedMeshVDW", atomInstancedMeshVDW);
+        console.log('metadataVDW', atomMetadataVDW);
 
         // hide VDW instances when first loading molecule
         atomInstancedMeshVDW.visible = false;
@@ -767,9 +775,7 @@ function loadMolecule(model) {
         let endTime = new Date();
         calculateTime(startTime, endTime, 'time to loadMolecule');
 
-
         popdown();
-
     } );
 }
 
@@ -796,7 +802,6 @@ function deleteText(repNum) {
     let objectsToRemove = [];
 
     root.traverse( (obj) => {
-
         if (obj.repNum == repNum) {
 
             if (obj.isSprite) {
@@ -815,10 +820,10 @@ function deleteText(repNum) {
     objectsToRemove.forEach(obj => root.remove(obj));
 }
 
+// returns true if variable is string, false otherwise
 function isString(variable) {
     return typeof variable === "string";
 }
-
 
 function findDistanceTarget(selectionValue) {
 
@@ -898,11 +903,7 @@ function isSelected(obj, selectionMethod, selectionValue, validResidues) {
 
             } else if (selectionMethod == residue) {
 
-                //console.log('showMolecule, selecting by residue in atom');
-
-                if (obj.residue == selectionValue) {
-                    return true;
-                }
+                if (obj.residue == selectionValue) { return true; }
 
             } else if (selectionMethod == 'chain') {  
                 //console.log('showMolecule, selecting by chain in atom');
@@ -2062,7 +2063,7 @@ function switchAtomState(atom) {
 
         const wireframeGeometry = new THREE.IcosahedronGeometry(sphereScale, detail); 
         const wireframeMaterial = new THREE.MeshBasicMaterial({
-            color: color,     
+            color: '#39FF14',     
             wireframe: true,
             transparent: true,
             opacity: 0.8,
@@ -2331,6 +2332,8 @@ function raycast(event) {
             if (obj.object.visible == true && obj.object.isInstancedMesh) {
                 let instanceID = obj.instanceId;
                 console.log('instancedID', instanceID);
+                console.log("obj found", obj);
+                console.log(atomMetadataCPK);
 
                 if (obj.object.molecularElement == "atom") {
 
@@ -2339,6 +2342,8 @@ function raycast(event) {
                     } else if (obj.object.drawingMethod == VDW) {
                         closestAtom = atomMetadataVDW[instanceID];
                     }
+
+                    console.log('FOUND THIS ATOM', closestAtom);
                     
                     break;
                 }
@@ -2478,7 +2483,9 @@ function raycast(event) {
                 return;
             };
 
-        } else if (isCenterMode) { // HEREEEEE CENTER MODE MIGHT NOT WORK
+        } else if (isCenterMode) { 
+            // center rotation around selected atom
+
             console.log('in isCenterMode');
             let camPos = camera.position.clone();
             console.log("camera.position before", camPos);
@@ -2486,10 +2493,9 @@ function raycast(event) {
             let obj = getCorrectInstancedMesh(selectedObject);
             let instancedMesh = obj.instancedMesh;
             
-            // center rotation around current atom
             if (camera.isOrthographicCamera) { // orthographic camera, uses imported controls
-                // Calculate the shift in target position
                 
+                // Calculate the shift in target position
                 const instanceMatrix = new THREE.Matrix4();
                 const worldMatrix = new THREE.Matrix4();
                 const worldPosition = new THREE.Vector3();
