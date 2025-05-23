@@ -73,6 +73,7 @@ let raycaster, mouse = {x: 0, y: 0 }
 let atomInstancedMeshCPK, atomInstancedMeshVDW, bondInstancedMeshLines, bondInstancedMeshCPK;
 
 const cameraOption = 'orthographic';
+const drawRay = false;
 
 let initialPosition, initialQuaternion;
 let initialTarget = new THREE.Vector3(0,0,0);
@@ -143,6 +144,7 @@ raycaster.params.Points.threshold = 0.1;
 raycaster.params.Line.threshold = 0.1;  
 
 function setUpCamera() {
+    console.log('inside setUpCamera');
 
     if (cameraOption == 'orthographic') {
         console.log('ORTHOGRAPHIC');
@@ -229,7 +231,6 @@ function setUpControls() {
 
         ( function anim () {
 
-            // snip
             const delta = clock.getDelta();
             const hasControlsUpdated = controls.update( delta );
         
@@ -239,9 +240,20 @@ function setUpControls() {
         } )();
 
 		controls.addEventListener( 'update', render ); // call this only in static scenes (i.e., if there is no animation loop)
-        controls.setLookAt(0, 0, 100, 0, 0, 0); 
-        controls.minDistance = 1; // adjust based on atom size
+        //controls.setLookAt(0, 0, 100, 0, 0, 0); 
+
+        const box = getVisibleBoundingBox();
+        const center = new THREE.Vector3();
+        box.getCenter(center);
+
+        controls.setLookAt(
+            camera.position.x, camera.position.y, camera.position.z,  // camera position
+            center.x, center.y, center.z   // look-at target
+        );
+
+        controls.minDistance = 1; 
         controls.maxDistance = 100;
+        controls.update();
 
         camera.lookAt(controls.getTarget(new THREE.Vector3));
         
@@ -1957,6 +1969,7 @@ function keypressEqual(event) {
 }
 
 function fitCameraToBoundingBox(camera, controls, boundingBox, padding = 1.2) {
+    console.log('INSIDE FIT CAMERA TO BOUNDING BOX');
     const center = boundingBox.getCenter(new THREE.Vector3());
     const size = boundingBox.getSize(new THREE.Vector3());
     const maxDim = Math.max(size.x, size.y, size.z);
@@ -1976,28 +1989,42 @@ function fitCameraToBoundingBox(camera, controls, boundingBox, padding = 1.2) {
         controls.minDistance = maxDim * 0.5;
         controls.maxDistance = maxDim * 10;
         controls.setTarget(center.x, center.y, center.z);
+        controls.update();
 
     } else if (camera.isOrthographicCamera) {
-        const aspect = container.clientWidth / container.clientHeight;
-        const height = size.y * padding;
-        const width = height * aspect;
+        
+        let aspectRatio = window.innerWidth / window.innerHeight;
 
-        camera.left = -width / 2;
-        camera.right = width / 2;
-        camera.top = height / 2;
-        camera.bottom = -height / 2;
+        let paddingFactor = 1.1;
+        let viewSize = Math.max(size.x, size.y, size.z) * paddingFactor;
 
-        camera.near = -maxDim * 5;
-        camera.far = maxDim * 5;
+        let left = -aspectRatio * viewSize / 2;
+        let right = aspectRatio * viewSize / 2;
+        let top = viewSize / 2;
+        let bottom = -viewSize / 2;
+        let near = 0.01;   
+        let far = 10000;   
 
-        camera.position.set(center.x, center.y, maxDim * 2);
-        controls.setTarget(center.x, center.y, center.z);
+        // Create the orthographic camera
+        camera.left = left;
+        camera.right = right;
+        camera.top = top;
+        camera.bottom = bottom;
+        camera.near = near;
+        camera.far = far;
+
+        camera.position.set(center.x, center.y, center.z + maxDim * 2);
+
+        controls.setLookAt(
+            camera.position.x, camera.position.y, camera.position.z,  // camera position
+            center.x, center.y, center.z   // look-at target
+        );
+
+        controls.update();
     }
 
     camera.updateProjectionMatrix();
 }
-
-
 
 function resetToInitialView() {
 
@@ -2361,9 +2388,11 @@ function resetMouseModes() {
     document.body.style.cursor = 'auto';
 }
 
+
 //--------------------------------------
 // helper functions to draw frustrum ray to debug mouse clicking
 
+// TODO something wrong with frustrum ray, figure out later
 function vectorToString(v) {
     return "("+v.x.toFixed(2)+','+
         v.y.toFixed(2)+','+
@@ -2440,31 +2469,32 @@ function handleMouseClick(mx,my,clickNear,clickFar) {
 //--------------------------------------
 
 
-// on click 
+/**
+ * Deals with mouse click on render screen. Gets objects intersecting with the mouse and deals with them.
+ * Set drawRay to true if you want to draw the frustrum ray from mouse click (shift + click)
+ * 
+ * @param {Event} event - click event
+ * (Sections adapted from Scott Anderson's raycasting code to draw frustrum ray from mouse click)
+ */
 function raycast(event) {
 
-    if (event.shiftKey) {
+    if (drawRay) {
+        if (event.shiftKey) {
 
-        event.preventDefault();
-        var click = convertMousePositionToNDC(event);
-        var clickPositionNear = new THREE.Vector3( click.x, click.y, 0 );
-        var clickPositionFar  = new THREE.Vector3( click.x, click.y, 1 );
-        var before1 = vectorToString(clickPositionNear);
-        var before2 = vectorToString(clickPositionFar);
-        clickPositionNear.unproject(camera);
-        clickPositionFar.unproject(camera);
-        var after1 = vectorToString(clickPositionNear);
-        var after2 = vectorToString(clickPositionFar);
-        var infoElt = document.getElementById('info');
-        /* infoElt.innerHTML = ("onMouseClick: button "+evt.button
-                            +" at "+before1+' and '+before2
-                            + " unprojects to "+after1+' and '+after2); */
-        handleMouseClick(click.x, click.y, clickPositionNear, clickPositionFar );
+            event.preventDefault();
+            var click = convertMousePositionToNDC(event);
+            var clickPositionNear = new THREE.Vector3( click.x, click.y, 0 );
+            var clickPositionFar  = new THREE.Vector3( click.x, click.y, 1 );
+        
+            clickPositionNear.unproject(camera);
+            clickPositionFar.unproject(camera);
+        
+            handleMouseClick(click.x, click.y, clickPositionNear, clickPositionFar );
+        }
     }
 
-    // get mouse location specific to given container size 
+    // get mouse's location specific to given container size 
     var rect = renderer.domElement.getBoundingClientRect();
-    //var containerRect = container.getBoundingClientRect(); // Get container's bounding rectangle
     mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1; // Adjust for container's width
     mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1; // Adjust for container's height
 
@@ -2512,7 +2542,6 @@ function raycast(event) {
         if (numAtoms == 0) { return; }
 
         let previousAtom = selectedObject;
-
         selectedObject = currentAtom;
 
         console.log("previously selected atom is", previousAtom);
@@ -2686,23 +2715,29 @@ function raycast(event) {
                 return;
             }            
         };  
-    } else {
-        // console.log("doesn't intersect");
-    }
+    } 
 } 
 
+/**
+ * Make loading screen appear
+ */
 function popup() {
     let popup = document.getElementById("loading-popup");
     popup.style.display = 'block';
 }
 
+/**
+ * Make loading screen disappear
+ */
 function popdown() {
     let popup = document.getElementById("loading-popup");
     popup.style.display = "none";
 } 
 
 
-// get radius size of a given atom name 
+/**
+ * Get radius size of a given atom element
+ */
 function getRadius(atom) {
     const radii = {
         br: 1.83,
