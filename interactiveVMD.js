@@ -29,7 +29,6 @@ const MOLECULES = {
 const residue = 'residue';
 const molecule = 'molecule';
 const distance = 'distance';
-//const selectionMethods = [residue, molecule, distance];
 
 const hidden = 'hidden';
 const shown = 'shown';
@@ -51,8 +50,7 @@ const usedTabIDs = new Set();
 const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
 
 const shapes = [ "★", "☆", "♥", "●", "◆", "▲", "■", "□", "△", "○", "✿", "▰", 
-    "▱", "▮", "▯"
-];
+    "▱", "▮", "▯" ];
 
 const repsData = [];
 
@@ -144,77 +142,88 @@ raycaster.far = Infinity;
 raycaster.params.Points.threshold = 0.1; 
 raycaster.params.Line.threshold = 0.1;  
 
-init();
+function setUpCamera() {
 
-// init function - sets up scene, camera, renderer, controls, and GUIs 
-function init() {
+    if (cameraOption == 'orthographic') {
+        console.log('ORTHOGRAPHIC');
 
-    // initialize main window 
-    scene = new THREE.Scene();
-    scene.background = new THREE.Color( 0x000000 );
-    globalThis.scene = scene;
-    
+        let box = getVisibleBoundingBox();
+        console.log('box', box);
+        const size = new THREE.Vector3();
+        box.getSize(size);
+        let maxDim = Math.max(size.x, size.y, size.z);
+        console.log('maxDim', maxDim);
+
+        const center = new THREE.Vector3();
+        box.getCenter(center);
+
+        let aspectRatio = window.innerWidth / window.innerHeight;
+
+        let paddingFactor = 1.1;
+        let viewSize = Math.max(size.x, size.y, size.z) * paddingFactor;
+
+        let left = -aspectRatio * viewSize / 2;
+        let right = aspectRatio * viewSize / 2;
+        let top = viewSize / 2;
+        let bottom = -viewSize / 2;
+        let near = 1;   
+        let far = 10000;   
+
+        // Create the orthographic camera
+        camera.left = left;
+        camera.right = right;
+        camera.top = top;
+        camera.bottom = bottom;
+        camera.near = near;
+        camera.far = far;
+
+        camera.position.set(center.x, center.y, maxDim * 2);
+
+        camera.updateProjectionMatrix();
+
+    } else {
+        camera = new THREE.PerspectiveCamera( 70, window.innerWidth / window.innerHeight, 1, 5000 );
+        camera.position.z = 1000;
+
+        globalThis.camera = camera;
+        scene.add( camera );
+    }        
+
+    globalThis.camera = camera;
+    scene.add(camera);
+
+    initialPosition = camera.position.clone();
+    initialQuaternion = camera.quaternion.clone();
+}
+
+function setUpLights() {
+    scene.add(new THREE.AmbientLight(0xffffff, 1));
+
+    const light1 = new THREE.DirectionalLight(0xffffff, 2.5);
+    light1.position.set(1, 1, 1);
+    scene.add(light1);
+
+    const light2 = new THREE.DirectionalLight(0xffffff, 1.5);
+    light2.position.set(1, -1, -1);
+    scene.add(light2);
+}
+
+function setUpRenderer() {
     container = document.getElementsByClassName('column middle')[0]; 
     const containerWidth = container.clientWidth;
     const containerHeight = container.clientHeight;
 
-    //addAxes();
-    
-    if (cameraOption == 'orthographic') {
-            
-        // TODO need to edit these to be dynamic based on the molecule maybe
-        let w = containerWidth;
-        let h = containerHeight;
-        console.log(w, h);
-        let viewSize = h;
-        let aspectRatio = w / h;
-    
-        let left = (-aspectRatio * viewSize) / 2;
-        let right = (aspectRatio * viewSize) / 2;
-        let top = viewSize / 2;
-        let bottom = -viewSize / 2;
-        let near = -10000;
-        let far = 10000; 
-    
-        camera = new THREE.OrthographicCamera(left, right, top, bottom, near, far);
-        //camera.position.z = 1000;
-        camera.position.set(0, 0, 10);
-            
-    } else {
-        camera = new THREE.PerspectiveCamera( 70, window.innerWidth / window.innerHeight, 1, 5000 );
-        camera.position.z = 1000;
-    }
-
-    globalThis.camera = camera;
-    scene.add( camera );
-
-    // object needs to be illuminated to be visible 
-    var ambientLight = new THREE.AmbientLight ( 0xffffff, 1);
-    scene.add( ambientLight );
-
-    const light1 = new THREE.DirectionalLight( 0xffffff, 2.5 );
-    light1.position.set( 1, 1, 1 );
-    scene.add( light1 );
-
-    const light2 = new THREE.DirectionalLight( 0xffffff, 1.5 );
-    light2.position.set(  1, - 1, -1 );
-    scene.add( light2 );
-
-    // root contains all the objects of the scene 
-    scene.add( root );
-    root.visible = true;
-
-    // renderer makes scene visible 
-    renderer = new THREE.WebGLRenderer( { antialias: false } );
+    renderer = new THREE.WebGLRenderer({ antialias: false });
     renderer.setPixelRatio(window.devicePixelRatio);
-
-    // place the scene in the column middle window 
     renderer.setSize(containerWidth, containerHeight);
     renderer.domElement.id = 'canvas';
     container.appendChild(renderer.domElement);
+}
 
-    // allow user to move around the molecule 
+function setUpControls() {
+
     if (cameraOption == 'orthographic') {
+        console.log('ORTHOGRAPHIC CONTROLS');
         const clock = new THREE.Clock();
         controls = new CameraControls( camera, renderer.domElement );
 
@@ -230,7 +239,10 @@ function init() {
         } )();
 
 		controls.addEventListener( 'update', render ); // call this only in static scenes (i.e., if there is no animation loop)
-        controls.setLookAt(0, 0, 100, 0, 0, 0); // Adjust based on molecule's position
+        controls.setLookAt(0, 0, 100, 0, 0, 0); 
+        controls.minDistance = 1; // adjust based on atom size
+        controls.maxDistance = 100;
+
         camera.lookAt(controls.getTarget(new THREE.Vector3));
         
         const moveSpeed = 0.4;
@@ -253,22 +265,53 @@ function init() {
             }
         });
 
-		
     } else {
         controls = new TrackballControls( camera, renderer.domElement ); // TODO, controls zooming out boundaries
         controls.minDistance = 100;
         controls.maxDistance = 3000;
     }
+}
 
-    initialPosition = camera.position.clone();
-    initialQuaternion = camera.quaternion.clone();
+init();
 
-    controls.getTarget(initialTarget);
+// init function - sets up scene, camera, renderer, controls, and GUIs 
+function init() {
+
+    // initialize main window 
+    scene = new THREE.Scene();
+    scene.background = new THREE.Color( 0x000000 );
+    globalThis.scene = scene;
     
-    // the default/first molecule to show up 
-    loadMolecule(defaultParams.mculeParams.molecule);
+    container = document.getElementsByClassName('column middle')[0]; 
+    const containerWidth = container.clientWidth;
+    const containerHeight = container.clientHeight;
 
-    resetViewCameraWindow();
+    //addAxes();
+
+    setUpLights();
+    setUpRenderer();
+
+    camera = new THREE.OrthographicCamera(0,0,0,0,0,0);
+
+    // the default/first molecule to show up 
+    //loadMolecule(defaultParams.mculeParams.molecule);
+
+    loadMolecule(defaultParams.mculeParams.molecule, () => {
+        console.log('in callback loadMolecule');
+        setUpCamera();
+        setUpControls();
+
+        storeInitialView();
+        
+        onWindowResize();
+
+        // root contains all the objects of the scene 
+        scene.add( root );
+        root.visible = true;    
+
+        resetViewCameraWindow();
+    });
+    
 
     // dynamic screen size 
     window.addEventListener('resize', onWindowResize);
@@ -313,8 +356,7 @@ function init() {
 
         resetScene();
 
-        loadMolecule(molecule, defaultParams.repParams.representation, currentRep);
-        
+        loadMolecule(molecule, () => { resetViewCameraWindow(); });
         resetInterface();
     });
 
@@ -376,33 +418,41 @@ function resetScene() {
     }
 }
 
-function getVisibleBoundingBox() {
+/**
+ * Helper function to get bounding box of objects visible on screen.
+ * 
+ * @param {boolean} visible - if true, draw red bounding box on screen
+ * @returns {THREE.box3} bounding box
+ */
+function getVisibleBoundingBox(visible) {
     let box = new THREE.Box3();
     let tempBox = new THREE.Box3();
 
     root.traverse( (obj) => {
-        if (obj.isInstancedMesh && obj.visible) { // TODO could change this to just instancedMesh later
-
-            let instanceMatrix = new THREE.Matrix4();
-            const geometryBoundingBox = obj.geometry.boundingBox || new THREE.Box3().setFromObject(obj);
-
-            for (let i = 0; i < obj.count; i++) {
-                obj.getMatrixAt(i, instanceMatrix);
-                tempBox.copy(geometryBoundingBox).applyMatrix4(instanceMatrix).applyMatrix4(obj.matrixWorld);
-                box.union(tempBox);
-            }
-        } 
-    })
+        if (obj.isInstancedMesh) {
+            
+            obj.computeBoundingBox();
+            tempBox.copy(obj.boundingBox).applyMatrix4(obj.matrixWorld);
+            box.union(tempBox);
+            
+        }
+    });
 
     let helper = new THREE.Box3Helper(box, new THREE.Color(0xff0000)); 
-    scene.add(helper);  
-    
-    helper.visible = false;
+    scene.add(helper);
+
+    if (visible) {
+        helper.visible = true;
+    } else {
+        helper.visible = false;
+    }
 
     return box;
 }
 
-// helper function to add x, y, and z axes to the rendering window
+/**
+ * Helper function to add x, y, and z axes to the rendering window
+ */
 function addAxes() {
     const axesHelper = new THREE.AxesHelper( 100 );
     scene.add( axesHelper );
@@ -420,7 +470,16 @@ function calculateTime(startTime, endTime, message) {
     console.log(message, 'in seconds:', totalTime/1000);
 }
 
-function loadMolecule(model) { 
+/**
+ * Loads in PDB file.
+ *
+ * @param {string} model - PDB file name
+ * @param {function} callback - anonymous function to be called after entire molecule is loaded in
+ *                              useful for when recentering camera after molecule has loaded; if 
+ *                              camera is recentered outside of callback function, molecule may not have
+ *                              finished rendering fully so camera viewing window will be incorrect
+ */
+function loadMolecule(model, callback) { 
     popup();
     let startTime = new Date();
 
@@ -536,8 +595,6 @@ function loadMolecule(model) {
             
             // create a set of atoms/bonds in each of the 3 styles for each tab
             for (let key of reps) {
-
-                console.log("key in reps loop", key);
                 
                 let atomName = json_atoms.atoms[i][7];
                 let atomElement = json_atoms.atoms[i][4];
@@ -584,9 +641,7 @@ function loadMolecule(model) {
                         wireframe: null,
                         position: transformedPosition.clone()
                     });
-                    console.log(i);
-                    console.log('newly pushed atom into VDW', atomMetadataVDW[atomMetadataVDW.length-1]);
-            
+                    
                 } else if (key == CPK) {
                     const radius = getRadius(atomElement);
                     sphereGeometry = sphereGeometryCPK;
@@ -620,16 +675,8 @@ function loadMolecule(model) {
                         wireframe: null,
                         position: transformedPosition.clone()
                     });
-
-                    console.log(i);
-                    console.log('newly pushed atom into CPK', atomMetadataCPK[atomMetadataCPK.length-1]);
-            
                 }  
                 // skip atoms for lines drawing method
-
-                console.log("atomMetadataCPK length:", atomMetadataCPK.length);
-                console.log("atomMetadataVDW length:", atomMetadataVDW.length);
-
             } 
         }
 
@@ -637,15 +684,15 @@ function loadMolecule(model) {
         atomInstancedMeshCPK.instanceMatrix.needsUpdate = true;
         atomInstancedMeshCPK.instanceColor.needsUpdate = true;
         root.add(atomInstancedMeshCPK);
-        console.log("atomInstancedMeshCPK", atomInstancedMeshCPK);
-        console.log('metadataCPK', atomMetadataCPK);
+        /* console.log("atomInstancedMeshCPK", atomInstancedMeshCPK);
+        console.log('metadataCPK', atomMetadataCPK); */
 
         atomInstancedMeshVDW.count = atomIndexVDW;
         atomInstancedMeshVDW.instanceMatrix.needsUpdate = true;
         atomInstancedMeshVDW.instanceColor.needsUpdate = true;
         root.add(atomInstancedMeshVDW);
-        console.log("atomInstancedMeshVDW", atomInstancedMeshVDW);
-        console.log('metadataVDW', atomMetadataVDW);
+        /* console.log("atomInstancedMeshVDW", atomInstancedMeshVDW);
+        console.log('metadataVDW', atomMetadataVDW); */
 
         // hide VDW instances when first loading molecule
         atomInstancedMeshVDW.visible = false;
@@ -764,16 +811,16 @@ function loadMolecule(model) {
         calculateTime(bondStartTime, bondEndTime, 'time to load bonds');
     
         // render the scene after adding all the new atom & bond objects   
-        storeInitialView();
-
+        
         getVisibleBoundingBox();
-        resetViewCameraWindow();
 
         console.log('render');         
         render();
 
         let endTime = new Date();
         calculateTime(startTime, endTime, 'time to loadMolecule');
+
+        if (callback) callback();
 
         popdown();
     } );
@@ -1197,7 +1244,6 @@ function showCurrentRep(repID) {
         
     // add class 'active' to tab HTML element
     console.log('repTabId', repTabId);
-    console.log('object', document.getElementById(repTabId));
     document.getElementById(repTabId).classList.add('active');
     document.getElementById(repTabId).style.display = 'block';
         
@@ -1801,7 +1847,7 @@ function onWindowResize() {
     camera.updateProjectionMatrix();
     renderer.setSize(w, h);
 
-    // Optional: keep camera centered on bounding box
+    // keep camera centered on bounding box
     const center = getVisibleBoundingBox().getCenter(new THREE.Vector3());
     controls.setTarget(center.x, center.y, center.z);
 
@@ -1972,6 +2018,7 @@ const clearButton = document.getElementById("clear-bonds");
 
 clearButton.addEventListener("click", deleteBondDistances)
 
+
 // help menu
 
 const helpButton = document.getElementById('help-button');
@@ -1983,6 +2030,13 @@ helpButton.addEventListener('click', () => {
   } else {
     helpMenu.style.display = 'none';
   }
+});
+
+// If help menu is open, clicking anywhere else on the screen will close it
+document.addEventListener('click', (event) => {
+    if (!helpMenu.contains(event.target) && event.target !== helpButton) {
+      helpMenu.style.display = 'none';
+    }
 });
 
 
@@ -2307,18 +2361,118 @@ function resetMouseModes() {
     document.body.style.cursor = 'auto';
 }
 
+//--------------------------------------
+// helper functions to draw frustrum ray to debug mouse clicking
+
+function vectorToString(v) {
+    return "("+v.x.toFixed(2)+','+
+        v.y.toFixed(2)+','+
+        v.z.toFixed(2)+')';
+}
+
+function drawFrustumRay(mx,my) {
+    var clickPositionNear = new THREE.Vector3( mx, my, 0 );
+    var clickPositionFar  = new THREE.Vector3( mx, my, 1 );
+    console.log("mx: "+mx+" my: "+my);
+    clickPositionNear.unproject(camera);
+    clickPositionFar.unproject(camera);
+    console.log("click near: "+JSON.stringify(clickPositionNear));
+    scene.add(createLine(clickPositionNear,clickPositionFar));
+}
+
+function createLine(a, b) {
+    var geom = new THREE.BufferGeometry();
+
+    // Define vertex positions as a Float32Array
+    var vertices = new Float32Array([
+        a.x, a.y, a.z,
+        b.x, b.y, b.z
+    ]);
+
+    // Define colors for each vertex
+    var colors = new Float32Array([
+        1, 0, 0,  // Color for point 'a'
+        0, 1, 0  // Color for point 'b'
+    ]);
+
+    // Assign attributes to geometry
+    geom.setAttribute('position', new THREE.BufferAttribute(vertices, 3)); // 3 values per vertex (x, y, z)
+    geom.setAttribute('color', new THREE.BufferAttribute(colors, 3)); // RGB colors
+
+    // Define material with vertex colors
+    var mat = new THREE.LineBasicMaterial({ 
+        vertexColors: true, // Enable per-vertex colors
+        linewidth: 5 // Note: linewidth only works on Windows with WebGL1
+    });
+
+    return new THREE.Line(geom, mat);
+}
+
+
+function convertMousePositionToNDC(event) {
+    var mx = event.clientX;
+    var my = event.clientY;
+    // console.log("click at ("+mx+","+my+")");
+    var target = event.target;
+    // console.log("clicked on "+target);
+    var rect = target.getBoundingClientRect();
+    var cx = mx - rect.left;
+    var cy = my - rect.top;
+    var winXSize = rect.width || (rect.right - rect.left);
+    var winYSize = rect.height || (rect.bottom - rect.top);
+    var winHalfXSize = winXSize/2;
+    var winHalfYSize = winYSize/2;
+    // these are in NDC
+    var x = (cx - winHalfXSize) / winHalfXSize;
+    var y = (winHalfYSize - cy) / winHalfYSize;
+    // console.log("clicked on "+target+" at NDC ("+xNDC+","+xNDC+")");
+    var click = {mx: mx, my: my,
+                 cx: cx, cy: cy,
+                 winXSize: winXSize,
+                 winYSize: winYSize,
+                 x: x, y: y};
+    return click;
+}
+
+function handleMouseClick(mx,my,clickNear,clickFar) {
+    scene.add(createLine(clickNear,clickFar));
+}
+//--------------------------------------
+
+
 // on click 
 function raycast(event) {
 
+    if (event.shiftKey) {
+
+        event.preventDefault();
+        var click = convertMousePositionToNDC(event);
+        var clickPositionNear = new THREE.Vector3( click.x, click.y, 0 );
+        var clickPositionFar  = new THREE.Vector3( click.x, click.y, 1 );
+        var before1 = vectorToString(clickPositionNear);
+        var before2 = vectorToString(clickPositionFar);
+        clickPositionNear.unproject(camera);
+        clickPositionFar.unproject(camera);
+        var after1 = vectorToString(clickPositionNear);
+        var after2 = vectorToString(clickPositionFar);
+        var infoElt = document.getElementById('info');
+        /* infoElt.innerHTML = ("onMouseClick: button "+evt.button
+                            +" at "+before1+' and '+before2
+                            + " unprojects to "+after1+' and '+after2); */
+        handleMouseClick(click.x, click.y, clickPositionNear, clickPositionFar );
+    }
+
     // get mouse location specific to given container size 
     var rect = renderer.domElement.getBoundingClientRect();
-    var containerRect = container.getBoundingClientRect(); // Get container's bounding rectangle
-    mouse.x = ((event.clientX - rect.left) / containerRect.width) * 2 - 1; // Adjust for container's width
-    mouse.y = -((event.clientY - rect.top) / containerRect.height) * 2 + 1; // Adjust for container's height
+    //var containerRect = container.getBoundingClientRect(); // Get container's bounding rectangle
+    mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1; // Adjust for container's width
+    mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1; // Adjust for container's height
+
+    camera.near = 0.1;
+    camera.updateProjectionMatrix();
 
     raycaster.setFromCamera( mouse, camera );  
     raycaster.precision = 1;
-    raycaster.params.Points.threshold = 0.2;
 
     let intersects = raycaster.intersectObjects(scene.children);
     console.log("intersects", intersects);
