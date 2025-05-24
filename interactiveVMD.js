@@ -804,7 +804,6 @@ function loadMolecule(model, callback) {
                     const offset = bondDirection.clone().multiplyScalar(halfBondLength / 2);
 
                     const scale = new THREE.Vector3(1, 1, halfBondLength);
-                    console.log('scale used in loading', scale);
 
                     // first half of bond
                     const instanceID1 = bondIndexLines;
@@ -855,14 +854,10 @@ function loadMolecule(model, callback) {
 
                     const tempMatrix = new THREE.Matrix4();
                     metadata1.instancedMesh.getMatrixAt(metadata1.instanceID, tempMatrix);
-                    console.log("Instance matrix:", tempMatrix.elements);
-                    console.log(metadata1.instanceID, metadata1.instancedMesh.count);
                     
                     const tempMatrix2 = new THREE.Matrix4();
                     metadata2.instancedMesh.getMatrixAt(metadata2.instanceID, tempMatrix2);
-                    console.log("Instance matrix:", tempMatrix2.elements);
-                    console.log(metadata2.instanceID, metadata2.instancedMesh.count);
-                    
+                   
                     // push metadata into map 
                     let bondKey1 = getBondKey(bondInstancedMeshLines, i, 1);
                     metadataMap.set(bondKey1, metadata1);
@@ -886,7 +881,7 @@ function loadMolecule(model, callback) {
         bondInstancedMeshLines.instanceMatrix.needsUpdate = true;
         root.add(bondInstancedMeshLines);
 
-        console.log("CPKbonds", CPKbonds, "linesBonds", linesBonds);
+        //console.log("CPKbonds", CPKbonds, "linesBonds", linesBonds);
 
         // make lines drawing method invisible when first loading molecule
         bondInstancedMeshLines.visible = false;
@@ -897,8 +892,6 @@ function loadMolecule(model, callback) {
         // push all instancedMeshes to array
         instancedMeshArray.push(atomInstancedMeshCPK, atomInstancedMeshVDW, bondInstancedMeshCPK, bondInstancedMeshLines);
 
-
-        console.log('metadataMap', metadataMap);
 
         // render the scene after adding all the new atom & bond objects   
         
@@ -976,49 +969,45 @@ function findDistanceTarget(selectionValue) {
     let type = selectionValue[1];
     let selected = selectionValue[2];
 
-    console.log('distance', distance, "type", type, "selected", selected);
+    //console.log('distance', distance, "type", type, "selected", selected);
     
     // find all target molecule atoms
     if (type == residue) {
 
-        root.traverse( (obj) => { // select by obj.drawingMethod == CPK because we just need one set of target atoms to compare distances with
-            if (obj.isMesh && obj.drawingMethod == CPK && obj.residue == selected) {
-                console.log('found a target');
+        for (const [_, obj] of metadataMap) {
+            if (obj.drawingMethod == CPK && obj.residue == selected) {
+                // select by obj.drawingMethod == CPK because we just need one set of target atoms to compare distances with
                 target.push([obj.position.x, obj.position.y, obj.position.z]);
             }
-        })
+        }
 
     } else if (type == 'molecule') {
-        //console.log(currentRep, currentStyle, selected);
 
-        root.traverse( (obj) => {
-            if (obj.isMesh && obj.drawingMethod == CPK && obj.chain == selected) {
-                //console.log("found a target obj", obj);
+        for (const [_, obj] of metadataMap) {
+            if (obj.drawingMethod == CPK && obj.chain == selected) {
                 target.push([obj.position.x, obj.position.y, obj.position.z]);
             }
-        })
+        }
     }
     
-    console.log('target in findDistanceTarget', target);
+    //console.log('target in findDistanceTarget', target);
 
     // find all residues within the required distance to the target atoms
 
-    root.traverse( (obj) => {
-        if (obj.isMesh) {
-            // check only the atoms that are the relevant rep and style
-            if (obj.molecularElement == 'atom' && obj.drawingMethod == CPK) { // just use CPK as target
-                for (let coord of target) {
+    for (const [_, obj] of metadataMap) {
 
-                    let dist = calculateDistanceXYZ(coord, [obj.position.x, obj.position.y, obj.position.z]);
-    
-                    if (dist <= distance) {
-                        validResidues[obj.residue] = true;
-                        //console.log('found valid residue', obj.residue);
-                    } 
-                }
+        // check only the atoms that are the relevant rep and drawing method
+        if (obj.molecularElement == 'atom' && obj.drawingMethod == CPK) { // just use CPK as target
+            for (let coord of target) {
+
+                let dist = calculateDistanceXYZ(coord, [obj.position.x, obj.position.y, obj.position.z]);
+
+                if (dist <= distance) {
+                    validResidues[obj.residue] = true;
+                } 
             }
         }
-    });
+    }
     
     return validResidues;
 }
@@ -1171,7 +1160,7 @@ function isSelected(obj, selectionMethod, selectionValue, validResidues) {
     }
 }
 
-// NEXT STEPS: FIX COLOR CHANGES IN PARSEREPINFO, WEIRD THINGS HAPPENING
+// NEXT STEPS: FIX SETCOLOR
 /**
  * 
  */
@@ -1195,8 +1184,6 @@ function parseRepInfo() {
     instancedMeshArray.forEach( mesh => {
         mesh.instanceMatrix.needsUpdate = true;
     });
-
-    console.log('all objs should now be invisible');
 
     // loop backwards through repsData array to get reps from newest to oldest
     for (let i = repsData.length - 1; i >= 0; i--) { 
@@ -1231,14 +1218,11 @@ function parseRepInfo() {
                 
                 if (isSelected(obj, selectionMethod, selectionValue, validResidues)) {
                     
-                    console.log('obj is not visible', obj);
-
                     // scale obj to be visible
                     const matrix = new THREE.Matrix4();
                     const quaternion = obj.quaternion;
                     const position = obj.position;
                     const scale = obj.scale;
-                    console.log('scale used', scale);
 
                     matrix.compose(position, quaternion, scale);
                     obj.instancedMesh.setMatrixAt(obj.instanceID, matrix);
@@ -1246,14 +1230,12 @@ function parseRepInfo() {
                     obj.visible = true;
                     obj.colorUpdated = true; 
                     obj.repID = currentRep;
-                    //setColor(obj, coloringMethod);
+                    setColor(obj, coloringMethod);
 
                     obj.instancedMesh.instanceMatrix.needsUpdate = true;
 
                     const tempMatrix = new THREE.Matrix4();
                     obj.instancedMesh.getMatrixAt(obj.instanceID, tempMatrix);
-                    console.log("Instance matrix:", tempMatrix.elements);
-                    console.log(obj.instanceID, obj.instancedMesh.count);
                 } 
             }
         }
@@ -1262,7 +1244,7 @@ function parseRepInfo() {
     // update all instancedMeshes
     instancedMeshArray.forEach( mesh => {
         mesh.instanceMatrix.needsUpdate = true;
-        mesh.visible = true; // HERE LOSER 
+        mesh.visible = true; 
     });
 
     // reset all colorUpdated to false
@@ -1276,14 +1258,21 @@ function parseRepInfo() {
 
 function setColor(obj, colorValue) {
 
-    if (colorValue == blue) {                        
-        obj.material.color.set(new THREE.Color('rgb(0, 0, 255)')); 
-    } else if (colorValue == green) {
-        obj.material.color.set(new THREE.Color('rgb(0, 255, 0)')); 
-    } else if (colorValue == red) {
-        obj.material.color.set(new THREE.Color('rgb(255, 0, 0)')); 
-    } else if (colorValue == name) {
-        obj.material.color.set(new THREE.Color(obj.originalColor));
+    let color;
+
+    if (colorValue === blue) {                        
+        color = new THREE.Color('rgb(0, 0, 255)'); 
+    } else if (colorValue === green) {
+        color = new THREE.Color('rgb(0, 255, 0)'); 
+    } else if (colorValue === red) {
+        color = new THREE.Color('rgb(255, 0, 0)'); 
+    } else if (colorValue === name) {
+        color = new THREE.Color(obj.originalColor); 
+    }
+
+    if (color) {
+        obj.instancedMesh.setColorAt(obj.instanceID, color);
+        obj.instancedMesh.instanceColor.needsUpdate = true;
     }
 }
 
@@ -2621,15 +2610,13 @@ function raycast(event) {
         for (const obj of intersects) {
             if (obj.object.visible == true && obj.object.isInstancedMesh) {
                 let instanceID = obj.instanceId;
-                console.log('instancedID', instanceID);
-                console.log("obj found", obj);
-                console.log(metadataMap);
+                /* console.log('instancedID', instanceID);
+                console.log("obj found", obj); */
 
                 if (obj.object.molecularElement == "atom") {
 
                     let key = getAtomKey(obj.object, instanceID);
                     closestAtom = metadataMap.get(key);
-                    console.log('FOUND THIS ATOM', closestAtom);
                     
                     break;
                 }
