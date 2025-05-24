@@ -14,10 +14,12 @@ const VDW = 'Space filling';
 const lines = 'Lines';
 const reps = [CPK, VDW, lines];
 
-let atomMetadataCPK = []; 
-let atomMetadataVDW = []; 
-let atomMetadataLines = []; 
 let bondMetadata = [];
+let metadataMap = new Map();
+globalThis.metadataMap = metadataMap;
+
+let CPKbonds = 0;
+let linesBonds = 0;
 
 const MOLECULES = {
     'Ponatinib': 'ponatinib_Sep2022.pdb',
@@ -45,6 +47,9 @@ const textSize = 5;
 const sphereScaleCPK = 0.25;
 const sphereScaleVDW = 0.8;
 
+const zeroScale = new THREE.Vector3(0, 0, 0);
+const identityScale = new THREE.Vector3(1, 1, 1);  
+
 // tab IDs
 const usedTabIDs = new Set();
 const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
@@ -71,6 +76,7 @@ let geometryAtoms, geometryBonds, json_atoms, json_bonds, json_bonds_manual, jso
 let raycaster, mouse = {x: 0, y: 0 }
 
 let atomInstancedMeshCPK, atomInstancedMeshVDW, bondInstancedMeshLines, bondInstancedMeshCPK;
+let instancedMeshArray = [];
 
 const cameraOption = 'orthographic';
 const drawRay = false;
@@ -144,17 +150,13 @@ raycaster.params.Points.threshold = 0.1;
 raycaster.params.Line.threshold = 0.1;  
 
 function setUpCamera() {
-    console.log('inside setUpCamera');
 
     if (cameraOption == 'orthographic') {
-        console.log('ORTHOGRAPHIC');
 
         let box = getVisibleBoundingBox();
-        console.log('box', box);
         const size = new THREE.Vector3();
         box.getSize(size);
         let maxDim = Math.max(size.x, size.y, size.z);
-        console.log('maxDim', maxDim);
 
         const center = new THREE.Vector3();
         box.getCenter(center);
@@ -188,7 +190,7 @@ function setUpCamera() {
         camera.position.z = 1000;
 
         globalThis.camera = camera;
-        scene.add( camera );
+        scene.add(camera);
     }        
 
     globalThis.camera = camera;
@@ -225,7 +227,6 @@ function setUpRenderer() {
 function setUpControls() {
 
     if (cameraOption == 'orthographic') {
-        console.log('ORTHOGRAPHIC CONTROLS');
         const clock = new THREE.Clock();
         controls = new CameraControls( camera, renderer.domElement );
 
@@ -240,7 +241,6 @@ function setUpControls() {
         } )();
 
 		controls.addEventListener( 'update', render ); // call this only in static scenes (i.e., if there is no animation loop)
-        //controls.setLookAt(0, 0, 100, 0, 0, 0); 
 
         const box = getVisibleBoundingBox();
         const center = new THREE.Vector3();
@@ -298,7 +298,7 @@ function init() {
     const containerWidth = container.clientWidth;
     const containerHeight = container.clientHeight;
 
-    //addAxes();
+    // addAxes();
 
     setUpLights();
     setUpRenderer();
@@ -306,7 +306,6 @@ function init() {
     camera = new THREE.OrthographicCamera(0,0,0,0,0,0);
 
     // the default/first molecule to show up 
-    //loadMolecule(defaultParams.mculeParams.molecule);
 
     loadMolecule(defaultParams.mculeParams.molecule, () => {
         console.log('in callback loadMolecule');
@@ -482,6 +481,14 @@ function calculateTime(startTime, endTime, message) {
     console.log(message, 'in seconds:', totalTime/1000);
 }
 
+function getAtomKey(mesh, instanceID) {
+    return `${mesh.uuid}:${instanceID}`;
+}
+
+function getBondKey(mesh, instanceID, num) {
+    return `${mesh.uuid}:${instanceID}:${num}`;
+}
+
 /**
  * Loads in PDB file.
  *
@@ -501,11 +508,9 @@ function loadMolecule(model, callback) {
 
     const url = './models/molecules/' + model;
 
-    // empty metadata arrays
-    atomMetadataCPK = [];
-    atomMetadataVDW = [];
-    atomMetadataLines = [];
+    // empty metadata arrays and maps
     bondMetadata = [];
+    metadataMap = new Map();
 
     PDBloader.load( url, function ( pdb ) {
         // properties of pdb loader that isolate the atoms & bonds
@@ -635,8 +640,7 @@ function loadMolecule(model, callback) {
                     const transformedPosition = new THREE.Vector3();
                     dummy.matrix.decompose(transformedPosition, new THREE.Quaternion(), new THREE.Vector3());
 
-                    // add metadata to array
-                    atomMetadataVDW.push({
+                    let metadata = {
                         molecularElement: "atom",
                         drawingMethod: key,
                         repID: currentRep,
@@ -650,9 +654,17 @@ function loadMolecule(model, callback) {
                         colorUpdated: false,
                         originalColor: new THREE.Color().setRGB(colors.getX( i ), colors.getY( i ), colors.getZ( i )),
                         instanceID: i,
+                        instancedMesh: atomInstancedMeshVDW,
                         wireframe: null,
-                        position: transformedPosition.clone()
-                    });
+                        position: transformedPosition.clone(),
+                        scale: new THREE.Vector3(radius, radius, radius),
+                        quaternion: new THREE.Quaternion(),
+                        visible: false
+                    };
+
+                    // push metadata into map for easy access
+                    let atomKey = getAtomKey(atomInstancedMeshVDW, i);
+                    metadataMap.set(atomKey, metadata);
                     
                 } else if (key == CPK) {
                     const radius = getRadius(atomElement);
@@ -669,8 +681,7 @@ function loadMolecule(model, callback) {
                     const transformedPosition = new THREE.Vector3();
                     dummy.matrix.decompose(transformedPosition, new THREE.Quaternion(), new THREE.Vector3());
 
-                    // add metadata to array 
-                    atomMetadataCPK.push({
+                    let metadata = {
                         molecularElement: "atom",
                         drawingMethod: key,
                         repID: currentRep,
@@ -684,10 +695,18 @@ function loadMolecule(model, callback) {
                         colorUpdated: false,
                         originalColor: new THREE.Color().setRGB(colors.getX( i ), colors.getY( i ), colors.getZ( i )),
                         instanceID: i,
+                        instancedMesh: atomInstancedMeshCPK,
                         wireframe: null,
-                        position: transformedPosition.clone()
-                    });
-                }  
+                        position: transformedPosition.clone(),
+                        scale: new THREE.Vector3(radius, radius, radius),
+                        quaternion: new THREE.Quaternion(),
+                        visible: true
+                    };
+
+                    // push metadata into map for easy access
+                    let atomKey = getAtomKey(atomInstancedMeshCPK, i);
+                    metadataMap.set(atomKey, metadata);
+                }
                 // skip atoms for lines drawing method
             } 
         }
@@ -696,21 +715,18 @@ function loadMolecule(model, callback) {
         atomInstancedMeshCPK.instanceMatrix.needsUpdate = true;
         atomInstancedMeshCPK.instanceColor.needsUpdate = true;
         root.add(atomInstancedMeshCPK);
-        /* console.log("atomInstancedMeshCPK", atomInstancedMeshCPK);
-        console.log('metadataCPK', atomMetadataCPK); */
 
         atomInstancedMeshVDW.count = atomIndexVDW;
         atomInstancedMeshVDW.instanceMatrix.needsUpdate = true;
         atomInstancedMeshVDW.instanceColor.needsUpdate = true;
         root.add(atomInstancedMeshVDW);
-        /* console.log("atomInstancedMeshVDW", atomInstancedMeshVDW);
-        console.log('metadataVDW', atomMetadataVDW); */
 
         // hide VDW instances when first loading molecule
         atomInstancedMeshVDW.visible = false;
 
         let atomEndTime = new Date();
         calculateTime(atomStartTime, atomEndTime, 'time to load atoms');
+
 
         // LOAD IN BONDS
         let bondStartTime = new Date();
@@ -750,11 +766,33 @@ function loadMolecule(model, callback) {
 
                 if (key == CPK) {
 
+                    const instanceID = i/2;
                     let matrix = new THREE.Matrix4();
-                    let scale = new THREE.Vector3(1, 1, bondLength); 
+                    const scale = new THREE.Vector3(1, 1, bondLength); 
+                    
                     matrix.compose(mid, quaternion, scale); 
                     bondInstancedMeshCPK.setMatrixAt(bondIndexCPK, matrix);
                     bondIndexCPK++;
+
+                    let metadata = {
+                            molecularElement: "bond",
+                            drawingMethod: key,
+                            atom1: atom1,
+                            atom2: atom2,
+                            originalColor: color2,
+                            colorUpdated: false,
+                            instanceID: instanceID,
+                            instancedMesh: bondInstancedMeshCPK,
+                            position: mid,
+                            scale: scale.clone(),
+                            quaternion: quaternion.clone(),
+                            visible: true
+                    };
+                    
+                    // push metadata into map 
+                    let bondKey = getBondKey(bondInstancedMeshCPK, i, 0);
+                    metadataMap.set(bondKey, metadata);
+                    CPKbonds ++;
                     
                 } else if (key == lines) { // TODO could make CPK bonds use lines instancedMesh
 
@@ -766,14 +804,18 @@ function loadMolecule(model, callback) {
                     const offset = bondDirection.clone().multiplyScalar(halfBondLength / 2);
 
                     const scale = new THREE.Vector3(1, 1, halfBondLength);
+                    console.log('scale used in loading', scale);
 
                     // first half of bond
+                    const instanceID1 = bondIndexLines;
                     const pos1 = new THREE.Vector3().copy(midpoint).add(offset);
                     const matrix1 = new THREE.Matrix4().compose(pos1, quaternion, scale);
                     bondInstancedMeshLines.setMatrixAt(bondIndexLines, matrix1);
                     bondInstancedMeshLines.setColorAt(bondIndexLines, color1);
                     bondIndexLines++;
 
+                    // second half of bond
+                    const instanceID2 = bondIndexLines;
                     const pos2 = new THREE.Vector3().copy(midpoint).sub(offset);
                     const matrix2 = new THREE.Matrix4().compose(pos2, quaternion, scale);
                     bondInstancedMeshLines.setMatrixAt(bondIndexLines, matrix2);
@@ -781,27 +823,55 @@ function loadMolecule(model, callback) {
                     bondIndexLines++;
 
                     // add metadata to array
-                    bondMetadata.push(
-                        {
+                    let metadata1 = {
                             molecularElement: "bond",
                             drawingMethod: key,
                             atom1: atom1,
                             atom2: atom2,
                             originalColor: color1,
                             colorUpdated: false,
-                            instanceID: i
-                        },
-                        {
+                            instanceID: instanceID1,
+                            instancedMesh: bondInstancedMeshLines,
+                            position: pos1,
+                            scale: scale.clone(),
+                            quaternion: quaternion.clone(),
+                            visible: false
+                    };
+                    
+                    let metadata2 = {
                             molecularElement: "bond",
                             drawingMethod: key,
                             atom1: atom1,
                             atom2: atom2,
                             originalColor: color2,
                             colorUpdated: false,
-                            instanceID: i
-                        }
-                    );
+                            instanceID: instanceID2,
+                            instancedMesh: bondInstancedMeshLines,
+                            position: pos2,
+                            scale: scale.clone(),
+                            quaternion: quaternion.clone(),
+                            visible: false
+                    };
+
+                    const tempMatrix = new THREE.Matrix4();
+                    metadata1.instancedMesh.getMatrixAt(metadata1.instanceID, tempMatrix);
+                    console.log("Instance matrix:", tempMatrix.elements);
+                    console.log(metadata1.instanceID, metadata1.instancedMesh.count);
+                    
+                    const tempMatrix2 = new THREE.Matrix4();
+                    metadata2.instancedMesh.getMatrixAt(metadata2.instanceID, tempMatrix2);
+                    console.log("Instance matrix:", tempMatrix2.elements);
+                    console.log(metadata2.instanceID, metadata2.instancedMesh.count);
+                    
+                    // push metadata into map 
+                    let bondKey1 = getBondKey(bondInstancedMeshLines, i, 1);
+                    metadataMap.set(bondKey1, metadata1);
+
+                    let bondKey2 = getBondKey(bondInstancedMeshLines, i, 2);
+                    metadataMap.set(bondKey2, metadata2);
                 
+                    linesBonds ++;
+
                 } else if (key == VDW) { // skip bonds for VDW
                     continue;
                 }
@@ -816,12 +886,20 @@ function loadMolecule(model, callback) {
         bondInstancedMeshLines.instanceMatrix.needsUpdate = true;
         root.add(bondInstancedMeshLines);
 
+        console.log("CPKbonds", CPKbonds, "linesBonds", linesBonds);
+
         // make lines drawing method invisible when first loading molecule
         bondInstancedMeshLines.visible = false;
 
         let bondEndTime = new Date();
         calculateTime(bondStartTime, bondEndTime, 'time to load bonds');
     
+        // push all instancedMeshes to array
+        instancedMeshArray.push(atomInstancedMeshCPK, atomInstancedMeshVDW, bondInstancedMeshCPK, bondInstancedMeshLines);
+
+
+        console.log('metadataMap', metadataMap);
+
         // render the scene after adding all the new atom & bond objects   
         
         getVisibleBoundingBox();
@@ -1093,17 +1171,32 @@ function isSelected(obj, selectionMethod, selectionValue, validResidues) {
     }
 }
 
+// NEXT STEPS: FIX COLOR CHANGES IN PARSEREPINFO, WEIRD THINGS HAPPENING
+/**
+ * 
+ */
 function parseRepInfo() {
 
-    console.log('in parseRepInfo');
     popup();
 
-    // mark all objects as not visible
-    scene.traverse((obj) => {
-        if (obj.isMesh) {
-            obj.visible = false;
-        }
+    // mark all objs as not visible
+    for (const [_, obj] of metadataMap) {
+        obj.visible = false;
+        const matrix = new THREE.Matrix4();
+        const quaternion = new THREE.Quaternion();
+        const position = obj.position;
+
+        matrix.compose(position, quaternion, zeroScale);
+        obj.instancedMesh.setMatrixAt(obj.instanceID, matrix);
+        //console.log(`Hiding ${obj.molecularElement} ID ${obj.instanceID} from`, obj.drawingMethod);
+    }
+
+    // update all instancedMeshes
+    instancedMeshArray.forEach( mesh => {
+        mesh.instanceMatrix.needsUpdate = true;
     });
+
+    console.log('all objs should now be invisible');
 
     // loop backwards through repsData array to get reps from newest to oldest
     for (let i = repsData.length - 1; i >= 0; i--) { 
@@ -1130,37 +1223,53 @@ function parseRepInfo() {
         }
 
         console.log('rep', repID, 'drawing method', drawingMethod);
-        /* console.log('drawing method', drawingMethod);
-        console.log('selectionMethod', selectionMethod);
-        console.log('selectionValue', selectionValue); */
 
-        scene.traverse( (obj) => {
-            /* if (obj.isMesh && obj.drawingMethod == drawingMethod) {
-                console.log('this is a', drawingMethod, 'object!');
-            } */
+        for (const [_, obj] of metadataMap) {
+            //console.log(key, obj);
 
-            if (obj.isMesh && obj.drawingMethod == drawingMethod && !obj.colorUpdated) { // if obj is atom or bond and color hasn't been updated yet
+            if (obj.drawingMethod == drawingMethod && !obj.colorUpdated) { // if obj is atom or bond and color hasn't been updated yet
+                
                 if (isSelected(obj, selectionMethod, selectionValue, validResidues)) {
                     
-                    obj.visible = true; 
+                    console.log('obj is not visible', obj);
+
+                    // scale obj to be visible
+                    const matrix = new THREE.Matrix4();
+                    const quaternion = obj.quaternion;
+                    const position = obj.position;
+                    const scale = obj.scale;
+                    console.log('scale used', scale);
+
+                    matrix.compose(position, quaternion, scale);
+                    obj.instancedMesh.setMatrixAt(obj.instanceID, matrix);
+
+                    obj.visible = true;
                     obj.colorUpdated = true; 
                     obj.repID = currentRep;
-                    setColor(obj, coloringMethod);
+                    //setColor(obj, coloringMethod);
 
-                    //console.log('obj.colorUpdated', obj.colorUpdated, 'setting color to', coloringMethod);
-                    //console.log('isSelected was true', obj);
+                    obj.instancedMesh.instanceMatrix.needsUpdate = true;
+
+                    const tempMatrix = new THREE.Matrix4();
+                    obj.instancedMesh.getMatrixAt(obj.instanceID, tempMatrix);
+                    console.log("Instance matrix:", tempMatrix.elements);
+                    console.log(obj.instanceID, obj.instancedMesh.count);
                 } 
             }
-        });
+        }
     } 
 
-    // reset all colorUpdated to false
-    scene.traverse( (obj) => {
-        if (obj.isMesh) { // if obj is atom or bond
-            obj.colorUpdated = false; 
-        }
+    // update all instancedMeshes
+    instancedMeshArray.forEach( mesh => {
+        mesh.instanceMatrix.needsUpdate = true;
+        mesh.visible = true; // HERE LOSER 
     });
 
+    // reset all colorUpdated to false
+    for (const [_, obj] of metadataMap) {
+        obj.colorUpdated = false; 
+    }
+    
     popdown();
 }
 
@@ -1956,7 +2065,6 @@ function keypressT(event) {
 // on keypress '='
 
 function resetViewCameraWindow() {
-    console.log('inside resetViewCameraWindow');
     resetToInitialView();
     recenterCamera(camera, controls);
     onWindowResize();
@@ -1969,7 +2077,6 @@ function keypressEqual(event) {
 }
 
 function fitCameraToBoundingBox(camera, controls, boundingBox, padding = 1.2) {
-    console.log('INSIDE FIT CAMERA TO BOUNDING BOX');
     const center = boundingBox.getCenter(new THREE.Vector3());
     const size = boundingBox.getSize(new THREE.Vector3());
     const maxDim = Math.max(size.x, size.y, size.z);
@@ -2098,7 +2205,6 @@ function removeWireFrame(atom) {
 
     if (atom.wireframe) {
         let wireframeSphere = atom.wireframe;
-        console.log('wireframeSphere, to delete', wireframeSphere);
         wireframeSphere.geometry.dispose();
         wireframeSphere.material.dispose();
         root.remove(wireframeSphere);
@@ -2517,16 +2623,12 @@ function raycast(event) {
                 let instanceID = obj.instanceId;
                 console.log('instancedID', instanceID);
                 console.log("obj found", obj);
-                console.log(atomMetadataCPK);
+                console.log(metadataMap);
 
                 if (obj.object.molecularElement == "atom") {
 
-                    if (obj.object.drawingMethod == CPK) {
-                        closestAtom = atomMetadataCPK[instanceID];
-                    } else if (obj.object.drawingMethod == VDW) {
-                        closestAtom = atomMetadataVDW[instanceID];
-                    }
-
+                    let key = getAtomKey(obj.object, instanceID);
+                    closestAtom = metadataMap.get(key);
                     console.log('FOUND THIS ATOM', closestAtom);
                     
                     break;
