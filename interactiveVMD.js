@@ -481,12 +481,8 @@ function calculateTime(startTime, endTime, message) {
     console.log(message, 'in seconds:', totalTime/1000);
 }
 
-function getAtomKey(mesh, instanceID) {
+function getKey(mesh, instanceID) {
     return `${mesh.uuid}:${instanceID}`;
-}
-
-function getBondKey(mesh, instanceID, num) {
-    return `${mesh.uuid}:${instanceID}:${num}`;
 }
 
 /**
@@ -535,8 +531,6 @@ function loadMolecule(model, callback) {
 
         residues = pdb.residues;
         chains = pdb.chains;
-         
-        let sphereGeometry, boxGeometry;
         
         let randTime = new Date();
 
@@ -557,6 +551,8 @@ function loadMolecule(model, callback) {
 
         // pre-build geometries for atoms and bonds, InstancedMesh
         // CPK and VDW atom spheres will be scaled later based on element identity
+
+        let sphereGeometry, boxGeometry;
 
         // CPK
         let sphereGeometryCPK = new THREE.IcosahedronGeometry(sphereScaleCPK, detail);
@@ -663,7 +659,7 @@ function loadMolecule(model, callback) {
                     };
 
                     // push metadata into map for easy access
-                    let atomKey = getAtomKey(atomInstancedMeshVDW, i);
+                    let atomKey = getKey(atomInstancedMeshVDW, i);
                     metadataMap.set(atomKey, metadata);
                     
                 } else if (key == CPK) {
@@ -704,7 +700,7 @@ function loadMolecule(model, callback) {
                     };
 
                     // push metadata into map for easy access
-                    let atomKey = getAtomKey(atomInstancedMeshCPK, i);
+                    let atomKey = getKey(atomInstancedMeshCPK, i);
                     metadataMap.set(atomKey, metadata);
                 }
                 // skip atoms for lines drawing method
@@ -764,7 +760,7 @@ function loadMolecule(model, callback) {
 
             for (let key of reps) {
 
-                if (key == CPK) {
+                if (key == CPK) { // TODO could potentially move this/combine with loading in atoms? some redundant information taken from atom1 and atom2 and put in metadata, since lines are technically atoms and not bonds
 
                     const instanceID = i/2;
                     let matrix = new THREE.Matrix4();
@@ -779,7 +775,7 @@ function loadMolecule(model, callback) {
                             drawingMethod: key,
                             atom1: atom1,
                             atom2: atom2,
-                            originalColor: color2,
+                            originalColor: 'rgb(255, 255, 255)',
                             colorUpdated: false,
                             instanceID: instanceID,
                             instancedMesh: bondInstancedMeshCPK,
@@ -790,7 +786,7 @@ function loadMolecule(model, callback) {
                     };
                     
                     // push metadata into map 
-                    let bondKey = getBondKey(bondInstancedMeshCPK, i, 0);
+                    let bondKey = getKey(bondInstancedMeshCPK, i, 0);
                     metadataMap.set(bondKey, metadata);
                     CPKbonds ++;
                     
@@ -805,7 +801,7 @@ function loadMolecule(model, callback) {
 
                     const scale = new THREE.Vector3(1, 1, halfBondLength);
 
-                    // first half of bond
+                    // first half of bond/atom
                     const instanceID1 = bondIndexLines;
                     const pos1 = new THREE.Vector3().copy(midpoint).add(offset);
                     const matrix1 = new THREE.Matrix4().compose(pos1, quaternion, scale);
@@ -813,7 +809,17 @@ function loadMolecule(model, callback) {
                     bondInstancedMeshLines.setColorAt(bondIndexLines, color1);
                     bondIndexLines++;
 
-                    // second half of bond
+                    /* console.log("json_atoms.atoms.length", json_atoms.atoms.length);
+                    console.log("positions.count", positions.count);
+                    console.log('json_atoms.atoms[i/2]', json_atoms.atoms[i/2]);
+                    console.log('i', i, 'i/2', i/2); */
+                    let atomName1 = atom1[7];
+                    let atomElement1 = atom1[4];
+                    let residue1 = atom1[5];
+                    let resName1 = atom1[8];
+                    let chain1 = atom1[6]; 
+
+                    // second half of bond/atom
                     const instanceID2 = bondIndexLines;
                     const pos2 = new THREE.Vector3().copy(midpoint).sub(offset);
                     const matrix2 = new THREE.Matrix4().compose(pos2, quaternion, scale);
@@ -821,12 +827,25 @@ function loadMolecule(model, callback) {
                     bondInstancedMeshLines.setColorAt(bondIndexLines, color2);
                     bondIndexLines++;
 
+                    let atomName2 = atom2[7];
+                    let atomElement2 = atom2[4];
+                    let residue2 = atom2[5];
+                    let resName2 = atom2[8];
+                    let chain2 = atom2[6];
+
                     // add metadata to array
                     let metadata1 = {
-                            molecularElement: "bond",
+                            molecularElement: "atom",
                             drawingMethod: key,
                             atom1: atom1,
                             atom2: atom2,
+                            atomName: atomName1,
+                            atomElement: atomElement1,
+                            residue: residue1, 
+                            resName: resName1, 
+                            chain: chain1,
+                            printableString: resName1 + residue1.toString() + ':' + atomName1.toUpperCase(),
+                            atomInfoSprite: null,
                             originalColor: color1,
                             colorUpdated: false,
                             instanceID: instanceID1,
@@ -834,14 +853,22 @@ function loadMolecule(model, callback) {
                             position: pos1,
                             scale: scale.clone(),
                             quaternion: quaternion.clone(),
+                            wireframe: false,
                             visible: false
                     };
                     
                     let metadata2 = {
-                            molecularElement: "bond",
+                            molecularElement: "atom",
                             drawingMethod: key,
                             atom1: atom1,
                             atom2: atom2,
+                            atomName: atomName2,
+                            atomElement: atomElement2,
+                            residue: residue2, 
+                            resName: resName2, 
+                            chain: chain2,
+                            printableString: resName2 + residue2.toString() + ':' + atomName2.toUpperCase(),
+                            atomInfoSprite: null,
                             originalColor: color2,
                             colorUpdated: false,
                             instanceID: instanceID2,
@@ -849,6 +876,7 @@ function loadMolecule(model, callback) {
                             position: pos2,
                             scale: scale.clone(),
                             quaternion: quaternion.clone(),
+                            wireframe: false,
                             visible: false
                     };
 
@@ -859,10 +887,10 @@ function loadMolecule(model, callback) {
                     metadata2.instancedMesh.getMatrixAt(metadata2.instanceID, tempMatrix2);
                    
                     // push metadata into map 
-                    let bondKey1 = getBondKey(bondInstancedMeshLines, i, 1);
+                    let bondKey1 = getKey(bondInstancedMeshLines, instanceID1);
                     metadataMap.set(bondKey1, metadata1);
 
-                    let bondKey2 = getBondKey(bondInstancedMeshLines, i, 2);
+                    let bondKey2 = getKey(bondInstancedMeshLines, instanceID2);
                     metadataMap.set(bondKey2, metadata2);
                 
                     linesBonds ++;
@@ -1160,7 +1188,6 @@ function isSelected(obj, selectionMethod, selectionValue, validResidues) {
     }
 }
 
-// NEXT STEPS: FIX SETCOLOR
 /**
  * 
  */
@@ -1201,7 +1228,6 @@ function parseRepInfo() {
 
         if (selectionMethod == 'distance') {
             validResidues = findDistanceTarget(selectionValue);
-            console.log('validResidues', validResidues);
         }
 
         if (state != shown) {
@@ -1863,7 +1889,6 @@ function createGUI() {
     withinDropdown.onFinishChange(withinAsResidue);
     withinResMenu.onFinishChange(withinAsResidue);
 
-
     styleMenu.onChange(function(value) {
         console.log('styleMenu changing to', value, 'with currentRep', currentRep);
         let currentRepIndex = findRepIndex(currentRep);
@@ -1981,7 +2006,6 @@ function animate() {
         
         frames = 0;
         prevTime = time;
-        
         }
 
         //controls.update();
@@ -2203,55 +2227,72 @@ function removeWireFrame(atom) {
     }
 }
 
-function getCorrectInstancedMesh(object) {
-
-    let instancedMesh, sphereScale;
-
-    if (object.drawingMethod == CPK) { 
-        sphereScale = sphereScaleCPK;
-        instancedMesh = atomInstancedMeshCPK;
-    } else if (object.drawingMethod == VDW) { 
-        sphereScale = sphereScaleVDW;
-        instancedMesh = atomInstancedMeshVDW;
-    } else if (object.drawingMethod == lines) { // TODO deal with lines
-        instancedMesh = bondInstancedMeshLines;
-    } else { 
-        console.log('Error, atom not VDW or CPK'); 
-    }
-
-    //console.log(instancedMesh, sphereScale);
-    return {instancedMesh: instancedMesh, sphereScale: sphereScale};
-}
-
+/**
+ * 
+ * @param {object} atom - atom metadata object
+ */
 // If atom has wireframe, remove wireframe. If atom doesn't have wireframe, add wireframe.
 function switchAtomState(atom) { 
+
+    console.log('ATOM', atom);
     if (atom.wireframe) {
 
         removeWireFrame(atom);
 
     } else {  
         
-        const radius = getRadius(atom.atomElement); 
-        let obj = getCorrectInstancedMesh(atom);
-        let sphereScale = obj.sphereScale;
+        if (atom.drawingMethod == lines) {
+            console.log('trying to switch state of a lines atom');
 
-        let color = atom.originalColor;
+            const position = atom.position;
+            const scale = atom.scale;
+            const quaternion = atom.quaternion;
 
-        const wireframeGeometry = new THREE.IcosahedronGeometry(sphereScale, detail); 
-        const wireframeMaterial = new THREE.MeshBasicMaterial({
-            color: '#39FF14',     
-            wireframe: true,
-            transparent: true,
-            opacity: 0.8,
-        });
+            const wireframeGeometry = new THREE.BoxGeometry(0.08, 0.08, 1); 
+            const wireframeMaterial = new THREE.MeshBasicMaterial({
+                color: '#39FF14',     
+                wireframe: true,
+                transparent: true,
+                opacity: 0.8,
+            });
 
-        const wireframeSphere = new THREE.Mesh(wireframeGeometry, wireframeMaterial);
+            const wireframeBox = new THREE.Mesh(wireframeGeometry, wireframeMaterial);
 
-        wireframeSphere.position.copy(atom.position.clone());
-        wireframeSphere.scale.set(radius, radius, radius);
+            wireframeBox.position.copy(position);
+            wireframeBox.scale.copy(scale);
+            wireframeBox.quaternion.copy(quaternion);
 
-        atom.wireframe = wireframeSphere;
-        root.add(wireframeSphere);
+            atom.wireframe = wireframeBox;
+            root.add(wireframeBox);
+
+        } else { // drawing method is ball-and-stick or space filling
+            console.log('trying to switch state of a sphere atom');
+
+            const radius = getRadius(atom.atomElement);
+            const color = atom.originalColor;
+
+            const position = atom.position;
+            const scale = atom.scale;
+
+            const sphereScale = atom.drawingMethod == CPK ? sphereScaleCPK : sphereScaleVDW;
+
+            const wireframeGeometry = new THREE.IcosahedronGeometry(sphereScale, detail); 
+            const wireframeMaterial = new THREE.MeshBasicMaterial({
+                color: '#39FF14',     
+                wireframe: true,
+                transparent: true,
+                opacity: 0.8,
+            });
+
+            const wireframeSphere = new THREE.Mesh(wireframeGeometry, wireframeMaterial);
+
+            wireframeSphere.position.copy(position);
+            wireframeSphere.scale.copy(scale);
+
+            atom.wireframe = wireframeSphere;
+            root.add(wireframeSphere);
+        }
+
         atomContent.innerHTML = '<p> selected atom: <br>' + atom.printableString + '<\p>';   
     }
 }
@@ -2403,7 +2444,7 @@ function drawLine(object1, object2) {
     line.atoms = [object1, object2];
     line.distance = distance;
     line.repNum = currentRep;
-    //console.log('line', line);
+    console.log('line', line);
 
     // create text to display distance
     const canvas = document.createElement('canvas');
@@ -2451,9 +2492,7 @@ function drawLine(object1, object2) {
     renderer.render(scene, camera);
 }
 
-function deleteBondDistances() {
-    console.log('in deleteBondDistances');
-    
+function deleteBondDistances() {    
     let objectsToRemove = [];
 
     root.traverse( (obj) => {
@@ -2608,15 +2647,18 @@ function raycast(event) {
         let closestAtom = null;
 
         for (const obj of intersects) {
+
             if (obj.object.visible == true && obj.object.isInstancedMesh) {
+
                 let instanceID = obj.instanceId;
-                /* console.log('instancedID', instanceID);
-                console.log("obj found", obj); */
+                console.log('instancedID', instanceID);
+                console.log("obj found", obj);
 
-                if (obj.object.molecularElement == "atom") {
+                if (obj.object.molecularElement == "atom") { // only atoms are clickable, bonds are not; check obj.molecularElement
 
-                    let key = getAtomKey(obj.object, instanceID);
+                    let key = getKey(obj.object, instanceID);
                     closestAtom = metadataMap.get(key);
+                    console.log('closest atom', closestAtom);
                     
                     break;
                 }
@@ -2643,7 +2685,7 @@ function raycast(event) {
                 console.log('currently has one atom');
                 distanceMeasurementAtoms.push(currentAtom); // distanceMeasurementAtoms array currently has 1 atom in it
 
-                switchAtomState(currentAtom);
+                switchAtomState(currentAtom); 
 
                 // if current atom has info printed, remove
                 if (currentAtom.atomInfoSprite != null) {
@@ -2762,7 +2804,7 @@ function raycast(event) {
             let camPos = camera.position.clone();
             console.log("camera.position before", camPos);
 
-            let obj = getCorrectInstancedMesh(selectedObject);
+            let obj = selectedObject.instancedMesh;
             let instancedMesh = obj.instancedMesh;
             
             if (camera.isOrthographicCamera) { // orthographic camera, uses imported controls
