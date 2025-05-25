@@ -426,22 +426,37 @@ function resetScene() {
 /**
  * Helper function to get bounding box of objects visible on screen.
  * 
- * @param {boolean} visible - if true, draw red bounding box on screen
+ * @param {boolean} visible - if true, draw red bounding box on screen for debugging
  * @returns {THREE.box3} bounding box
  */
 function getVisibleBoundingBox(visible) {
     let box = new THREE.Box3();
-    let tempBox = new THREE.Box3();
+    let instanceBox = new THREE.Box3();
+    let tempMatrix = new THREE.Matrix4();
 
-    root.traverse( (obj) => {
-        if (obj.isInstancedMesh) {
+    for (const [_, obj] of metadataMap) {
+        if (obj.visible) {
+            let instanceID = obj.instanceID;
+            let instancedMesh = obj.instancedMesh;
             
-            obj.computeBoundingBox();
-            tempBox.copy(obj.boundingBox).applyMatrix4(obj.matrixWorld);
-            box.union(tempBox);
-            
+            instancedMesh.getMatrixAt(instanceID, tempMatrix);
+            tempMatrix.premultiply(instancedMesh.matrixWorld); // must premultiply instance's matrix with instanceMesh world matrix to get absolute position in world space; instance's position is relative to instanceMesh's position
+
+            // if bounding box for instancedMesh hasn't been computed yet, compute it
+            if (!instancedMesh.geometry.boundingBox) {
+                instancedMesh.geometry.computeBoundingBox();
+            }
+
+            // get local bounding box for instance
+            instanceBox.copy(instancedMesh.geometry.boundingBox); 
+
+            // apply absolute position of instance to local bounding box
+            instanceBox.applyMatrix4(tempMatrix);
+
+            // add instanceBox to overall box
+            box.union(instanceBox);
         }
-    });
+    }
 
     let helper = new THREE.Box3Helper(box, new THREE.Color(0xff0000)); 
     scene.add(helper);
@@ -464,7 +479,7 @@ function addAxes() {
 }
 
 function recenterCamera(camera, controls) {
-    const boundingBox = getVisibleBoundingBox();
+    const boundingBox = getVisibleBoundingBox(true);
     fitCameraToBoundingBox(camera, controls, boundingBox);
     storeInitialView();
 }
