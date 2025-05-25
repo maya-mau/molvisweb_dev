@@ -136,7 +136,6 @@ const backboneAtoms = ['c', 'ca', 'n', 'o'];
 // set key controls
 let isDistanceMeasurementMode = false;
 let isCenterMode = false;
-let isTranslateMode = false;
 
 // amount of molecule selected, may change
 var residueSelected = defaultParams.residueParams.residue; // default all
@@ -308,7 +307,6 @@ function init() {
     // the default/first molecule to show up 
 
     loadMolecule(defaultParams.mculeParams.molecule, () => {
-        console.log('in callback loadMolecule');
         setUpCamera();
         setUpControls();
 
@@ -316,7 +314,6 @@ function init() {
         
         onWindowResize();
 
-        // root contains all the objects of the scene 
         scene.add( root );
         root.visible = true;    
 
@@ -329,7 +326,6 @@ function init() {
     window.addEventListener('click', raycast);
     window.addEventListener('keypress', keypressD);
     window.addEventListener('keypress', keypressC);
-    window.addEventListener('keypress', keypressT);
     window.addEventListener('keypress', keypressEqual);
 
     document.addEventListener('keydown', function(event) {
@@ -362,8 +358,6 @@ function init() {
         residueSelected = 'all';
 
         currentMolecule = molecule;
-
-        console.log('currentMolecule now: ', currentMolecule);
 
         resetScene();
 
@@ -631,8 +625,7 @@ function loadMolecule(model, callback) {
                     atomInstancedMeshVDW.setMatrixAt(atomIndexVDW, dummy.matrix);
                     atomInstancedMeshVDW.setColorAt(atomIndexVDW, color);
                     //console.log("instanced ID", atomInstancedMeshCPK.instanceId);
-                    atomIndexVDW++;
-
+                    
                     const transformedPosition = new THREE.Vector3();
                     dummy.matrix.decompose(transformedPosition, new THREE.Quaternion(), new THREE.Vector3());
 
@@ -647,9 +640,10 @@ function loadMolecule(model, callback) {
                         resName: resName,
                         printableString: resName + residue.toString() + ':' + atomName.toUpperCase(),
                         atomInfoSprite: null,
+                        distanceLine: null,
                         colorUpdated: false,
                         originalColor: new THREE.Color().setRGB(colors.getX( i ), colors.getY( i ), colors.getZ( i )),
-                        instanceID: i,
+                        instanceID: atomIndexVDW,
                         instancedMesh: atomInstancedMeshVDW,
                         wireframe: null,
                         position: transformedPosition.clone(),
@@ -659,8 +653,10 @@ function loadMolecule(model, callback) {
                     };
 
                     // push metadata into map for easy access
-                    let atomKey = getKey(atomInstancedMeshVDW, i);
+                    let atomKey = getKey(atomInstancedMeshVDW, atomIndexVDW);
                     metadataMap.set(atomKey, metadata);
+
+                    atomIndexVDW++;
                     
                 } else if (key == CPK) {
                     const radius = getRadius(atomElement);
@@ -672,7 +668,6 @@ function loadMolecule(model, callback) {
                     dummy.updateMatrix();
                     atomInstancedMeshCPK.setMatrixAt(atomIndexCPK, dummy.matrix);
                     atomInstancedMeshCPK.setColorAt(atomIndexCPK, color);
-                    atomIndexCPK++;
 
                     const transformedPosition = new THREE.Vector3();
                     dummy.matrix.decompose(transformedPosition, new THREE.Quaternion(), new THREE.Vector3());
@@ -688,9 +683,10 @@ function loadMolecule(model, callback) {
                         resName: resName,
                         printableString: resName + residue.toString() + ':' + atomName.toUpperCase(),
                         atomInfoSprite: null,
+                        distanceLine: null,
                         colorUpdated: false,
                         originalColor: new THREE.Color().setRGB(colors.getX( i ), colors.getY( i ), colors.getZ( i )),
-                        instanceID: i,
+                        instanceID: atomIndexCPK,
                         instancedMesh: atomInstancedMeshCPK,
                         wireframe: null,
                         position: transformedPosition.clone(),
@@ -700,8 +696,10 @@ function loadMolecule(model, callback) {
                     };
 
                     // push metadata into map for easy access
-                    let atomKey = getKey(atomInstancedMeshCPK, i);
+                    let atomKey = getKey(atomInstancedMeshCPK, atomIndexCPK);
                     metadataMap.set(atomKey, metadata);
+
+                    atomIndexCPK++;
                 }
                 // skip atoms for lines drawing method
             } 
@@ -740,11 +738,8 @@ function loadMolecule(model, callback) {
             let color2 = atom2[3];
 
             // convert color arrays into HTML strings that can be fed into a new THREE.color
-            color1 = `rgb(${color1[0]}, ${color1[1]}, ${color1[2]})`;
-            color2 = `rgb(${color2[0]}, ${color2[1]}, ${color2[2]})`;
-
-            color1 = new THREE.Color(color1);
-            color2 = new THREE.Color(color2);
+            color1 = new THREE.Color(`rgb(${color1[0]}, ${color1[1]}, ${color1[2]})`);
+            color2 = new THREE.Color(`rgb(${color2[0]}, ${color2[1]}, ${color2[2]})`);
 
             // get bond start & end locations 
             start.set(positions.getX(i), positions.getY(i), positions.getZ(i));
@@ -788,7 +783,7 @@ function loadMolecule(model, callback) {
                     // push metadata into map 
                     let bondKey = getKey(bondInstancedMeshCPK, i, 0);
                     metadataMap.set(bondKey, metadata);
-                    CPKbonds ++;
+                    CPKbonds++;
                     
                 } else if (key == lines) { // TODO could make CPK bonds use lines instancedMesh
 
@@ -804,15 +799,12 @@ function loadMolecule(model, callback) {
                     // first half of bond/atom
                     const instanceID1 = bondIndexLines;
                     const pos1 = new THREE.Vector3().copy(midpoint).add(offset);
+                    
                     const matrix1 = new THREE.Matrix4().compose(pos1, quaternion, scale);
                     bondInstancedMeshLines.setMatrixAt(bondIndexLines, matrix1);
                     bondInstancedMeshLines.setColorAt(bondIndexLines, color1);
                     bondIndexLines++;
 
-                    /* console.log("json_atoms.atoms.length", json_atoms.atoms.length);
-                    console.log("positions.count", positions.count);
-                    console.log('json_atoms.atoms[i/2]', json_atoms.atoms[i/2]);
-                    console.log('i', i, 'i/2', i/2); */
                     let atomName1 = atom1[7];
                     let atomElement1 = atom1[4];
                     let residue1 = atom1[5];
@@ -822,6 +814,7 @@ function loadMolecule(model, callback) {
                     // second half of bond/atom
                     const instanceID2 = bondIndexLines;
                     const pos2 = new THREE.Vector3().copy(midpoint).sub(offset);
+                    
                     const matrix2 = new THREE.Matrix4().compose(pos2, quaternion, scale);
                     bondInstancedMeshLines.setMatrixAt(bondIndexLines, matrix2);
                     bondInstancedMeshLines.setColorAt(bondIndexLines, color2);
@@ -846,13 +839,17 @@ function loadMolecule(model, callback) {
                             chain: chain1,
                             printableString: resName1 + residue1.toString() + ':' + atomName1.toUpperCase(),
                             atomInfoSprite: null,
+                            distanceLine: null,
                             originalColor: color1,
                             colorUpdated: false,
                             instanceID: instanceID1,
                             instancedMesh: bondInstancedMeshLines,
                             position: pos1,
+                            atomPosition: start.clone(),
                             scale: scale.clone(),
                             quaternion: quaternion.clone(),
+                            bondLength: bondLength,
+                            bondDirection: bondDirection,
                             wireframe: false,
                             visible: false
                     };
@@ -869,13 +866,17 @@ function loadMolecule(model, callback) {
                             chain: chain2,
                             printableString: resName2 + residue2.toString() + ':' + atomName2.toUpperCase(),
                             atomInfoSprite: null,
+                            distanceLine: null,
                             originalColor: color2,
                             colorUpdated: false,
                             instanceID: instanceID2,
                             instancedMesh: bondInstancedMeshLines,
                             position: pos2,
+                            atomPosition: end.clone(),
                             scale: scale.clone(),
                             quaternion: quaternion.clone(),
+                            bondLength: bondLength,
+                            bondDirection: bondDirection,
                             wireframe: false,
                             visible: false
                     };
@@ -920,13 +921,10 @@ function loadMolecule(model, callback) {
         // push all instancedMeshes to array
         instancedMeshArray.push(atomInstancedMeshCPK, atomInstancedMeshVDW, bondInstancedMeshCPK, bondInstancedMeshLines);
 
-
         // render the scene after adding all the new atom & bond objects   
-        
-        getVisibleBoundingBox();
-
-        console.log('render');         
         render();
+
+        getVisibleBoundingBox();
 
         let endTime = new Date();
         calculateTime(startTime, endTime, 'time to loadMolecule');
@@ -1204,7 +1202,21 @@ function parseRepInfo() {
 
         matrix.compose(position, quaternion, zeroScale);
         obj.instancedMesh.setMatrixAt(obj.instanceID, matrix);
-        //console.log(`Hiding ${obj.molecularElement} ID ${obj.instanceID} from`, obj.drawingMethod);
+    
+        // hide all wireframes
+        if (obj.wireframe) {
+            obj.wireframe.visible = false;
+        }
+
+        // hide all lines and labels
+        if (obj.distanceLine) {
+            obj.distanceLine.visible = false;
+        } 
+
+        // hide all labels
+        if (obj.atomInfoSprite) {
+            obj.atomInfoSprite.visible = false;
+        }
     }
 
     // update all instancedMeshes
@@ -1222,7 +1234,6 @@ function parseRepInfo() {
         let selectionMethod = rep.selectionMethod;
         let selectionValue = rep.selectionValue;
         let state = rep.state;
-        console.log('rep', rep);
 
         let validResidues;
 
@@ -1231,7 +1242,6 @@ function parseRepInfo() {
         }
 
         if (state != shown) {
-            console.log(repID, 'is hidden');
             continue;
         }
 
@@ -1262,6 +1272,21 @@ function parseRepInfo() {
 
                     const tempMatrix = new THREE.Matrix4();
                     obj.instancedMesh.getMatrixAt(obj.instanceID, tempMatrix);
+
+                    // make wireframe visible, if any
+                    if (obj.wireframe) {
+                        obj.wireframe.visible = true;
+                    }
+
+                    // make lines and labels visible, if any
+                    if (obj.distanceLine) {
+                        obj.distanceLine.visible = true;
+                    } 
+
+                    // make label visible, if any
+                    if (obj.atomInfoSprite) {
+                        obj.atomInfoSprite.visible = true;
+                    }
                 } 
             }
         }
@@ -1368,9 +1393,6 @@ function showCurrentRep(repID) {
     let repTabId = makeRepTabId(repID);
     let repContentId = makeRepContentId(repID);
 
-    console.log(repID, repIndex);
-    console.log("repsData[repIndex]", repsData[repIndex]);
-    
     if (repsData[repIndex].state != hidden) {
         repsData[repIndex].state = shown;
         hideShowButton.textContent = 'hide rep';
@@ -1379,7 +1401,6 @@ function showCurrentRep(repID) {
     }
         
     // add class 'active' to tab HTML element
-    console.log('repTabId', repTabId);
     document.getElementById(repTabId).classList.add('active');
     document.getElementById(repTabId).style.display = 'block';
         
@@ -1599,9 +1620,8 @@ function generateTabID() {
 }
 
 function addRepToRepsData(tabID) {
-    repsData.push({ ...repDataDefault });  // Clone default tab settings and add to repsData array
-    repsData[repsData.length - 1].id = tabID; // Set new rep ID
-    console.log('added', tabID, 'to repsData now:', repsData);
+    repsData.push({ ...repDataDefault });  // clone default tab settings and add to repsData array
+    repsData[repsData.length - 1].id = tabID; // set new rep ID
 }
 
 function createGUI() {
@@ -1627,7 +1647,6 @@ function createGUI() {
     const moleculeGUIdiv = document.createElement('div');
     moleculeGUIdiv.classList.add('gui-div', 'tab-content-rep');
     const repContentId = makeRepContentId(currentRepID);
-    console.log('repContentId', repContentId);
     moleculeGUIdiv.id = repContentId;
 
     // create new GUI
@@ -2061,20 +2080,6 @@ function keypressC(event) {
     }
 }
 
-// on keypress 't'
-function keypressT(event) {
-    if (event.key === 't') {
-        if (!isTranslateMode) {
-            resetMouseModes();
-            isTranslateMode = true;
-            console.log("Translate mode activated");
-        } else {
-            isTranslateMode = false;
-            console.log("Translate mode deactivated");
-        }
-    }
-}
-
 // on keypress '='
 
 function resetViewCameraWindow() {
@@ -2297,18 +2302,6 @@ function switchAtomState(atom) {
     }
 }
 
-function calculateDistance(object1, object2) { // could combine with drawLine
-    let x1 = object1.position.x;
-    let y1 = object1.position.y;
-    let z1 = object1.position.z;
-    let x2 = object2.position.x;
-    let y2 = object2.position.y;
-    let z2 = object2.position.z;
-
-    let distance = ((x2 - x1)**2 + (y2 - y1)**2 + (z2 - z1)**2)**(1/2);
-    return distance.toFixed(4);
-}
-
 function calculateDistanceXYZ(ls1, ls2) {
     let x1 = ls1[0];
     let y1 = ls1[1];
@@ -2348,7 +2341,7 @@ function drawAtomStr(atom) {
         instancedMesh = atomInstancedMeshCPK;
     } else if (atom.drawingMethod == VDW) { 
         instancedMesh = atomInstancedMeshVDW;
-    } else if (atom.drawingMethod == lines) { // TODO deal with lines
+    } else if (atom.drawingMethod == lines) { 
         instancedMesh = bondInstancedMeshLines;
     } else { 
         console.log('Error, atom not VDW or CPK'); 
@@ -2411,8 +2404,14 @@ function drawAtomStr(atom) {
     renderer.render(scene, camera);
 }
 
+/**
+ * Draws a white line between two selected atoms and labels line with distance (in angstroms)
+ * 
+ * @param {Object} object1 - atom
+ * @param {Object} object2 - atom
+ * @returns distance between two atoms in angstroms
+ */
 function drawLine(object1, object2) {
-    let distance = calculateDistance(object1, object2);
 
     let x1 = object1.position.x;
     let y1 = object1.position.y;
@@ -2429,22 +2428,45 @@ function drawLine(object1, object2) {
         scale: 1,
         dashSize: 3,
         gapSize: 1,
-    } );
+    });
 
-    // draw line between two atoms
+    /** Note: atoms that use line drawing method require additional handling because of the way boxes are
+     * drawn in three.js - boxes are drawn from the center, not from an edge, so we take the atom 
+     * position and offset it so that the end of the box coincides with the actual atom position. 
+     * This means we store both the atomPosition (original position) and the position (offset position)
+     * for atoms of the lines drawing method. */
+    if (object1.drawingMethod == lines) {
+        x1 = object1.atomPosition.x;
+        y1 = object1.atomPosition.y;
+        z1 = object1.atomPosition.z;
+    }
+
+    if (object2.drawingMethod == lines) {
+        x2 = object2.atomPosition.x;
+        y2 = object2.atomPosition.y;
+        z2 = object2.atomPosition.z;
+    } 
+
     const points = [];
-    points.push(new THREE.Vector3(x1, y1, z1));
-    points.push(new THREE.Vector3(x2, y2, z2));
+    let pos1 = new THREE.Vector3(x1, y1, z1);
+    let pos2 = new THREE.Vector3(x2, y2, z2);
+    points.push(pos1, pos2);
+
+    // calculate distance between two atoms
+    let distance = (((x2 - x1)**2 + (y2 - y1)**2 + (z2 - z1)**2)**(1/2)).toFixed(4);
 
     const geometry = new THREE.BufferGeometry().setFromPoints(points);
 
+    // draw line between two atoms
     const line = new THREE.Line(geometry, material);
     root.add(line);
+    object1.distanceLine = line;
+    object2.distanceLine = line;
     distanceLines.push(line);
+
     line.atoms = [object1, object2];
     line.distance = distance;
     line.repNum = currentRep;
-    console.log('line', line);
 
     // create text to display distance
     const canvas = document.createElement('canvas');
@@ -2465,39 +2487,38 @@ function drawLine(object1, object2) {
     let y_cor = (y1 + y2) / 2; 
     let z_cor = (z1 + z2) / 2;
 
-    //console.log("canvas.width/2: ", containerWidth/2);
-    //console.log("canvas.height/2: ", containerHeight/2); 
     context.fillText(distance, canvas.width/2, canvas.height/2);
 
-    // Create the texture from the canvas
+    // create the texture from the canvas
     const texture = new THREE.CanvasTexture(canvas);
     texture.needsUpdate = true;
 
-    // Create a SpriteMaterial with the canvas texture
+    // create a SpriteMaterial with the canvas texture
     const textMaterial = new THREE.SpriteMaterial({
         map: texture,
         transparent: true
     });
 
-    // Create a Sprite using the material
+    // create a Sprite using the material
     const sprite = new THREE.Sprite(textMaterial);
 
-    // Set the size of the sprite (scale)
+    // set the size of the sprite (scale)
     sprite.scale.set(textSize, textSize, textSize); 
-
     sprite.position.set(x_cor, y_cor+0.2, z_cor);
-
     line.add(sprite);
 
     renderer.render(scene, camera);
+
+    return distance;
 }
 
 function deleteBondDistances() {    
     let objectsToRemove = [];
 
+    // removes sprites (labels), lines, and wireframes
     root.traverse( (obj) => {
         
-        if (obj.isSprite || obj.isLine) {
+        if (obj.isSprite || obj.isLine || (obj.isMesh && obj.material && obj.material.wireframe)) {
             objectsToRemove.push(obj);
         }
     })
@@ -2517,7 +2538,6 @@ function deleteHTMLBondLengths() {
 function resetMouseModes() {
     isDistanceMeasurementMode = false;
     isCenterMode = false;
-    isTranslateMode = false;
 
     document.body.style.cursor = 'auto';
 }
@@ -2761,12 +2781,12 @@ function raycast(event) {
                 } else {
                     console.log("distanceMeasurementAtoms", distanceMeasurementAtoms);
 
-                    drawLine(distanceMeasurementAtoms[0], distanceMeasurementAtoms[1]);
+                    let distance = drawLine(distanceMeasurementAtoms[0], distanceMeasurementAtoms[1]);
                     drawAtomStr(distanceMeasurementAtoms[1]);
 
                     // add bond length information to left panel
                     var bond_para = document.createElement('p')
-                    bond_para.textContent = 'bond length: ' + calculateDistance(distanceMeasurementAtoms[0], distanceMeasurementAtoms[1]).toString() + " angstroms";
+                    bond_para.textContent = 'bond length: ' + distance + " angstroms";
                     bond_para.classList.add("bond-length");
                     bondLengthContent.appendChild(bond_para); 
                 }
