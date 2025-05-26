@@ -347,6 +347,9 @@ function init() {
     const hideQuestions = document.getElementById('hide-questions');
     hideQuestions.addEventListener('click', onHideQuestions);
 
+    const nextBack = document.getElementById('next-back');
+    nextBack.addEventListener('click', onNextBack);
+
     // add molecule selection GUI to div with class=molecule-gui
     const molGUIContainer = document.getElementById('mol-gui');
     const moleculeGUI = new GUI({ autoPlace: false }); 
@@ -479,7 +482,7 @@ function addAxes() {
 }
 
 function recenterCamera(camera, controls) {
-    const boundingBox = getVisibleBoundingBox(true);
+    const boundingBox = getVisibleBoundingBox();
     fitCameraToBoundingBox(camera, controls, boundingBox);
     storeInitialView();
 }
@@ -1548,6 +1551,9 @@ function onHideShowRepClick () {
     }
 }
 
+/**
+ * Function to handle clicking hide/show questions button in right panel. 
+ */
 function onHideQuestions() {
     //console.log('in onHideQuestions');
     
@@ -1565,6 +1571,35 @@ function onHideQuestions() {
     }
 
     onWindowResize();
+}
+
+/**
+ * Function to handle clicking next/back button for activities in right panel. 
+ */
+function onNextBack() {
+    //console.log('in onNextBack');
+    
+    let activity2 = document.getElementById('activity-2');
+    let activity4 = document.getElementById('activity-4');
+    let nextBackButton = document.getElementById('next-back');
+
+    if (activity2.classList.contains('hidden')) {
+        // show activity 2
+        activity2.classList.remove('hidden');
+
+        // hide activity 4
+        activity4.classList.add('hidden');
+
+        nextBackButton.innerHTML = 'next';
+    } else {
+        // show activity 4
+        activity4.classList.remove('hidden');
+
+        // hide activity 2
+        activity2.classList.add('hidden');
+
+        nextBackButton.innerHTML = 'back';
+    }
 }
 
 
